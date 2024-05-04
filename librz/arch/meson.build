@@ -330,6 +330,7 @@ if capstone_dep.version() == 'next'
   # plugins
   arch_plugins_list += [
     'alpha_cs',
+    'hppa_cs',
     'loongarch_cs',
     'xtensa_cs',
   ]
@@ -338,6 +339,7 @@ if capstone_dep.version() == 'next'
   arch_plugin_sources += [
     'p/arch_alpha.c',
     'p/arch_loongarch_cs.c',
+    'p/arch_hppa_cs.c',
     'p/arch_xtensa_cs.c',
   ]
 
