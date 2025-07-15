@@ -66,7 +66,7 @@
 #include "rz_util/rz_str_search.h"
 #include "rz_util/rz_strbuf.h"
 #include "rz_util/rz_strpool.h"
-#include "rz_util/rz_struct_factory.h"
+#include "rz_util/rz_structured_data.h"
 #include "rz_util/rz_subprocess.h"
 #include "rz_util/rz_sys.h"
 #include "rz_util/rz_table.h"
