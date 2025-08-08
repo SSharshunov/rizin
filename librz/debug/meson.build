@@ -80,13 +80,19 @@ if get_option('use_gpl')
 endif
 
 if has_debugger
-  rz_debug_sources += ['p/debug_native.c']
+#  rz_debug_sources += ['p/debug_native.c']
 
   if host_machine.system() == 'linux' or host_machine.system() == 'android'
     rz_debug_sources += ['p/native/linux/linux_debug.c']
   endif
   if host_machine.system() == 'linux'
     rz_debug_sources += ['p/native/linux/linux_coredump.c']
+  endif
+
+  if host_machine.system() == 'linux' and host_machine.cpu_family() == 'x86_64'
+    rz_debug_sources += ['p/native/linux_x86_64.c']
+  else
+    rz_debug_sources += ['p/debug_native.c']
   endif
 
   if host_machine.system() != 'windows'

@@ -48,9 +48,9 @@ static int rz_debug_native_reg_write(RzDebug *dbg, int type, const ut8 *buf, int
 #endif
 
 #elif __linux__
-#if __i386__ || __x86_64__
-#include "native/linux_x86_64.c"
-#elif __arm__
+// #if __i386__ || __x86_64__
+// #include "native/linux_x86_64.c"
+#if __arm__
 #include "native/linux_arm.c"
 #elif __arm64__
 #include "native/linux_arm64.c"

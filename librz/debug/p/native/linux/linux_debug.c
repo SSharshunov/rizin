@@ -2,14 +2,6 @@
 // SPDX-License-Identifier: LGPL-3.0-only
 
 #include <rz_userconf.h>
-
-#include <rz_debug.h>
-#include <rz_reg.h>
-#include <rz_lib.h>
-#include <rz_analysis.h>
-#include <signal.h>
-#include <sys/uio.h>
-#include <errno.h>
 #include "linux_debug.h"
 #include "../procfs.h"
 
