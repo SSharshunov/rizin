@@ -93,6 +93,8 @@ if has_debugger
     rz_debug_sources += ['p/native/linux_x86_64.c']
   elif host_machine.system() == 'linux' and host_machine.cpu_family() == 'arm'
     rz_debug_sources += ['p/natice/linux_arm.c']
+  elif host_machine.system() == 'linux' and host_machine.cpu_family() == 'aarch64'
+    rz_debug_sources += ['p/native/linux_arm64.c']
   else
     rz_debug_sources += ['p/debug_native.c']
   endif

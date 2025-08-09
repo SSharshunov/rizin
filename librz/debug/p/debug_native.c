@@ -52,13 +52,11 @@ static int rz_debug_native_reg_write(RzDebug *dbg, int type, const ut8 *buf, int
 // #include "native/linux_x86_64.c"
 // #if __arm__
 // #include "native/linux_arm.c"
-#if __arm64__
-#include "native/linux_arm64.c"
-#elif __aarch64__
-#include "native/linux_aarch64.c"
-#else
+// #if __arm64__
+// #include "native/linux_arm64.c"
+// #if __aarch64__
+// #include "native/linux_aarch64.c"
 #include "native/linux_other.c"
-#endif
 
 #elif __WINDOWS__
 #include "native/windows.c"
