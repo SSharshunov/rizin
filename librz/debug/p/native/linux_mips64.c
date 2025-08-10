@@ -705,6 +705,9 @@ void rz_debug_native_fini(RzDebug *dbg, void *user) {
 RzDebugPlugin rz_debug_plugin_native = {
 	.name = "native",
 	.license = "LGPL3",
+	.bits = RZ_SYS_BITS_32 | RZ_SYS_BITS_64,
+	.arch = "mips64",
+	.canstep = 0,
 	.init = &rz_debug_native_init,
 	.fini = &rz_debug_native_fini,
 	.step = &rz_debug_native_step,

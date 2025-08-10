@@ -12,7 +12,7 @@
 #include "linux_ptrace.h"
 
 #ifdef __GLIBC__
-#define HAVE_YMM 1
+#define HAVE_YMM 14
 #else
 #define HAVE_YMM 0
 #endif
