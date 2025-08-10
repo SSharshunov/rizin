@@ -106,6 +106,8 @@ if has_debugger
     else
       rz_debug_sources += ['p/native/linux_other.c']
     endif
+  else
+    rz_debug_sources += ['p/debug_native.c']
   endif
 
   if host_machine.system() != 'windows'
