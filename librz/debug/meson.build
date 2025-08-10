@@ -104,7 +104,7 @@ if has_debugger
     elif host_machine.cpu_family() == 'mips64'
       rz_debug_sources += ['p/native/linux_mips64.c']
     else
-      rz_debug_sources += ['p/debug_native.c']
+      rz_debug_sources += ['p/native/linux_other.c']
     endif
   endif
 
