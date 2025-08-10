@@ -11,6 +11,7 @@
 #include <sys/mman.h>
 #include "linux/linux_debug.h"
 #include "procfs.h"
+#include "bt.c"
 
 #ifdef __WALL
 #define WAITPID_FLAGS __WALL
@@ -626,15 +627,6 @@ static bool rz_debug_native_kill(RzDebug *dbg, int pid, int tid, int sig) {
 	return ret;
 }
 
-struct rz_debug_desc_plugin_t rz_debug_desc_plugin_native;
-static bool rz_debug_native_init(RzDebug *dbg, void **user) {
-	dbg->cur->desc = rz_debug_desc_plugin_native;
-	return true;
-}
-
-static void rz_debug_native_fini(RzDebug *dbg, void *user) {
-}
-
 static int rz_debug_native_drx(RzDebug *dbg, int n, ut64 addr, int sz, int rwx, int g, int api_type) {
 	eprintf("drx: Unsupported platform\n");
 	return -1;
@@ -692,3 +684,56 @@ static int rz_debug_desc_native_open(const char *path) {
 static bool rz_debug_gcore(RzDebug *dbg, char *path, RzBuffer *dest) {
 	return false;
 }
+
+struct rz_debug_desc_plugin_t rz_debug_desc_plugin_native = {
+	.open = rz_debug_desc_native_open,
+	.list = rz_debug_desc_native_list,
+};
+
+bool rz_debug_native_init(RzDebug *dbg, void **user) {
+	dbg->cur->desc = rz_debug_desc_plugin_native;
+	return true;
+}
+
+void rz_debug_native_fini(RzDebug *dbg, void *user) {
+	if (!user) {
+		return;
+	}
+	free(user);
+}
+
+RzDebugPlugin rz_debug_plugin_native = {
+	.name = "native",
+	.license = "LGPL3",
+#if __mips__ /* MIPS*/
+	.bits = RZ_SYS_BITS_32 | RZ_SYS_BITS_64,
+	.arch = "mips",
+	.canstep = 0,
+#endif /* MIPS-end*/
+	.init = &rz_debug_native_init,
+	.fini = &rz_debug_native_fini,
+	.step = &rz_debug_native_step,
+	.cont = &rz_debug_native_continue,
+	.stop = &rz_debug_native_stop,
+	.contsc = &rz_debug_native_continue_syscall,
+	.attach = &rz_debug_native_attach,
+	.detach = &rz_debug_native_detach,
+	.select = &rz_debug_native_select,
+	.pids = &rz_debug_native_pids,
+	.threads = &rz_debug_native_threads,
+	.wait = &rz_debug_native_wait,
+	.kill = &rz_debug_native_kill,
+	.frames = &rz_debug_native_frames, // rename to backtrace ?
+	.reg_profile = rz_debug_native_reg_profile,
+	.reg_read = rz_debug_native_reg_read,
+	.info = rz_debug_native_info,
+	.reg_write = (void *)&rz_debug_native_reg_write,
+	.map_alloc = rz_debug_native_map_alloc,
+	.map_dealloc = rz_debug_native_map_dealloc,
+	.map_get = rz_debug_native_map_get,
+	.modules_get = rz_debug_native_modules_get,
+	.map_protect = rz_debug_native_map_protect,
+	.breakpoint = rz_debug_native_bp,
+	.drx = rz_debug_native_drx,
+	.gcore = rz_debug_gcore,
+};

@@ -89,14 +89,19 @@ if has_debugger
     rz_debug_sources += ['p/native/linux/linux_coredump.c']
   endif
 
-  if host_machine.system() == 'linux' and host_machine.cpu_family() == 'x86_64'
-    rz_debug_sources += ['p/native/linux_x86_64.c']
-  elif host_machine.system() == 'linux' and host_machine.cpu_family() == 'arm'
-    rz_debug_sources += ['p/natice/linux_arm.c']
-  elif host_machine.system() == 'linux' and host_machine.cpu_family() == 'aarch64'
-    rz_debug_sources += ['p/native/linux_arm64.c']
-  else
-    rz_debug_sources += ['p/debug_native.c']
+#Linux OS
+  if host_machine.system() == 'linux'
+    if host_machine.cpu_family() == 'x86_64'
+      rz_debug_sources += ['p/native/linux_x86_64.c']
+    elif host_machine.cpu_family() == 'arm'
+      rz_debug_sources += ['p/natice/linux_arm.c']
+    elif host_machine.cpu_family() == 'aarch64'
+      rz_debug_sources += ['p/native/linux_arm64.c']
+    elif host_machine.cpu_family() == 'ppc' or host_machine.cpu_family() == 'ppc64'
+      rz_debug_sources += ['p/native/linux_ppc.c']
+    else
+      rz_debug_sources += ['p/debug_native.c']
+    endif
   endif
 
   if host_machine.system() != 'windows'
