@@ -106,6 +106,9 @@ if has_debugger
     else
       rz_debug_sources += ['p/native/linux_other.c']
     endif
+#Windows OS
+  elif host_machine.system() == 'windows'
+    rz_debug_sources += ['p/native/windows.c']
 #Other OS
   else
     rz_debug_sources += ['p/debug_native.c']
@@ -113,7 +116,7 @@ if has_debugger
 
   if host_machine.system() != 'windows'
     rz_debug_sources += [
-      'p/native/procfs.c'
+      'p/native/procfs.c',
     ]
   endif
 
