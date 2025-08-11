@@ -5,6 +5,7 @@
 #include "drx.c"
 #include "bt.c"
 #include <rz_drx.h>
+#include <rz_core.h>
 // TODO: Move these onto windows.h?
 RZ_API RzList *rz_w32_dbg_modules(RzDebug *); // ugly!
 RZ_API RzList *rz_w32_dbg_maps(RzDebug *);
