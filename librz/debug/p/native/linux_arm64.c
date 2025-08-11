@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: 2009-2019 pancake <pancake@nopcode.org>
 // SPDX-License-Identifier: LGPL-3.0-only
 
+#include "rz_util/rz_log.h"
 #include <errno.h>
 #if !defined(__HAIKU__) && !defined(__sun)
 #include <sys/ptrace.h>
@@ -11,7 +12,6 @@
 #include <sys/mman.h>
 #include "linux/linux_debug.h"
 #include "procfs.h"
-#include "linux/linux_coredump.h"
 #include "bt.c"
 
 #ifdef __WALL
@@ -774,8 +774,8 @@ int rz_debug_desc_native_open(const char *path) {
 }
 
 bool rz_debug_gcore(RzDebug *dbg, char *path, RzBuffer *dest) {
-	(void)path;
-	return linux_generate_corefile(dbg, dest);
+	RZ_LOG_ERROR("Unsupported on this platform\n");
+	return false;
 }
 
 struct rz_debug_desc_plugin_t rz_debug_desc_plugin_native = {

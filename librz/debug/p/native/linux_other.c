@@ -682,6 +682,7 @@ static int rz_debug_desc_native_open(const char *path) {
 }
 
 static bool rz_debug_gcore(RzDebug *dbg, char *path, RzBuffer *dest) {
+	RZ_LOG_ERROR("Unsupported on this platform\n");
 	return false;
 }
 
