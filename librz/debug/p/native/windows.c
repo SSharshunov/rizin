@@ -437,7 +437,7 @@ struct rz_debug_desc_plugin_t rz_debug_desc_plugin_native = {
 
 bool rz_debug_native_init(RzDebug *dbg, void **user) {
 	dbg->cur->desc = rz_debug_desc_plugin_native;
-	return true;
+	return w32_init(dbg);
 }
 
 void rz_debug_native_fini(RzDebug *dbg, void *user) {
