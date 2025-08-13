@@ -1,16 +1,16 @@
 // SPDX-FileCopyrightText: 2009-2019 pancake <pancake@nopcode.org>
 // SPDX-License-Identifier: LGPL-3.0-only
 
-#include "rz_debug.h"
+#include <rz_debug.h>
+#include <rz_drx.h>
 #include <errno.h>
-#if !defined(__HAIKU__) && !defined(__sun)
-#include <sys/ptrace.h>
-#endif
 #include <sys/wait.h>
 #include <signal.h>
 
 #include "bsd/bsd_debug.h"
 #include "procfs.h"
+#include "drx.c"
+#include "bt.c"
 
 #ifdef __WALL
 #define WAITPID_FLAGS __WALL
@@ -26,14 +26,21 @@
 #define PROC_PERM_SZ        5
 #define PROC_UNKSTR_SZ      128
 
-static int rz_debug_handle_srz_debug_handle_signalsignals(RzDebug *dbg) {
+int rz_debug_handle_srz_debug_handle_signalsignals(RzDebug *dbg) {
 	RZ_LOG_ERROR("Warning: signal handling is not supported on this platform\n");
 	return 0;
 }
 
-#include "reg.c"
+static char *rz_debug_native_reg_profile(RzDebug *dbg) {
+#if _x86_64__ || __amd64__
+#include "reg/openbsd-x64.h"
+#else
+	RZ_LOG_ERROR("Unsupported architecture\n");
+	return NULL;
+#endif
+}
 
-static bool rz_debug_native_step(RzDebug *dbg) {
+bool rz_debug_native_step(RzDebug *dbg) {
 	int ret = ptrace(PT_STEP, dbg->pid, (caddr_t)1, 0);
 	if (ret != 0) {
 		perror("native-singlestep");
@@ -48,7 +55,7 @@ int match_pid(const void *pid_o, const void *th_o, void *user) {
 	return pid != th->pid;
 }
 
-static RZ_OWN RzList /*<RzDebugPid *>*/ *get_pid_thread_list(RZ_NONNULL RzDebug *dbg, int main_pid) {
+RZ_OWN RzList /*<RzDebugPid *>*/ *get_pid_thread_list(RZ_NONNULL RzDebug *dbg, int main_pid) {
 	rz_return_val_if_fail(dbg, NULL);
 	RzList *list = rz_list_new();
 	if (!list) {
@@ -60,7 +67,7 @@ static RZ_OWN RzList /*<RzDebugPid *>*/ *get_pid_thread_list(RZ_NONNULL RzDebug 
 	return list;
 }
 
-static int rz_debug_native_attach(RzDebug *dbg, int pid) {
+int rz_debug_native_attach(RzDebug *dbg, int pid) {
 	if (!dbg->threads) {
 		dbg->threads = get_pid_thread_list(dbg, pid);
 		return pid;
@@ -75,31 +82,31 @@ static int rz_debug_native_attach(RzDebug *dbg, int pid) {
 	return pid;
 }
 
-static int rz_debug_native_detach(RzDebug *dbg, int pid) {
+int rz_debug_native_detach(RzDebug *dbg, int pid) {
 	return ptrace(PT_DETACH, pid, NULL, 0);
 }
 
-static int rz_debug_native_continue_syscall(RzDebug *dbg, int pid, int num) {
+int rz_debug_native_continue_syscall(RzDebug *dbg, int pid, int num) {
 	ut64 pc = rz_debug_reg_get(dbg, "PC");
 	errno = 0;
 	return ptrace(PTRACE_SYSCALL, pid, (void *)(size_t)pc, 0) == 0;
 }
 
-static int rz_debug_native_stop(RzDebug *dbg) {
+int rz_debug_native_stop(RzDebug *dbg) {
 	return 0;
 }
 
-static int rz_debug_native_continue(RzDebug *dbg, int pid, int tid, int sig) {
+int rz_debug_native_continue(RzDebug *dbg, int pid, int tid, int sig) {
 	void *data = (void *)(size_t)((sig != -1) ? sig : dbg->reason.signum);
 	ut64 pc = rz_debug_reg_get(dbg, "PC");
 	return ptrace(PTRACE_CONT, pid, (void *)(size_t)pc, (int)(size_t)data) == 0;
 }
 
-static RzDebugInfo *rz_debug_native_info(RzDebug *dbg, const char *arg) {
+RzDebugInfo *rz_debug_native_info(RzDebug *dbg, const char *arg) {
 	return bsd_info(dbg, arg);
 }
 
-static RzDebugReasonType rz_debug_native_wait(RzDebug *dbg, int pid) {
+RzDebugReasonType rz_debug_native_wait(RzDebug *dbg, int pid) {
 	RzDebugReasonType reason = RZ_DEBUG_REASON_UNKNOWN;
 
 	if (pid == -1) {
@@ -175,7 +182,7 @@ static RzDebugReasonType rz_debug_native_wait(RzDebug *dbg, int pid) {
 #undef MAXPID
 #define MAXPID 99999
 
-static RzList /*<RzDebugPid *>*/ *rz_debug_native_pids(RzDebug *dbg, int pid) {
+RzList /*<RzDebugPid *>*/ *rz_debug_native_pids(RzDebug *dbg, int pid) {
 	RzList *list = rz_list_new();
 	if (!list) {
 		return NULL;
@@ -197,7 +204,7 @@ RZ_API ut64 rz_debug_get_tls(RZ_NONNULL RzDebug *dbg, int tid) {
 	return 0;
 }
 
-static int bsd_reg_read(RzDebug *dbg, int type, ut8 *buf, int size) {
+int bsd_reg_read(RzDebug *dbg, int type, ut8 *buf, int size) {
 	int showfpu = false;
 	int pid = dbg->pid;
 	int ret;
@@ -237,14 +244,14 @@ static int bsd_reg_read(RzDebug *dbg, int type, ut8 *buf, int size) {
 	return true;
 }
 
-static int rz_debug_native_reg_read(RzDebug *dbg, int type, ut8 *buf, int size) {
+int rz_debug_native_reg_read(RzDebug *dbg, int type, ut8 *buf, int size) {
 	if (size < 1) {
 		return false;
 	}
 	return bsd_reg_read(dbg, type, buf, size);
 }
 
-static int rz_debug_native_reg_write(RzDebug *dbg, int type, const ut8 *buf, int size) {
+int rz_debug_native_reg_write(RzDebug *dbg, int type, const ut8 *buf, int size) {
 	// XXX use switch or so
 	if (type == RZ_REG_TYPE_DRX) {
 #if __i386__ || __x86_64__
@@ -260,17 +267,17 @@ static int rz_debug_native_reg_write(RzDebug *dbg, int type, const ut8 *buf, int
 	return false;
 }
 
-static RzDebugMap *rz_debug_native_map_alloc(RzDebug *dbg, ut64 addr, int size, bool thp) {
+RzDebugMap *rz_debug_native_map_alloc(RzDebug *dbg, ut64 addr, int size, bool thp) {
 	// malloc not implemented for this platform
 	return NULL;
 }
 
-static int rz_debug_native_map_dealloc(RzDebug *dbg, ut64 addr, int size) {
+int rz_debug_native_map_dealloc(RzDebug *dbg, ut64 addr, int size) {
 	// mdealloc not implemented for this platform
 	return false;
 }
 
-static void _map_free(RzDebugMap *map) {
+void _map_free(RzDebugMap *map) {
 	if (!map) {
 		return;
 	}
@@ -279,7 +286,7 @@ static void _map_free(RzDebugMap *map) {
 	free(map);
 }
 
-static RzList /*<RzDebugMap *>*/ *rz_debug_native_map_get(RzDebug *dbg) {
+RzList /*<RzDebugMap *>*/ *rz_debug_native_map_get(RzDebug *dbg) {
 	RzList *list = NULL;
 	RzDebugMap *map;
 	int i, perm, unk = 0;
@@ -385,7 +392,7 @@ static RzList /*<RzDebugMap *>*/ *rz_debug_native_map_get(RzDebug *dbg) {
 	return list;
 }
 
-static RzList /*<RzDebugMap *>*/ *rz_debug_native_modules_get(RzDebug *dbg) {
+RzList /*<RzDebugMap *>*/ *rz_debug_native_modules_get(RzDebug *dbg) {
 	char *lastname = NULL;
 	RzDebugMap *map;
 	RzListIter *iter, *iter2;
@@ -423,7 +430,7 @@ static RzList /*<RzDebugMap *>*/ *rz_debug_native_modules_get(RzDebug *dbg) {
 	return last;
 }
 
-static bool rz_debug_native_kill(RzDebug *dbg, int pid, int tid, int sig) {
+bool rz_debug_native_kill(RzDebug *dbg, int pid, int tid, int sig) {
 	bool ret = false;
 	if (pid == 0) {
 		pid = dbg->pid;
@@ -441,17 +448,8 @@ static bool rz_debug_native_kill(RzDebug *dbg, int pid, int tid, int sig) {
 	return ret;
 }
 
-struct rz_debug_desc_plugin_t rz_debug_desc_plugin_native;
-static bool rz_debug_native_init(RzDebug *dbg, void **user) {
-	dbg->cur->desc = rz_debug_desc_plugin_native;
-	return true;
-}
-
-static void rz_debug_native_fini(RzDebug *dbg, void *user) {
-}
-
 #if __i386__ || __x86_64__
-static void sync_drx_regs(RzDebug *dbg, drxt *regs, size_t num_regs) {
+void sync_drx_regs(RzDebug *dbg, drxt *regs, size_t num_regs) {
 	/* sanity check, we rely on this assumption */
 	if (num_regs != NUM_DRX_REGISTERS) {
 		eprintf("drx: Unsupported number of registers for get_debug_regs\n");
@@ -475,7 +473,7 @@ static void sync_drx_regs(RzDebug *dbg, drxt *regs, size_t num_regs) {
 #endif
 
 #if __i386__ || __x86_64__
-static void set_drx_regs(RzDebug *dbg, drxt *regs, size_t num_regs) {
+void set_drx_regs(RzDebug *dbg, drxt *regs, size_t num_regs) {
 	/* sanity check, we rely on this assumption */
 	if (num_regs != NUM_DRX_REGISTERS) {
 		eprintf("drx: Unsupported number of registers for get_debug_regs\n");
@@ -492,7 +490,7 @@ static void set_drx_regs(RzDebug *dbg, drxt *regs, size_t num_regs) {
 }
 #endif
 
-static int rz_debug_native_drx(RzDebug *dbg, int n, ut64 addr, int sz, int rwx, int g, int api_type) {
+int rz_debug_native_drx(RzDebug *dbg, int n, ut64 addr, int sz, int rwx, int g, int api_type) {
 #if __i386__ || __x86_64__
 	int retval = false;
 	drxt regs[NUM_DRX_REGISTERS] = { 0 };
@@ -533,7 +531,7 @@ static int rz_debug_native_drx(RzDebug *dbg, int n, ut64 addr, int sz, int rwx, 
 	return -1;
 }
 
-static int rz_debug_native_bp(RzBreakpoint *bp, RzBreakpointItem *b, bool set) {
+int rz_debug_native_bp(RzBreakpoint *bp, RzBreakpointItem *b, bool set) {
 	if (b && b->hw) {
 #if __i386__ || __x86_64__
 		return set
@@ -544,19 +542,70 @@ static int rz_debug_native_bp(RzBreakpoint *bp, RzBreakpointItem *b, bool set) {
 	return false;
 }
 
-static RzList /*<RzDebugDesc *>*/ *rz_debug_desc_native_list(int pid) {
+RzList /*<RzDebugDesc *>*/ *rz_debug_desc_native_list(int pid) {
 #warning "list filedescriptors not supported for this platform"
 	return NULL;
 }
 
-static int rz_debug_native_map_protect(RzDebug *dbg, ut64 addr, int size, int perms) {
+int rz_debug_native_map_protect(RzDebug *dbg, ut64 addr, int size, int perms) {
 	return false;
 }
 
-static int rz_debug_desc_native_open(const char *path) {
+int rz_debug_desc_native_open(const char *path) {
 	return 0;
 }
 
-static bool rz_debug_gcore(RzDebug *dbg, char *path, RzBuffer *dest) {
+bool rz_debug_gcore(RzDebug *dbg, char *path, RzBuffer *dest) {
 	return false;
 }
+
+struct rz_debug_desc_plugin_t rz_debug_desc_plugin_native = {
+	.open = rz_debug_desc_native_open,
+	.list = rz_debug_desc_native_list,
+};
+
+bool rz_debug_native_init(RzDebug *dbg, void **user) {
+	dbg->cur->desc = rz_debug_desc_plugin_native;
+	return true;
+}
+
+void rz_debug_native_fini(RzDebug *dbg, void *user) {
+	if (!user) {
+		return;
+	}
+	free(user);
+}
+
+RzDebugPlugin rz_debug_plugin_native = {
+	.name = "native",
+	.license = "LGPL3",
+	.bits = RZ_SYS_BITS_32 | RZ_SYS_BITS_64,
+	.arch = "x86",
+	.canstep = 1, // XXX it's 1 on some platforms...
+	.init = &rz_debug_native_init,
+	.fini = &rz_debug_native_fini,
+	.step = &rz_debug_native_step,
+	.cont = &rz_debug_native_continue,
+	.stop = &rz_debug_native_stop,
+	.contsc = &rz_debug_native_continue_syscall,
+	.attach = &rz_debug_native_attach,
+	.detach = &rz_debug_native_detach,
+	// TODO: add native select for other platforms?
+	.pids = &rz_debug_native_pids,
+	.threads = &rz_debug_native_threads,
+	.wait = &rz_debug_native_wait,
+	.kill = &rz_debug_native_kill,
+	.frames = &rz_debug_native_frames, // rename to backtrace ?
+	.reg_profile = rz_debug_native_reg_profile,
+	.reg_read = rz_debug_native_reg_read,
+	.info = rz_debug_native_info,
+	.reg_write = (void *)&rz_debug_native_reg_write,
+	.map_alloc = rz_debug_native_map_alloc,
+	.map_dealloc = rz_debug_native_map_dealloc,
+	.map_get = rz_debug_native_map_get,
+	.modules_get = rz_debug_native_modules_get,
+	.map_protect = rz_debug_native_map_protect,
+	.breakpoint = rz_debug_native_bp,
+	.drx = rz_debug_native_drx,
+	.gcore = rz_debug_gcore,
+};

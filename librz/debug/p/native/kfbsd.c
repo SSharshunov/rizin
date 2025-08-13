@@ -2,9 +2,6 @@
 // SPDX-License-Identifier: LGPL-3.0-only
 
 #include <errno.h>
-#if !defined(__HAIKU__) && !defined(__sun)
-#include <sys/ptrace.h>
-#endif
 #include <sys/wait.h>
 #include <signal.h>
 #include <rz_drx.h>
@@ -40,7 +37,8 @@ char *rz_debug_native_reg_profile(RzDebug *dbg) {
 #elif __aarch64__
 #include "reg/kfbsd-arm64.h"
 #else
-RZ_LOG_ERROR("Unsupported architecture\n");
+	RZ_LOG_ERROR("Unsupported architecture\n");
+	return NULL;
 #endif
 }
 
@@ -608,6 +606,7 @@ RzDebugPlugin rz_debug_plugin_native = {
 	.contsc = &rz_debug_native_continue_syscall,
 	.attach = &rz_debug_native_attach,
 	.detach = &rz_debug_native_detach,
+	// TODO: add native select for other platforms?
 	.pids = &rz_debug_native_pids,
 	.threads = &rz_debug_native_threads,
 	.wait = &rz_debug_native_wait,

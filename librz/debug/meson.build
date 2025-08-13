@@ -112,6 +112,9 @@ if has_debugger
 #FreeBSD OS
   elif host_machine.system() == 'freebsd'
     rz_debug_sources += ['p/native/kfbsd.c']
+#OpenBSD OS
+  elif host_machine.system() == 'openbsd'
+    rz_debug_sources += ['p/native.openbsd.c']
 #Other OS
   else
     rz_debug_sources += ['p/debug_native.c']

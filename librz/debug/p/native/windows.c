@@ -31,7 +31,24 @@ RZ_API RzList *rz_w32_dbg_maps(RzDebug *);
 #define PROC_PERM_SZ        5
 #define PROC_UNKSTR_SZ      128
 
-#include "reg.c"
+static char *rz_debug_native_reg_profile(RzDebug *dbg) {
+#if defined(__arm64__)
+	if (dbg->bits == RZ_SYS_BITS_64) {
+#include "reg/windows-arm64.h"
+	} else {
+#include "reg/windows-arm64_32.h"
+	}
+#elif defined(__arm__)
+#include "reg/windows-arm.h"
+#elif defined(__x86_64__)
+#include "reg/windows-x64.h"
+#elif defined(__i386__)
+#include "reg/windows-x86.h"
+#else
+	RZ_LOG_ERROR("Unsupported architecture\n");
+	return NULL;
+#endif
+}
 
 bool rz_debug_native_step(RzDebug *dbg) {
 	return w32_step(dbg);
