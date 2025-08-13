@@ -229,6 +229,7 @@ jobs:
           export PATH=$(python3 -m site --user-base)/bin:${HOME}/.local/bin:${PATH}
           if [ "$ASAN" == "true" ]; then
             # Work-around ASAN bug https://github.com/google/sanitizers/issues/1716
+            sudo sysctl -w kernel.randomize_va_space=0
             sudo sysctl vm.mmap_rnd_bits=28
             if [ "$CC" == "clang" ]; then
               export LD_LIBRARY_PATH=$(dirname $(clang -print-file-name=libclang_rt.asan-x86_64.so)):${LD_LIBRARY_PATH}
