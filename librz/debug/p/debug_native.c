@@ -64,10 +64,10 @@ static int rz_debug_native_reg_write(RzDebug *dbg, int type, const ut8 *buf, int
 #elif __BSD__
 // #if __KFBSD__
 // #include "native/kfbsd.c"
-#if __OpenBSD__
-#include "native/openbsd.c"
-#elif __NetBSD__
-#include "native/netbsd.c"
+// #if __OpenBSD__
+// #include "native/openbsd.c"
+// #if __NetBSD__
+// #include "native/netbsd.c"
 #elif __DragonFly__
 #include "native/dragonfly.c"
 #else

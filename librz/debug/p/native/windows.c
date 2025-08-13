@@ -31,23 +31,19 @@ RZ_API RzList *rz_w32_dbg_maps(RzDebug *);
 #define PROC_PERM_SZ        5
 #define PROC_UNKSTR_SZ      128
 
-static char *rz_debug_native_reg_profile(RzDebug *dbg) {
-#if defined(__arm64__)
-	if (dbg->bits == RZ_SYS_BITS_64) {
+char *rz_debug_native_reg_profile(RzDebug *dbg) {
+#if __aarch64__ /* arm64 */
 #include "reg/windows-arm64.h"
-	} else {
-#include "reg/windows-arm64_32.h"
-	}
-#elif defined(__arm__)
+#elif __arm__ /* arm32 */
 #include "reg/windows-arm.h"
-#elif defined(__x86_64__)
+#elif __x86_64__ /* x86_64 */
 #include "reg/windows-x64.h"
-#elif defined(__i386__)
+#elif __i386__ /* x86 */
 #include "reg/windows-x86.h"
-#else
+#else /* other architectures */
 	RZ_LOG_ERROR("Unsupported architecture\n");
 	return NULL;
-#endif
+#endif /* end */
 }
 
 bool rz_debug_native_step(RzDebug *dbg) {
@@ -458,10 +454,11 @@ bool rz_debug_native_init(RzDebug *dbg, void **user) {
 }
 
 void rz_debug_native_fini(RzDebug *dbg, void *user) {
-	if (!user) {
-		return;
-	}
-	free(user);
+	// if (!user) {
+	// 	return;
+	// }
+	// free(user);
+	return;
 }
 
 RzDebugPlugin rz_debug_plugin_native = {

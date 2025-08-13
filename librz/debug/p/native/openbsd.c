@@ -1,7 +1,6 @@
 // SPDX-FileCopyrightText: 2009-2019 pancake <pancake@nopcode.org>
 // SPDX-License-Identifier: LGPL-3.0-only
 
-#include <rz_debug.h>
 #include <rz_drx.h>
 #include <errno.h>
 #include <sys/wait.h>
@@ -31,7 +30,7 @@ int rz_debug_handle_srz_debug_handle_signalsignals(RzDebug *dbg) {
 	return 0;
 }
 
-static char *rz_debug_native_reg_profile(RzDebug *dbg) {
+char *rz_debug_native_reg_profile(RzDebug *dbg) {
 #if _x86_64__ || __amd64__
 #include "reg/openbsd-x64.h"
 #else
