@@ -300,6 +300,10 @@ libdemangle_options = [
   'default_library=static',
   'use_swift_demangler=false',
 ]
+libdemangle_options = [
+  'default_library=static',
+  'use_swift_demangler=false',
+]
 if get_option('use_gpl')
   libdemangle_options += 'use_gpl=true'
 else
