@@ -21,19 +21,19 @@ static int rz_debug_native_reg_write(RzDebug *dbg, int type, const ut8 *buf, int
 #include "native/bt.c"
 
 // Native OS & Arch
-#if __APPLE__
+// #if __APPLE__
 // #if __i386__ || __x86_64__
 // #include "native/apple_x86_64.c"
-#if __arm64__ || __aarch64__
-#include "native/apple_aarch64.c"
-#else
-#warning "Unsupported debugging platform"
-#undef DEBUGGER
-#define DEBUGGER 0
-#include "native/unsupported.c"
-#endif
+// #if __arm64__ || __aarch64__
+// #include "native/apple_aarch64.c"
+// #else
+// #warning "Unsupported debugging platform"
+// #undef DEBUGGER
+// #define DEBUGGER 0
+// #include "native/unsupported.c"
+// #endif
 
-#elif __ANDROID__
+#if __ANDROID__
 #if __i386__ || __x86_64__
 #include "native/android_x86_64.c"
 #elif __arm__

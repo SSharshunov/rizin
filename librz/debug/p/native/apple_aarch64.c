@@ -10,6 +10,7 @@
 
 #include <sys/resource.h>
 #include "xnu/xnu_debug.h"
+#include "bt.c"
 
 #ifdef __WALL
 #define WAITPID_FLAGS __WALL
@@ -25,32 +26,32 @@
 #define PROC_PERM_SZ        5
 #define PROC_UNKSTR_SZ      128
 
-static char *rz_debug_native_reg_profile(RzDebug *dbg) {
+char *rz_debug_native_reg_profile(RzDebug *dbg) {
 	return xnu_reg_profile(dbg);
 }
 
-static bool rz_debug_native_step(RzDebug *dbg) {
+bool rz_debug_native_step(RzDebug *dbg) {
 	return xnu_step(dbg);
 }
 
-static int rz_debug_native_attach(RzDebug *dbg, int pid) {
+int rz_debug_native_attach(RzDebug *dbg, int pid) {
 	return xnu_attach(dbg, pid);
 }
 
-static int rz_debug_native_detach(RzDebug *dbg, int pid) {
+int rz_debug_native_detach(RzDebug *dbg, int pid) {
 	return xnu_detach(dbg, pid);
 }
 
-static int rz_debug_native_continue_syscall(RzDebug *dbg, int pid, int num) {
+int rz_debug_native_continue_syscall(RzDebug *dbg, int pid, int num) {
 	eprintf("TODO: continue syscall not implemented yet\n");
 	return -1;
 }
 
-static int rz_debug_native_stop(RzDebug *dbg) {
+int rz_debug_native_stop(RzDebug *dbg) {
 	return 0;
 }
 
-static int rz_debug_native_continue(RzDebug *dbg, int pid, int tid, int sig) {
+int rz_debug_native_continue(RzDebug *dbg, int pid, int tid, int sig) {
 	bool ret = xnu_continue(dbg, pid, tid, sig);
 	if (!ret) {
 		return -1;
@@ -58,11 +59,11 @@ static int rz_debug_native_continue(RzDebug *dbg, int pid, int tid, int sig) {
 	return tid;
 }
 
-static RzDebugInfo *rz_debug_native_info(RzDebug *dbg, const char *arg) {
+RzDebugInfo *rz_debug_native_info(RzDebug *dbg, const char *arg) {
 	return xnu_info(dbg, arg);
 }
 
-static RzDebugReasonType rz_debug_native_wait(RzDebug *dbg, int pid) {
+RzDebugReasonType rz_debug_native_wait(RzDebug *dbg, int pid) {
 	RzDebugReasonType reason = RZ_DEBUG_REASON_UNKNOWN;
 
 	if (pid == -1) {
@@ -95,7 +96,7 @@ static RzDebugReasonType rz_debug_native_wait(RzDebug *dbg, int pid) {
 #undef MAXPID
 #define MAXPID 99999
 
-static RzList /*<RzDebugPid *>*/ *rz_debug_native_pids(RzDebug *dbg, int pid) {
+RzList /*<RzDebugPid *>*/ *rz_debug_native_pids(RzDebug *dbg, int pid) {
 	RzList *list = rz_list_new();
 	if (!list) {
 		return NULL;
@@ -131,14 +132,14 @@ RZ_API ut64 rz_debug_get_tls(RZ_NONNULL RzDebug *dbg, int tid) {
 	return 0;
 }
 
-static int rz_debug_native_reg_read(RzDebug *dbg, int type, ut8 *buf, int size) {
+int rz_debug_native_reg_read(RzDebug *dbg, int type, ut8 *buf, int size) {
 	if (size < 1) {
 		return false;
 	}
 	return xnu_reg_read(dbg, type, buf, size);
 }
 
-static int rz_debug_native_reg_write(RzDebug *dbg, int type, const ut8 *buf, int size) {
+int rz_debug_native_reg_write(RzDebug *dbg, int type, const ut8 *buf, int size) {
 	// XXX use switch or so
 	if (type == RZ_REG_TYPE_DRX) {
 		return false;
@@ -150,22 +151,22 @@ static int rz_debug_native_reg_write(RzDebug *dbg, int type, const ut8 *buf, int
 	return false;
 }
 
-static RzDebugMap *rz_debug_native_map_alloc(RzDebug *dbg, ut64 addr, int size, bool thp) {
+RzDebugMap *rz_debug_native_map_alloc(RzDebug *dbg, ut64 addr, int size, bool thp) {
 	(void)thp;
 	return xnu_map_alloc(dbg, addr, size);
 }
 
-static int rz_debug_native_map_dealloc(RzDebug *dbg, ut64 addr, int size) {
+int rz_debug_native_map_dealloc(RzDebug *dbg, ut64 addr, int size) {
 	return xnu_map_dealloc(dbg, addr, size);
 }
 
-static RzList /*<RzDebugMap *>*/ *rz_debug_native_map_get(RzDebug *dbg) {
+RzList /*<RzDebugMap *>*/ *rz_debug_native_map_get(RzDebug *dbg) {
 	RzList *list = NULL;
 	list = xnu_dbg_maps(dbg, 0);
 	return list;
 }
 
-static RzList /*<RzDebugMap *>*/ *rz_debug_native_modules_get(RzDebug *dbg) {
+RzList /*<RzDebugMap *>*/ *rz_debug_native_modules_get(RzDebug *dbg) {
 	char *lastname = NULL;
 	RzDebugMap *map;
 	RzListIter *iter, *iter2;
@@ -207,7 +208,7 @@ static RzList /*<RzDebugMap *>*/ *rz_debug_native_modules_get(RzDebug *dbg) {
 	return last;
 }
 
-static bool rz_debug_native_kill(RzDebug *dbg, int pid, int tid, int sig) {
+bool rz_debug_native_kill(RzDebug *dbg, int pid, int tid, int sig) {
 	bool ret = false;
 	if (pid == 0) {
 		pid = dbg->pid;
@@ -225,26 +226,16 @@ static bool rz_debug_native_kill(RzDebug *dbg, int pid, int tid, int sig) {
 	return ret;
 }
 
-struct rz_debug_desc_plugin_t rz_debug_desc_plugin_native;
-static bool rz_debug_native_init(RzDebug *dbg, void **user) {
-	dbg->cur->desc = rz_debug_desc_plugin_native;
-	return rz_xnu_debug_init(dbg, user);
-}
-
-static void rz_debug_native_fini(RzDebug *dbg, void *user) {
-	rz_xnu_debug_fini(dbg, user);
-}
-
-static int rz_debug_native_drx(RzDebug *dbg, int n, ut64 addr, int sz, int rwx, int g, int api_type) {
+int rz_debug_native_drx(RzDebug *dbg, int n, ut64 addr, int sz, int rwx, int g, int api_type) {
 	eprintf("drx: Unsupported platform\n");
 	return -1;
 }
 
-static int rz_debug_native_bp(RzBreakpoint *bp, RzBreakpointItem *b, bool set) {
+int rz_debug_native_bp(RzBreakpoint *bp, RzBreakpointItem *b, bool set) {
 	return false;
 }
 
-static int getMaxFiles(void) {
+int getMaxFiles(void) {
 	struct rlimit limit;
 	if (getrlimit(RLIMIT_NOFILE, &limit) != 0) {
 		return 1024;
@@ -252,7 +243,7 @@ static int getMaxFiles(void) {
 	return limit.rlim_cur;
 }
 
-static RzList *xnu_desc_list(int pid) {
+RzList *xnu_desc_list(int pid) {
 #if TARGET_OS_IPHONE || __POWERPC__
 	return NULL;
 #else
@@ -284,19 +275,67 @@ static RzList *xnu_desc_list(int pid) {
 #endif
 }
 
-static RzList /*<RzDebugDesc *>*/ *rz_debug_desc_native_list(int pid) {
+RzList /*<RzDebugDesc *>*/ *rz_debug_desc_native_list(int pid) {
 	return xnu_desc_list(pid);
 }
 
-static int rz_debug_native_map_protect(RzDebug *dbg, ut64 addr, int size, int perms) {
+int rz_debug_native_map_protect(RzDebug *dbg, ut64 addr, int size, int perms) {
 	return xnu_map_protect(dbg, addr, size, perms);
 }
 
-static int rz_debug_desc_native_open(const char *path) {
+int rz_debug_desc_native_open(const char *path) {
 	return 0;
 }
 
-static bool rz_debug_gcore(RzDebug *dbg, char *path, RzBuffer *dest) {
+bool rz_debug_gcore(RzDebug *dbg, char *path, RzBuffer *dest) {
 	(void)path;
 	return xnu_generate_corefile(dbg, dest);
 }
+
+struct rz_debug_desc_plugin_t rz_debug_desc_plugin_native = {
+	.open = rz_debug_desc_native_open,
+	.list = rz_debug_desc_native_list,
+};
+
+bool rz_debug_native_init(RzDebug *dbg, void **user) {
+	dbg->cur->desc = rz_debug_desc_plugin_native;
+	return rz_xnu_debug_init(dbg, user);
+}
+
+void rz_debug_native_fini(RzDebug *dbg, void *user) {
+	rz_xnu_debug_fini(dbg, user);
+}
+
+RzDebugPlugin rz_debug_plugin_native = {
+	.name = "native",
+	.license = "LGPL3",
+	.bits = RZ_SYS_BITS_16 | RZ_SYS_BITS_32 | RZ_SYS_BITS_64,
+	.arch = "arm",
+	.canstep = 1,
+	.init = &rz_debug_native_init,
+	.fini = &rz_debug_native_fini,
+	.step = &rz_debug_native_step,
+	.cont = &rz_debug_native_continue,
+	.stop = &rz_debug_native_stop,
+	.contsc = &rz_debug_native_continue_syscall,
+	.attach = &rz_debug_native_attach,
+	.detach = &rz_debug_native_detach,
+// TODO: add native select for other platforms?
+	.pids = &rz_debug_native_pids,
+	.threads = &rz_debug_native_threads,
+	.wait = &rz_debug_native_wait,
+	.kill = &rz_debug_native_kill,
+	.frames = &rz_debug_native_frames, // rename to backtrace ?
+	.reg_profile = rz_debug_native_reg_profile,
+	.reg_read = rz_debug_native_reg_read,
+	.info = rz_debug_native_info,
+	.reg_write = (void *)&rz_debug_native_reg_write,
+	.map_alloc = rz_debug_native_map_alloc,
+	.map_dealloc = rz_debug_native_map_dealloc,
+	.map_get = rz_debug_native_map_get,
+	.modules_get = rz_debug_native_modules_get,
+	.map_protect = rz_debug_native_map_protect,
+	.breakpoint = rz_debug_native_bp,
+	.drx = rz_debug_native_drx,
+	.gcore = rz_debug_gcore,
+};
