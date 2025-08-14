@@ -131,6 +131,8 @@ if has_debugger
   elif host_machine.system() == 'android'
     if host_machine.cpu_family() == 'x86_64' or host_machine.cpu_family() == 'x86'
       rz_debug_sources += ['p/native/android_x86_64.c']
+    elif host_machine.cpu_family() == 'arm'
+      rz_debug_sources += ['p/native/android_arm.c']
     endif
 #Other OS
   else

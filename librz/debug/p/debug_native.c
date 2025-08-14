@@ -36,9 +36,9 @@ static int rz_debug_native_reg_write(RzDebug *dbg, int type, const ut8 *buf, int
 #if __ANDROID__
 // #if __i386__ || __x86_64__
 // #include "native/android_x86_64.c"
-#if __arm__
-#include "native/android_arm.c"
-#elif __arm64__ || __aarch64__
+// #if __arm__
+// #include "native/android_arm.c"
+#if __arm64__ || __aarch64__
 #include "native/android_arm64.c"
 #else
 #warning "Unsupported debugging platform"
