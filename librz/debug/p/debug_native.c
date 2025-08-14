@@ -77,18 +77,18 @@ static int rz_debug_native_reg_write(RzDebug *dbg, int type, const ut8 *buf, int
 // #include "native/unsupported.c"
 // #endif
 
-#elif __sun
-#define RZ_DEBUG_REG_T gregset_t
-#undef DEBUGGER
-#define DEBUGGER 0
-#warning "No debugger support for SunOS yet"
-#include "native/unsupported.c"
-#else
-#warning "Unsupported debugging platform"
-#undef DEBUGGER
-#define DEBUGGER 0
-#include "native/unsupported.c"
-#endif // Native OS & Arch
+// #elif __sun
+// #define RZ_DEBUG_REG_T gregset_t
+// #undef DEBUGGER
+// #define DEBUGGER 0
+// #warning "No debugger support for SunOS yet"
+// #include "native/unsupported.c"
+// #else
+// #warning "Unsupported debugging platform"
+// #undef DEBUGGER
+// #define DEBUGGER 0
+// #include "native/unsupported.c"
+// #endif // Native OS & Arch
 
 #if DEBUGGER
 struct rz_debug_desc_plugin_t rz_debug_desc_plugin_native = {
