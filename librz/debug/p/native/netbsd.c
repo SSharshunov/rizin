@@ -563,6 +563,8 @@ bool rz_debug_gcore(RzDebug *dbg, char *path, RzBuffer *dest) {
 }
 
 RzDebugPlugin rz_debug_plugin_native = {
+	.name = "native",
+	.license = "LGPL3",
 #if __i386__
 	.bits = RZ_SYS_BITS_32,
 	.arch = "x86",
