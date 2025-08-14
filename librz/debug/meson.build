@@ -118,6 +118,9 @@ if has_debugger
 #NetBSD OS
   elif host_machine.system() == 'netbsd'
     rz_debug_sources += ['p/native/netbsd.c']
+#DragonFlyBSD OS
+  elif host_machine.system() == 'dragonfly'
+    rz_debug_sources += ['p/native/dragonfly.c']
 #Other OS
   else
     rz_debug_sources += ['p/debug_native.c']

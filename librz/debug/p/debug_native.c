@@ -61,21 +61,21 @@ static int rz_debug_native_reg_write(RzDebug *dbg, int type, const ut8 *buf, int
 // #elif __WINDOWS__
 // #include "native/windows.c"
 
-#elif __BSD__
+// #elif __BSD__
 // #if __KFBSD__
 // #include "native/kfbsd.c"
 // #if __OpenBSD__
 // #include "native/openbsd.c"
 // #if __NetBSD__
 // #include "native/netbsd.c"
-#elif __DragonFly__
-#include "native/dragonfly.c"
-#else
-#warning "Unsupported debugging platform"
-#undef DEBUGGER
-#define DEBUGGER 0
-#include "native/unsupported.c"
-#endif
+// #elif __DragonFly__
+// #include "native/dragonfly.c"
+// #else
+// #warning "Unsupported debugging platform"
+// #undef DEBUGGER
+// #define DEBUGGER 0
+// #include "native/unsupported.c"
+// #endif
 
 #elif __sun
 #define RZ_DEBUG_REG_T gregset_t
