@@ -2,9 +2,7 @@
 // SPDX-License-Identifier: LGPL-3.0-only
 
 #include <errno.h>
-#if !defined(__HAIKU__) && !defined(__sun)
 #include <sys/ptrace.h>
-#endif
 #include <sys/wait.h>
 #include <signal.h>
 #include <sys/mman.h>
