@@ -91,7 +91,7 @@ if has_debugger
 
 #Linux OS
   if host_machine.system() == 'linux'
-    if host_machine.cpu_family() == 'x86_64'
+    if host_machine.cpu_family() == 'x86_64' or host_machine.cpu_family() == 'x86'
       rz_debug_sources += ['p/native/linux_x86_64.c']
     elif host_machine.cpu_family() == 'arm'
       rz_debug_sources += ['p/natice/linux_arm.c']
@@ -121,6 +121,11 @@ if has_debugger
 #DragonFlyBSD OS
   elif host_machine.system() == 'dragonfly'
     rz_debug_sources += ['p/native/dragonfly.c']
+#Darwin
+  elif host_machine.system() == 'darwin'
+    if host_machine.cpu_family() == 'x86_64' or host_machine.cpu_family() == 'x86'
+      rz_debug_sources += ['p/native/apple_x86_64.c']
+    endif
 #Other OS
   else
     rz_debug_sources += ['p/debug_native.c']

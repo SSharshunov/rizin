@@ -782,9 +782,15 @@ void rz_debug_native_fini(RzDebug *dbg, void *user) {
 RzDebugPlugin rz_debug_plugin_native = {
 	.name = "native",
 	.license = "LGPL3",
+#if __i386__
+	.bits = RZ_SYS_BITS_32,
+	.arch = "x86",
+	.canstep = 1,
+#elif __x86_64__
 	.bits = RZ_SYS_BITS_32 | RZ_SYS_BITS_64,
 	.arch = "x86",
 	.canstep = 1, // XXX it's 1 on some platforms...
+#endif
 	.init = &rz_debug_native_init,
 	.fini = &rz_debug_native_fini,
 	.step = &rz_debug_native_step,

@@ -22,8 +22,8 @@ static int rz_debug_native_reg_write(RzDebug *dbg, int type, const ut8 *buf, int
 
 // Native OS & Arch
 #if __APPLE__
-#if __i386__ || __x86_64__
-#include "native/apple_x86_64.c"
+// #if __i386__ || __x86_64__
+// #include "native/apple_x86_64.c"
 #elif __arm64__ || __aarch64__
 #include "native/apple_aarch64.c"
 #else
