@@ -28,11 +28,9 @@
 
 char *rz_debug_native_reg_profile(RzDebug *dbg) {
 #if __x86_64__
-#include "xnu/reg/darwin-x64.h"
+#include "reg/darwin-x64.h"
 #elif __i386__
-#include "xnu/reg/darwin-x86.h"
-#else
-	RZ_LOG_ERROR("Unsupported architecture\n");
+#include "reg/darwin-x86.h"
 #endif
 }
 

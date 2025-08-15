@@ -27,7 +27,7 @@
 #define PROC_UNKSTR_SZ      128
 
 static char *rz_debug_native_reg_profile(RzDebug *dbg) {
-#include "reg/darwin-arm64.h"
+#include "reg/darwin-arm.h"
 }
 
 static bool rz_debug_native_step(RzDebug *dbg) {
@@ -309,9 +309,9 @@ static void rz_debug_native_fini(RzDebug *dbg, void *user) {
 RzDebugPlugin rz_debug_plugin_native = {
 	.name = "native",
 	.license = "LGPL3",
-	.bits = RZ_SYS_BITS_16 | RZ_SYS_BITS_32 | RZ_SYS_BITS_64,
+	.bits = RZ_SYS_BITS_16 | RZ_SYS_BITS_32,
 	.arch = "arm",
-	.canstep = 1,
+	.canstep = 0,
 	.init = &rz_debug_native_init,
 	.fini = &rz_debug_native_fini,
 	.step = &rz_debug_native_step,

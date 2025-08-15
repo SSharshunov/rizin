@@ -38,7 +38,7 @@ static int rz_debug_handle_signals(RzDebug *dbg) {
 }
 #endif
 
-char *rz_debug_native_reg_profile(RzDebug *dbg) {
+static char *rz_debug_native_reg_profile(RzDebug *dbg) {
 	if (dbg->bits & RZ_SYS_BITS_32) {
 #if __x86_64__
 #include "reg/linux-x64-32.h" // 32 binary on x86_64

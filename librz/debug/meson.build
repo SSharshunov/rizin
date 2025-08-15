@@ -153,6 +153,10 @@ if has_debugger
       rz_debug_sources += ['p/native/apple_x86_64.c']
     elif host_machine.cpu_family() == 'aarch64'
       rz_debug_sources += ['p/native/apple_aarch64.c']
+    elif host_machine.cpu_family() == 'arm'
+      rz_debug_sources += ['p/native/apple_arm.c']
+    elif host_machine.cpu_family() == 'ppc'
+      rz_debug_sources += ['p/native/apple_ppc.c']
     else
       rz_debug_sources += ['p/native/unsupported.c']
     endif
