@@ -29,7 +29,7 @@
 
 #if WAIT_ON_ALL_CHILDREN
 static int rz_debug_handle_signals(RzDebug *dbg) {
-	eprintf("Warning: signal handling is not supported on this platform\n");
+	RZ_LOG_WARN("signal handling is not supported on this platform\n");
 	return 0;
 }
 #endif
@@ -94,7 +94,7 @@ static int rz_debug_native_continue(RzDebug *dbg, int pid, int tid, int sig) {
 		rz_list_foreach (dbg->threads, it, th) {
 			ret = rz_debug_ptrace(dbg, PTRACE_CONT, th->pid, 0, 0);
 			if (ret) {
-				eprintf("Error: (%d) is running or dead.\n", th->pid);
+				RZ_LOG_ERROR("(%d) is running or dead.\n", th->pid);
 			}
 		}
 	} else {
@@ -116,7 +116,7 @@ static RzDebugReasonType rz_debug_native_wait(RzDebug *dbg, int pid) {
 	RzDebugReasonType reason = RZ_DEBUG_REASON_UNKNOWN;
 
 	if (pid == -1) {
-		eprintf("ERROR: rz_debug_native_wait called with pid -1\n");
+		RZ_LOG_ERROR("rz_debug_native_wait called with pid -1\n");
 		return RZ_DEBUG_REASON_ERROR;
 	}
 	int status = -1;
@@ -131,7 +131,7 @@ static RzDebugReasonType rz_debug_native_wait(RzDebug *dbg, int pid) {
 
 	if (ret != pid) {
 		reason = RZ_DEBUG_REASON_NEW_PID;
-		eprintf("switching to pid %d\n", ret);
+		rz_cons_printf("switching to pid %d\n", ret);
 		rz_debug_select(dbg, ret, ret);
 	}
 
@@ -149,15 +149,15 @@ static RzDebugReasonType rz_debug_native_wait(RzDebug *dbg, int pid) {
 	/* we don't know what to do yet, let's try harder to figure it out. */
 	if (reason == RZ_DEBUG_REASON_UNKNOWN) {
 		if (WIFEXITED(status)) {
-			eprintf("child exited with status %d\n", WEXITSTATUS(status));
+			rz_cons_printf("child exited with status %d\n", WEXITSTATUS(status));
 			reason = RZ_DEBUG_REASON_DEAD;
 		} else if (WIFSIGNALED(status)) {
-			eprintf("child received signal %d\n", WTERMSIG(status));
+			rz_cons_printf("child received signal %d\n", WTERMSIG(status));
 			reason = RZ_DEBUG_REASON_SIGNAL;
 		} else if (WIFSTOPPED(status)) {
 			if (WSTOPSIG(status) != SIGTRAP &&
 				WSTOPSIG(status) != SIGSTOP) {
-				eprintf("Child stopped with signal %d\n", WSTOPSIG(status));
+				rz_cons_printf("Child stopped with signal %d\n", WSTOPSIG(status));
 			}
 
 			/* the ptrace documentation says GETSIGINFO is only necessary for
@@ -171,30 +171,30 @@ static RzDebugReasonType rz_debug_native_wait(RzDebug *dbg, int pid) {
 			reason = dbg->reason.type;
 #ifdef WIFCONTINUED
 		} else if (WIFCONTINUED(status)) {
-			eprintf("child continued...\n");
+			rz_cons_printf("child continued...\n");
 			reason = RZ_DEBUG_REASON_NONE;
 #endif
 		} else if (status == 1) {
 			/* XXX(jjd): does this actually happen? */
-			eprintf("debugger is dead with status 1!\n");
+			rz_cons_printf("debugger is dead with status 1!\n");
 			reason = RZ_DEBUG_REASON_DEAD;
 		} else if (status == 0) {
 			/* XXX(jjd): does this actually happen? */
-			eprintf("debugger is dead with status 0\n");
+			rz_cons_printf("debugger is dead with status 0\n");
 			reason = RZ_DEBUG_REASON_DEAD;
 		} else {
 			if (ret != pid) {
 				reason = RZ_DEBUG_REASON_NEW_PID;
 			} else {
 				/* ugh. still don't know :-/ */
-				eprintf("returning from wait without knowing why...\n");
+				rz_cons_printf("returning from wait without knowing why...\n");
 			}
 		}
 	}
 
 	/* if we still don't know what to do, we have a problem... */
 	if (reason == RZ_DEBUG_REASON_UNKNOWN) {
-		eprintf("%s: no idea what happened...\n", __func__);
+		rz_cons_printf("%s: no idea what happened...\n", __func__);
 		reason = RZ_DEBUG_REASON_ERROR;
 	}
 	dbg->reason.tid = pid;
@@ -205,7 +205,7 @@ static RzDebugReasonType rz_debug_native_wait(RzDebug *dbg, int pid) {
 static RzDebugReasonType rz_debug_native_wait(RzDebug *dbg, int pid) {
 	RzDebugReasonType reason = RZ_DEBUG_REASON_UNKNOWN;
 	if (pid == -1) {
-		eprintf("ERROR: rz_debug_native_wait called with pid -1\n");
+		RZ_LOG_ERROR("rz_debug_native_wait called with pid -1\n");
 		return RZ_DEBUG_REASON_ERROR;
 	}
 
@@ -229,7 +229,7 @@ static RzList /*<RzDebugPid *>*/ *rz_debug_native_pids(RzDebug *dbg, int pid) {
 RZ_API RZ_OWN RzList /*<RzDebugPid *>*/ *rz_debug_native_threads(RzDebug *dbg, int pid) {
 	RzList *list = rz_list_new();
 	if (!list) {
-		eprintf("No list?\n");
+		rz_cons_printf("No list?\n");
 		return NULL;
 	}
 	return linux_thread_list(dbg, pid, list);
@@ -240,22 +240,230 @@ RZ_API ut64 rz_debug_get_tls(RZ_NONNULL RzDebug *dbg, int tid) {
 	return get_linux_tls_val(dbg, tid);
 }
 
+#define PRINT_FPU(fpregs) \
+	rz_cons_printf("cwd = 0x%04x  ; control   ", (fpregs).cwd); \
+	rz_cons_printf("swd = 0x%04x  ; status\n", (fpregs).swd); \
+	rz_cons_printf("ftw = 0x%04x              ", (fpregs).ftw); \
+	rz_cons_printf("fop = 0x%04x\n", (fpregs).fop); \
+	rz_cons_printf("rip = 0x%016" PFMT64x "  ", (ut64)(fpregs).rip); \
+	rz_cons_printf("rdp = 0x%016" PFMT64x "\n", (ut64)(fpregs).rdp); \
+	rz_cons_printf("mxcsr = 0x%08x        ", (fpregs).mxcsr); \
+	rz_cons_printf("mxcr_mask = 0x%08x\n", (fpregs).mxcr_mask)
+
+#define PRINT_FPU_NOXMM(fpregs) \
+	rz_cons_printf("cwd = 0x%04lx  ; control   ", (fpregs).cwd); \
+	rz_cons_printf("swd = 0x%04lx  ; status\n", (fpregs).swd); \
+	rz_cons_printf("twd = 0x%04lx              ", (fpregs).twd); \
+	rz_cons_printf("fip = 0x%04lx          \n", (fpregs).fip); \
+	rz_cons_printf("fcs = 0x%04lx              ", (fpregs).fcs); \
+	rz_cons_printf("foo = 0x%04lx          \n", (fpregs).foo); \
+	rz_cons_printf("fos = 0x%04lx              ", (fpregs).fos)
+
+static void print_fpu(void *f) {
+#if __x86_64__
+	struct user_fpregs_struct fpregs = *(struct user_fpregs_struct *)f;
+	rz_cons_printf("---- x86-64 ----\n");
+	PRINT_FPU(fpregs);
+	rz_cons_printf("size = 0x%08x\n", (ut32)sizeof(fpregs));
+	for (int i = 0; i < 16; i++) {
+		ut32 *a = (ut32 *)&fpregs.xmm_space;
+		a = a + (i * 4);
+		rz_cons_printf("xmm%d = %08x %08x %08x %08x   ", i, (int)a[0], (int)a[1],
+			(int)a[2], (int)a[3]);
+		if (i < 8) {
+			ut64 *st_u64 = (ut64 *)&fpregs.st_space[i * 4];
+			ut8 *st_u8 = (ut8 *)&fpregs.st_space[i * 4];
+			long double *st_ld = (long double *)&fpregs.st_space[i * 4];
+			rz_cons_printf("mm%d = 0x%016" PFMT64x " | st%d = ", i, *st_u64, i);
+			// print as hex TBYTE - always little endian
+			for (int j = 9; j >= 0; j--) {
+				rz_cons_printf("%02x", st_u8[j]);
+			}
+			// Using %Lf and %Le even though we do not show the extra precision to avoid another cast
+			// %f with (double)*st_ld would also work
+			rz_cons_printf(" %Le %Lf\n", *st_ld, *st_ld);
+		} else {
+			rz_cons_printf("\n");
+		}
+	}
+#elif __i386__
+	struct user_fpregs_struct fpregs = *(struct user_fpregs_struct *)f;
+	rz_cons_printf("---- x86-32-noxmm ----\n");
+	PRINT_FPU_NOXMM(fpregs);
+	for (int i = 0; i < 8; i++) {
+		ut64 *b = (ut64 *)(&fpregs.st_space[i * 4]);
+		double *d = (double *)b;
+		ut32 *c = (ut32 *)&fpregs.st_space;
+		float *f = (float *)&fpregs.st_space;
+		c = c + (i * 4);
+		f = f + (i * 4);
+		rz_cons_printf("st%d = %0.3lg (0x%016" PFMT64x ") | %0.3f (0x%08x) | "
+			       "%0.3f (0x%08x)\n",
+			i, d[0], b[0], f[0], c[0], f[1], c[1]);
+	}
+#endif
+}
+
 static int rz_debug_native_reg_read(RzDebug *dbg, int type, ut8 *buf, int size) {
 	if (size < 1) {
 		return false;
 	}
-	return linux_reg_read(dbg, type, buf, size);
+	bool showfpu = false;
+	int pid = dbg->tid;
+	int ret = 0;
+	if (type < -1) {
+		showfpu = true;
+		type = -type;
+	}
+	switch (type) {
+	case RZ_REG_TYPE_DRX: {
+		int i;
+		for (i = 0; i < 8; i++) { // DR0-DR7
+			if (i == 4 || i == 5) {
+				continue;
+			}
+			long ret = rz_debug_ptrace(dbg, PTRACE_PEEKUSER, pid,
+				(void *)rz_offsetof(struct user, u_debugreg[i]), 0);
+			if ((i + 1) * sizeof(ret) > size) {
+				rz_cons_printf("linux_reg_get: Buffer too small %d\n", size);
+				break;
+			}
+			memcpy(buf + (i * sizeof(ret)), &ret, sizeof(ret));
+		}
+		struct user a;
+		return sizeof(a.u_debugreg);
+	}
+		return true;
+		break;
+	case RZ_REG_TYPE_FPU:
+	case RZ_REG_TYPE_MMX:
+	case RZ_REG_TYPE_XMM: {
+		struct user_fpregs_struct fpregs;
+		if (type == RZ_REG_TYPE_FPU) {
+#if __x86_64__
+			ret = rz_debug_ptrace(dbg, PTRACE_GETFPREGS, pid, NULL, &fpregs);
+			if (ret != 0) {
+				rz_sys_perror("PTRACE_GETFPREGS");
+				return false;
+			}
+			if (showfpu) {
+				print_fpu((void *)&fpregs);
+			}
+			size = RZ_MIN(sizeof(fpregs), size);
+			memcpy(buf, &fpregs, size);
+			return size;
+#elif __i386__
+			struct user_fpxregs_struct fpxregs;
+			ret = rz_debug_ptrace(dbg, PTRACE_GETFPXREGS, pid, NULL, &fpxregs);
+			if (ret == 0) {
+				if (showfpu) {
+					print_fpu((void *)&fpxregs);
+				}
+				size = RZ_MIN(sizeof(fpxregs), size);
+				memcpy(buf, &fpxregs, size);
+				return size;
+			} else {
+				ret = rz_debug_ptrace(dbg, PTRACE_GETFPREGS, pid, NULL, &fpregs);
+				if (showfpu) {
+					print_fpu((void *)&fpregs);
+				}
+				if (ret != 0) {
+					rz_sys_perror("PTRACE_GETFPREGS");
+					return false;
+				}
+				size = RZ_MIN(sizeof(fpregs), size);
+				memcpy(buf, &fpregs, size);
+				return size;
+			}
+#endif // __i386__
+		}
+	} break;
+	case RZ_REG_TYPE_SEG:
+	case RZ_REG_TYPE_FLG:
+	case RZ_REG_TYPE_GPR: {
+		RZ_DEBUG_REG_T regs;
+		memset(&regs, 0, sizeof(regs));
+		memset(buf, 0, size);
+		/* linux -{arm/mips/riscv/x86/x86_64} */
+		ret = rz_debug_ptrace(dbg, PTRACE_GETREGS, pid, NULL, &regs);
+		/*
+		 * if perror here says 'no such process' and the
+		 * process exists still.. is because there's a missing call
+		 * to 'wait'. and the process is not yet available to accept
+		 * more ptrace queries.
+		 */
+		if (ret != 0) {
+			rz_sys_perror("PTRACE_GETREGS");
+			return false;
+		}
+		size = RZ_MIN(sizeof(regs), size);
+		memcpy(buf, &regs, size);
+		return size;
+	} break;
+	case RZ_REG_TYPE_YMM: {
+#if HAVE_YMM && __x86_64__ && defined(PTRACE_GETREGSET)
+		ut32 ymm_space[128]; // full ymm registers
+		struct _xstate xstate;
+		struct iovec iov;
+		iov.iov_base = &xstate;
+		iov.iov_len = sizeof(struct _xstate);
+		ret = rz_debug_ptrace_get_x86_xstate(dbg, pid, &iov);
+		if (ret == -1) {
+			return false;
+		}
+		// stitch together xstate.fpstate._xmm and xstate.ymmh assuming LE
+		int ri, rj;
+		for (ri = 0; ri < 16; ri++) {
+			for (rj = 0; rj < 4; rj++) {
+				ymm_space[ri * 8 + rj] = xstate.fpstate._xmm[ri].element[rj];
+			}
+			for (rj = 0; rj < 4; rj++) {
+				ymm_space[ri * 8 + (rj + 4)] = xstate.ymmh.ymmh_space[ri * 4 + rj];
+			}
+		}
+		size = RZ_MIN(sizeof(ymm_space), size);
+		memcpy(buf, &ymm_space, size);
+		return size;
+#endif
+		return false;
+	} break;
+	}
+	return false;
 }
 
 static int rz_debug_native_reg_write(RzDebug *dbg, int type, const ut8 *buf, int size) {
-	// XXX use switch or so
-	if (type == RZ_REG_TYPE_DRX) {
-		return linux_reg_write(dbg, type, buf, size);
-	} else if (type == RZ_REG_TYPE_GPR) {
-		return linux_reg_write(dbg, type, buf, size);
-	} else if (type == RZ_REG_TYPE_FPU) {
-		return linux_reg_write(dbg, type, buf, size);
-	} // else eprintf ("TODO: reg_write_non-gpr (%d)\n", type);
+	int pid = dbg->tid;
+	switch (type) {
+	case RZ_REG_TYPE_DRX: {
+		int i;
+		long *val = (long *)buf;
+		for (i = 0; i < 8; i++) { // DR0-DR7
+			if (i == 4 || i == 5) {
+				continue;
+			}
+			if (rz_debug_ptrace(dbg, PTRACE_POKEUSER, pid,
+				    (void *)rz_offsetof(struct user, u_debugreg[i]), (rz_ptrace_data_t)val[i])) {
+				rz_sys_perror("ptrace POKEUSER");
+			}
+		}
+		return sizeof(RZ_DEBUG_REG_T);
+	}
+	case RZ_REG_TYPE_GPR: {
+		int ret = rz_debug_ptrace(dbg, PTRACE_SETREGS, pid, 0, (void *)buf);
+		if (ret == -1) {
+			rz_sys_perror("reg_write");
+			return false;
+		}
+		return true;
+	}
+	case RZ_REG_TYPE_FPU: {
+		int ret = rz_debug_ptrace(dbg, PTRACE_SETFPREGS, pid, 0, (void *)buf);
+		return (ret == 0);
+	}
+	default:
+		RZ_LOG_ERROR("TODO: reg_write_non-gpr (%d)\n", type);
+		return false;
+	}
 	return false;
 }
 
@@ -312,14 +520,14 @@ static int linux_map_thp(RzDebug *dbg, ut64 addr, int size) {
 	const size_t thpsize = 1 << 21;
 
 	if ((size % thpsize)) {
-		eprintf("size not a power of huge pages size\n");
+		rz_cons_printf("size not a power of huge pages size\n");
 		return false;
 	}
 	// In always mode, is more into mmap syscall level
 	// even though the address might not have the 'hg'
 	// vmflags
 	if (sys_thp_mode() != 1) {
-		eprintf("transparent huge page mode is not in madvise mode\n");
+		rz_cons_printf("transparent huge page mode is not in madvise mode\n");
 		return false;
 	}
 
@@ -334,11 +542,11 @@ static int linux_map_thp(RzDebug *dbg, ut64 addr, int size) {
 	rz_egg_setup(dbg->egg, dbg->arch, 8 * dbg->bits, 0, 0);
 	rz_egg_load(dbg->egg, code, 0);
 	if (!rz_egg_compile(dbg->egg)) {
-		eprintf("Cannot compile.\n");
+		rz_cons_printf("Cannot compile.\n");
 		goto err_linux_map_thp;
 	}
 	if (!rz_egg_assemble_asm(dbg->egg, asm_list)) {
-		eprintf("rz_egg_assemble: invalid assembly\n");
+		rz_cons_printf("rz_egg_assemble: invalid assembly\n");
 		goto err_linux_map_thp;
 	}
 	buf = rz_egg_get_bin(dbg->egg);
@@ -389,11 +597,11 @@ static RzDebugMap *linux_map_alloc(RzDebug *dbg, ut64 addr, int size, bool thp) 
 	rz_egg_setup(dbg->egg, dbg->arch, 8 * dbg->bits, 0, 0);
 	rz_egg_load(dbg->egg, code, 0);
 	if (!rz_egg_compile(dbg->egg)) {
-		eprintf("Cannot compile.\n");
+		rz_cons_printf("Cannot compile.\n");
 		goto err_linux_map_alloc;
 	}
 	if (!rz_egg_assemble_asm(dbg->egg, asm_list)) {
-		eprintf("rz_egg_assemble: invalid assembly\n");
+		rz_cons_printf("rz_egg_assemble: invalid assembly\n");
 		goto err_linux_map_alloc;
 	}
 	buf = rz_egg_get_bin(dbg->egg);
@@ -409,7 +617,7 @@ static RzDebugMap *linux_map_alloc(RzDebug *dbg, ut64 addr, int size, bool thp) 
 			if (thp) {
 				if (!linux_map_thp(dbg, map_addr, size)) {
 					// Not overly dramatic
-					eprintf("map promotion to huge page failed\n");
+					rz_cons_printf("map promotion to huge page failed\n");
 				}
 			}
 			rz_debug_map_sync(dbg);
@@ -440,11 +648,11 @@ static int linux_map_dealloc(RzDebug *dbg, ut64 addr, int size) {
 	rz_egg_setup(dbg->egg, dbg->arch, 8 * dbg->bits, 0, 0);
 	rz_egg_load(dbg->egg, code, 0);
 	if (!rz_egg_compile(dbg->egg)) {
-		eprintf("Cannot compile.\n");
+		rz_cons_printf("Cannot compile.\n");
 		goto err_linux_map_dealloc;
 	}
 	if (!rz_egg_assemble_asm(dbg->egg, asm_list)) {
-		eprintf("rz_egg_assemble: invalid assembly\n");
+		rz_cons_printf("rz_egg_assemble: invalid assembly\n");
 		goto err_linux_map_dealloc;
 	}
 	buf = rz_egg_get_bin(dbg->egg);
@@ -533,8 +741,8 @@ static RzList /*<RzDebugMap *>*/ *rz_debug_native_map_get(RzDebug *dbg) {
 		if (i == 3) {
 			name[0] = '\0';
 		} else if (i != 4) {
-			eprintf("%s: Unable to parse \"%s\"\n", __func__, path);
-			eprintf("%s: problematic line: %s\n", __func__, line);
+			rz_cons_printf("%s: Unable to parse \"%s\"\n", __func__, path);
+			rz_cons_printf("%s: problematic line: %s\n", __func__, line);
 			rz_list_free(list);
 			return NULL;
 		}
@@ -563,7 +771,7 @@ static RzList /*<RzDebugMap *>*/ *rz_debug_native_map_get(RzDebug *dbg) {
 		map_start = rz_num_get(NULL, region);
 		map_end = rz_num_get(NULL, region2);
 		if (map_start == map_end || map_end == 0) {
-			eprintf("%s: ignoring invalid map size: %s - %s\n", __func__, region, region2);
+			rz_cons_printf("%s: ignoring invalid map size: %s - %s\n", __func__, region, region2);
 			continue;
 		}
 		map = rz_debug_map_new(name, map_start, map_end, perm, 0);
@@ -638,7 +846,7 @@ static bool rz_debug_native_kill(RzDebug *dbg, int pid, int tid, int sig) {
 static void sync_drx_regs(RzDebug *dbg, drxt *regs, size_t num_regs) {
 	/* sanity check, we rely on this assumption */
 	if (num_regs != NUM_DRX_REGISTERS) {
-		eprintf("drx: Unsupported number of registers for get_debug_regs\n");
+		RZ_LOG_ERROR("drx: Unsupported number of registers for get_debug_regs\n");
 		return;
 	}
 
@@ -660,7 +868,7 @@ static void sync_drx_regs(RzDebug *dbg, drxt *regs, size_t num_regs) {
 static void set_drx_regs(RzDebug *dbg, drxt *regs, size_t num_regs) {
 	/* sanity check, we rely on this assumption */
 	if (num_regs != NUM_DRX_REGISTERS) {
-		eprintf("drx: Unsupported number of registers for get_debug_regs\n");
+		RZ_LOG_ERROR("drx: Unsupported number of registers for get_debug_regs\n");
 		return;
 	}
 
@@ -700,7 +908,7 @@ static int rz_debug_native_drx(RzDebug *dbg, int n, ut64 addr, int sz, int rwx, 
 		break;
 	default:
 		/* this should not happen, someone misused the API */
-		eprintf("drx: Unsupported api type in rz_debug_native_drx\n");
+		RZ_LOG_ERROR("drx: Unsupported api type in rz_debug_native_drx\n");
 		retval = false;
 	}
 
@@ -739,11 +947,11 @@ static int rz_debug_native_map_protect(RzDebug *dbg, ut64 addr, int size, int pe
 	rz_egg_setup(dbg->egg, dbg->arch, 8 * dbg->bits, 0, 0);
 	rz_egg_load(dbg->egg, code, 0);
 	if (!rz_egg_compile(dbg->egg)) {
-		eprintf("Cannot compile.\n");
+		rz_cons_printf("Cannot compile.\n");
 		return false;
 	}
 	if (!rz_egg_assemble(dbg->egg)) {
-		eprintf("rz_egg_assemble: invalid assembly\n");
+		rz_cons_printf("rz_egg_assemble: invalid assembly\n");
 		return false;
 	}
 	buf = rz_egg_get_bin(dbg->egg);
