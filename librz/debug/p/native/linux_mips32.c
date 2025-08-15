@@ -35,7 +35,7 @@ static int rz_debug_handle_signals(RzDebug *dbg) {
 #endif
 
 static char *rz_debug_native_reg_profile(RzDebug *dbg) {
-	return linux_reg_profile(dbg);
+#include "reg/linux-mips.h"
 }
 
 static bool rz_debug_native_step(RzDebug *dbg) {

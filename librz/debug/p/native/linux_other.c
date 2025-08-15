@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: 2009-2019 pancake <pancake@nopcode.org>
 // SPDX-License-Identifier: LGPL-3.0-only
 
+#include "rz_util/rz_log.h"
 #include <errno.h>
 #if !defined(__HAIKU__) && !defined(__sun)
 #include <sys/ptrace.h>
@@ -35,7 +36,15 @@ static int rz_debug_handle_signals(RzDebug *dbg) {
 #endif
 
 static char *rz_debug_native_reg_profile(RzDebug *dbg) {
-	return linux_reg_profile(dbg);
+#if __riscv
+#include "reg/linux-riscv64.h"
+#elif __s390x__
+#include "reg/linux-s390x.h"
+#elif __loongarch64
+#include "reg/linux-loongarch64.h"
+#else
+	RZ_LOG_ERROR("Unsupported architecture\n");
+#endif
 }
 
 static bool rz_debug_native_step(RzDebug *dbg) {

@@ -35,7 +35,11 @@ static int rz_debug_handle_signals(RzDebug *dbg) {
 #endif
 
 static char *rz_debug_native_reg_profile(RzDebug *dbg) {
-	return linux_reg_profile(dbg);
+#if __powerpc64__
+#include "reg/linux-ppc64.h"
+#elif __powerpc__
+#include "reg/linux-ppc.h"
+#endif
 }
 
 static bool rz_debug_native_step(RzDebug *dbg) {
@@ -706,11 +710,6 @@ void rz_debug_native_fini(RzDebug *dbg, void *user) {
 RzDebugPlugin rz_debug_plugin_native = {
 	.name = "native",
 	.license = "LGPL3",
-#if __mips__ /* MIPS*/
-	.bits = RZ_SYS_BITS_32 | RZ_SYS_BITS_64,
-	.arch = "mips",
-	.canstep = 0,
-#elif __powerpc__
 #if __powerpc64__ /* PPC64LE*/
 	.bits = RZ_SYS_BITS_32 | RZ_SYS_BITS_64,
 #else /* PPC32LE */
@@ -718,7 +717,6 @@ RzDebugPlugin rz_debug_plugin_native = {
 #endif /* PPC32LE */
 	.arch = "ppc",
 	.canstep = 1,
-#endif /* MIPS-end*/
 	.init = &rz_debug_native_init,
 	.fini = &rz_debug_native_fini,
 	.step = &rz_debug_native_step,

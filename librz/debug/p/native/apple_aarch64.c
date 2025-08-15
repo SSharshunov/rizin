@@ -320,7 +320,7 @@ RzDebugPlugin rz_debug_plugin_native = {
 	.contsc = &rz_debug_native_continue_syscall,
 	.attach = &rz_debug_native_attach,
 	.detach = &rz_debug_native_detach,
-// TODO: add native select for other platforms?
+	// TODO: add native select for other platforms?
 	.pids = &rz_debug_native_pids,
 	.threads = &rz_debug_native_threads,
 	.wait = &rz_debug_native_wait,
