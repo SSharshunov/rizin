@@ -44,44 +44,44 @@ long rz_debug_ptrace_get_x86_xstate(RzDebug *dbg, pid_t pid, struct iovec *iov) 
 }
 #endif
 
-char *linux_reg_profile(RzDebug *dbg) {
-#if __arm__
-#include "reg/linux-arm.h"
-#elif __riscv
-#include "reg/linux-riscv64.h"
-#elif __arm64__ || __aarch64__
-#include "reg/linux-arm64.h"
-#elif __mips__
-	if ((dbg->bits & RZ_SYS_BITS_32) && (dbg->bp->endian == 1)) {
-#include "reg/linux-mips.h"
-	} else {
-#include "reg/linux-mips64.h"
-	}
-#elif (__i386__ || __x86_64__)
-	if (dbg->bits & RZ_SYS_BITS_32) {
-#if __x86_64__
-#include "reg/linux-x64-32.h"
-#else
-#include "reg/linux-x86.h"
-#endif
-	} else {
-#include "reg/linux-x64.h"
-	}
-#elif __powerpc__
-	if (dbg->bits & RZ_SYS_BITS_32) {
-#include "reg/linux-ppc.h"
-	} else {
-#include "reg/linux-ppc64.h"
-	}
-#elif __s390x__
-#include "reg/linux-s390x.h"
-#elif __loongarch64
-#include "reg/linux-loongarch64.h"
-#else
-#error "Unsupported Linux CPU"
-	return NULL;
-#endif
-}
+// char *linux_reg_profile(RzDebug *dbg) {
+// #if __arm__
+// #include "reg/linux-arm.h"
+// #elif __riscv
+// #include "reg/linux-riscv64.h"
+// #elif __arm64__ || __aarch64__
+// #include "reg/linux-arm64.h"
+// #elif __mips__
+// 	if ((dbg->bits & RZ_SYS_BITS_32) && (dbg->bp->endian == 1)) {
+// #include "reg/linux-mips.h"
+// 	} else {
+// #include "reg/linux-mips64.h"
+// 	}
+// #elif (__i386__ || __x86_64__)
+// 	if (dbg->bits & RZ_SYS_BITS_32) {
+// #if __x86_64__
+// #include "reg/linux-x64-32.h"
+// #else
+// #include "reg/linux-x86.h"
+// #endif
+// 	} else {
+// #include "reg/linux-x64.h"
+// 	}
+// #elif __powerpc__
+// 	if (dbg->bits & RZ_SYS_BITS_32) {
+// #include "reg/linux-ppc.h"
+// 	} else {
+// #include "reg/linux-ppc64.h"
+// 	}
+// #elif __s390x__
+// #include "reg/linux-s390x.h"
+// #elif __loongarch64
+// #include "reg/linux-loongarch64.h"
+// #else
+// #error "Unsupported Linux CPU"
+// 	return NULL;
+// #endif
+// }
 
 static void linux_detach_all(RzDebug *dbg);
 static char *read_link(int pid, const char *file);
