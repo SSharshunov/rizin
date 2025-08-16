@@ -196,9 +196,12 @@ if has_debugger
 
   if ['netbsd', 'openbsd', 'freebsd', 'dragonfly'].contains(host_machine.system())
     rz_debug_deps += cc.find_library('kvm', required: true, static: is_static_build)
-    rz_debug_sources += [
-      'p/native/bsd/bsd_debug.c',
-    ]
+    if host_machine.system() == 'freebsd'
+      rz_debug_sources += ['p/native/bsd/kfbsd_debug.c']
+    elif
+      rz_debug_sources += [
+        'p/native/bsd/bsd_debug.c',
+      ]
   endif
 endif
 

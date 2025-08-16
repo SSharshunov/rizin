@@ -42,7 +42,7 @@ static char *rz_debug_native_reg_profile(RzDebug *dbg) {
 static bool rz_debug_native_step(RzDebug *dbg) {
 	int ret = ptrace(PT_STEP, dbg->pid, (caddr_t)1, 0);
 	if (ret != 0) {
-		perror("native-singlestep");
+		rz_sys_perror("native-singlestep");
 		return false;
 	}
 	return true;
@@ -75,7 +75,7 @@ static int rz_debug_native_attach(RzDebug *dbg, int pid) {
 		int ret = ptrace(PTRACE_ATTACH, pid, 0, 0);
 		if (ret == -1) {
 			RZ_LOG_ERROR("Trying to attach to %d\n", pid);
-			perror("ptrace (PT_ATTACH)");
+			rz_sys_perror("ptrace (PT_ATTACH)");
 		}
 	}
 	return pid;
@@ -123,7 +123,7 @@ static RzDebugReasonType rz_debug_native_wait(RzDebug *dbg, int pid) {
 		return RZ_DEBUG_REASON_ERROR;
 	}
 
-	// eprintf ("rz_debug_native_wait: status=%d (0x%x) (return=%d)\n", status, status, ret);
+	// rz_cons_printf ("rz_debug_native_wait: status=%d (0x%x) (return=%d)\n", status, status, ret);
 	if (reason == RZ_DEBUG_REASON_ERROR) {
 		return reason;
 	}
@@ -137,7 +137,7 @@ static RzDebugReasonType rz_debug_native_wait(RzDebug *dbg, int pid) {
 			}
 			reason = RZ_DEBUG_REASON_DEAD;
 		} else if (WIFSIGNALED(status)) {
-			eprintf("child received signal %d\n", WTERMSIG(status));
+			rz_cons_printf("child received signal %d\n", WTERMSIG(status));
 			reason = RZ_DEBUG_REASON_SIGNAL;
 		} else if (WIFSTOPPED(status)) {
 			/* the ptrace documentation says GETSIGINFO is only necessary for
@@ -151,29 +151,29 @@ static RzDebugReasonType rz_debug_native_wait(RzDebug *dbg, int pid) {
 			reason = dbg->reason.type;
 #ifdef WIFCONTINUED
 		} else if (WIFCONTINUED(status)) {
-			eprintf("child continued...\n");
+			rz_cons_printf("child continued...\n");
 			reason = RZ_DEBUG_REASON_NONE;
 #endif
 		} else if (status == 1) {
 			/* XXX(jjd): does this actually happen? */
-			eprintf("debugger is dead with status 1!\n");
+			rz_cons_printf("debugger is dead with status 1!\n");
 			reason = RZ_DEBUG_REASON_DEAD;
 		} else if (status == 0) {
 			/* XXX(jjd): does this actually happen? */
-			eprintf("debugger is dead with status 0\n");
+			rz_cons_printf("debugger is dead with status 0\n");
 			reason = RZ_DEBUG_REASON_DEAD;
 		} else {
 			if (ret != pid) {
 				reason = RZ_DEBUG_REASON_NEW_PID;
 			} else {
 				/* ugh. still don't know :-/ */
-				eprintf("returning from wait without knowing why...\n");
+				rz_cons_printf("returning from wait without knowing why...\n");
 			}
 		}
 	}
 	/* if we still don't know what to do, we have a problem... */
 	if (reason == RZ_DEBUG_REASON_UNKNOWN) {
-		eprintf("%s: no idea what happened...\n", __func__);
+		rz_cons_printf("%s: no idea what happened...\n", __func__);
 		reason = RZ_DEBUG_REASON_ERROR;
 	}
 	dbg->reason.tid = pid;
@@ -195,7 +195,7 @@ static RzList /*<RzDebugPid *>*/ *rz_debug_native_pids(RzDebug *dbg, int pid) {
 RZ_API RZ_OWN RzList /*<RzDebugPid *>*/ *rz_debug_native_threads(RzDebug *dbg, int pid) {
 	RzList *list = rz_list_new();
 	if (!list) {
-		eprintf("No list?\n");
+		rz_cons_printf("No list?\n");
 		return NULL;
 	}
 	return bsd_thread_list(dbg, pid, list);
@@ -273,7 +273,7 @@ static int rz_debug_native_reg_write(RzDebug *dbg, int type, const ut8 *buf, int
 		return bsd_reg_write(dbg, type, buf, size);
 	} else if (type == RZ_REG_TYPE_FPU) {
 		return bsd_reg_write(dbg, type, buf, size);
-	} // else eprintf ("TODO: reg_write_non-gpr (%d)\n", type);
+	} // else rz_cons_printf ("TODO: reg_write_non-gpr (%d)\n", type);
 	return false;
 }
 
@@ -307,7 +307,7 @@ static RzList /*<RzDebugMap *>*/ *rz_debug_native_map_get(RzDebug *dbg) {
 	char region[PROC_REGION_SZ + 1], region2[PROC_REGION_SZ + 1], perms[PROC_PERM_SZ + 1];
 	FILE *fd;
 	if (dbg->pid == -1) {
-		// eprintf ("rz_debug_native_map_get: No selected pid (-1)\n");
+		// rz_cons_printf ("rz_debug_native_map_get: No selected pid (-1)\n");
 		return NULL;
 	}
 	/* prepend 0x prefix */
@@ -353,7 +353,7 @@ static RzList /*<RzDebugMap *>*/ *rz_debug_native_map_get(RzDebug *dbg) {
 		if (sscanf(line, "%" RZ_STR_DEF(PROC_REGION_LEFT_SZ) "s %" RZ_STR_DEF(PROC_REGION_LEFT_SZ) "s %d %d 0x%" RZ_STR_DEF(PROC_UNKSTR_SZ) "s %3s %d %d",
 			    &region[2], &region2[2], &ign, &ign,
 			    unkstr, perms, &ign, &ign) != 8) {
-			eprintf("%s: Unable to parse \"%s\"\n", __func__, path);
+			rz_cons_printf("%s: Unable to parse \"%s\"\n", __func__, path);
 			rz_list_free(list);
 			return NULL;
 		}
@@ -383,7 +383,7 @@ static RzList /*<RzDebugMap *>*/ *rz_debug_native_map_get(RzDebug *dbg) {
 		map_start = rz_num_get(NULL, region);
 		map_end = rz_num_get(NULL, region2);
 		if (map_start == map_end || map_end == 0) {
-			eprintf("%s: ignoring invalid map size: %s - %s\n", __func__, region, region2);
+			rz_cons_printf("%s: ignoring invalid map size: %s - %s\n", __func__, region, region2);
 			continue;
 		}
 		map = rz_debug_map_new(name, map_start, map_end, perm, 0);
@@ -457,7 +457,7 @@ static bool rz_debug_native_kill(RzDebug *dbg, int pid, int tid, int sig) {
 static void sync_drx_regs(RzDebug *dbg, drxt *regs, size_t num_regs) {
 	/* sanity check, we rely on this assumption */
 	if (num_regs != NUM_DRX_REGISTERS) {
-		eprintf("drx: Unsupported number of registers for get_debug_regs\n");
+		rz_cons_printf("drx: Unsupported number of registers for get_debug_regs\n");
 		return;
 	}
 
@@ -481,7 +481,7 @@ static void sync_drx_regs(RzDebug *dbg, drxt *regs, size_t num_regs) {
 static void set_drx_regs(RzDebug *dbg, drxt *regs, size_t num_regs) {
 	/* sanity check, we rely on this assumption */
 	if (num_regs != NUM_DRX_REGISTERS) {
-		eprintf("drx: Unsupported number of registers for get_debug_regs\n");
+		rz_cons_printf("drx: Unsupported number of registers for get_debug_regs\n");
 		return;
 	}
 
@@ -523,7 +523,7 @@ static int rz_debug_native_drx(RzDebug *dbg, int n, ut64 addr, int sz, int rwx, 
 		break;
 	default:
 		/* this should not happen, someone misused the API */
-		eprintf("drx: Unsupported api type in rz_debug_native_drx\n");
+		rz_cons_printf("drx: Unsupported api type in rz_debug_native_drx\n");
 		retval = false;
 	}
 
@@ -531,7 +531,7 @@ static int rz_debug_native_drx(RzDebug *dbg, int n, ut64 addr, int sz, int rwx, 
 
 	return retval;
 #else
-	eprintf("drx: Unsupported platform\n");
+	rz_cons_printf("drx: Unsupported platform\n");
 #endif
 	return -1;
 }
