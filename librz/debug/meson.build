@@ -202,6 +202,7 @@ if has_debugger
       rz_debug_sources += [
         'p/native/bsd/bsd_debug.c',
       ]
+    endif
   endif
 endif
 

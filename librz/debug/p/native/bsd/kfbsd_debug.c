@@ -170,7 +170,7 @@ RzList *bsd_pid_list(RzDebug *dbg, int pid, RzList *list) {
 
 	kvm_t *kd = kvm_openfiles(NULL, "/dev/null", NULL, KVM_OPEN_FLAG, errbuf);
 	if (!kd) {
-		eprintf("kvm_openfiles failed: %s\n", errbuf);
+		RZ_LOG_ERROR("kvm_openfiles failed: %s\n", errbuf);
 		return NULL;
 	}
 
