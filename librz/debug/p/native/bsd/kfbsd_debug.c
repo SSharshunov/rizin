@@ -115,7 +115,6 @@ bool bsd_generate_corefile(RzDebug *dbg, char *path, RzBuffer *dest) {
 	struct ptrace_coredump pc = { .pc_fd = dest->fd, .pc_flags = PC_ALL, .pc_limit = 0 };
 	return ptrace(PT_COREDUMP, dbg->pid, (void *)&pc, sizeof(pc)) != -1;
 #else
-	RZ_LOG_ERROR("Unsupported on this platform\n");
 	return false;
 #endif
 }
@@ -163,14 +162,26 @@ RzDebugInfo *bsd_info(RzDebug *dbg, const char *arg) {
 }
 
 RzList *bsd_pid_list(RzDebug *dbg, int pid, RzList *list) {
+#define KVM_OPEN_FLAG O_RDONLY
+#define KVM_GETPROCS(kd, opt, arg, cntptr) \
+	kvm_getprocs(kd, opt, arg, cntptr)
+#define KP_COMM(x) (x)->ki_comm
+#define KP_PID(x)  (x)->ki_pid
+#define KP_PPID(x) (x)->ki_ppid
+#define KP_UID(x)  (x)->ki_uid
+#define KINFO_PROC kinfo_proc
 	char errbuf[_POSIX2_LINE_MAX];
 	struct KINFO_PROC *kp, *entry;
 	int cnt = 0;
 	int i;
 
+#if __FreeBSD__
 	kvm_t *kd = kvm_openfiles(NULL, "/dev/null", NULL, KVM_OPEN_FLAG, errbuf);
+#else
+	kvm_t *kd = kvm_openfiles(NULL, NULL, NULL, KVM_OPEN_FLAG, errbuf);
+#endif
 	if (!kd) {
-		RZ_LOG_ERROR("kvm_openfiles failed: %s\n", errbuf);
+		eprintf("kvm_openfiles failed: %s\n", errbuf);
 		return NULL;
 	}
 
@@ -378,7 +389,7 @@ static int get_rz_status(int stat) {
 	}
 }
 
-RzList *bsd_thread_list(RzDebug *dbg, int pid, RzList *list) {
+static RzList *kfbsd_thread_list(RzDebug *dbg, int pid, RzList *list) {
 	int mib[4] = { CTL_KERN, KERN_PROC, KERN_PROC_PID | KERN_PROC_INC_THREAD, pid };
 	struct kinfo_proc *kp;
 	size_t len = 0;
@@ -410,4 +421,9 @@ RzList *bsd_thread_list(RzDebug *dbg, int pid, RzList *list) {
 
 	free(kp);
 	return list;
+}
+
+RzList *bsd_thread_list(RzDebug *dbg, int pid, RzList *list) {
+	RzList *thread_list = kfbsd_thread_list(dbg, pid, list);
+	return thread_list;
 }
