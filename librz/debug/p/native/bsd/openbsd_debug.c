@@ -38,9 +38,6 @@ int bsd_reg_write(RzDebug *dbg, int type, const ut8 *buf, int size) {
 			(caddr_t)buf, sizeof(struct reg));
 		break;
 	case RZ_REG_TYPE_DRX:
-#if __KFBSD__ || __NetBSD__
-		r = ptrace(PT_SETDBREGS, dbg->pid, (caddr_t)buf, sizeof(struct dbreg));
-#endif
 		break;
 	case RZ_REG_TYPE_FPU:
 		r = ptrace(PT_SETFPREGS, dbg->pid, (caddr_t)buf, sizeof(struct fpreg));
@@ -51,58 +48,9 @@ int bsd_reg_write(RzDebug *dbg, int type, const ut8 *buf, int size) {
 }
 
 bool bsd_generate_corefile(RzDebug *dbg, char *path, RzBuffer *dest) {
-#if defined(__NetBSD__)
-	return ptrace(PT_DUMPCORE, dbg->pid, path, strlen(path)) != -1;
-#elif defined(__FreeBSD__) && __FreeBSD_version >= 1302000
-	struct ptrace_coredump pc = { .pc_fd = dest->fd, .pc_flags = PC_ALL, .pc_limit = 0 };
-	return ptrace(PT_COREDUMP, dbg->pid, (void *)&pc, sizeof(pc)) != -1;
-#else
 	return false;
-#endif
 }
 RzDebugInfo *bsd_info(RzDebug *dbg, const char *arg) {
-#if __KFBSD__
-	struct kinfo_proc *kp;
-	RzDebugInfo *rdi = RZ_NEW0(RzDebugInfo);
-	if (!rdi) {
-		return NULL;
-	}
-
-	if (!(kp = kinfo_getproc(dbg->pid))) {
-		free(rdi);
-		return NULL;
-	}
-
-	rdi->pid = dbg->pid;
-	rdi->tid = dbg->tid;
-	rdi->uid = kp->ki_uid;
-	rdi->gid = kp->ki_pgid;
-	rdi->exe = rz_str_dup(kp->ki_comm);
-
-	switch (kp->ki_stat) {
-	case SSLEEP:
-		rdi->status = RZ_DBG_PROC_SLEEP;
-		break;
-	case SSTOP:
-		rdi->status = RZ_DBG_PROC_STOP;
-		break;
-	case SZOMB:
-		rdi->status = RZ_DBG_PROC_ZOMBIE;
-		break;
-	case SRUN:
-	case SIDL:
-	case SLOCK:
-	case SWAIT:
-		rdi->status = RZ_DBG_PROC_RUN;
-		break;
-	default:
-		rdi->status = RZ_DBG_PROC_DEAD;
-	}
-
-	free(kp);
-
-	return rdi;
-#elif __OpenBSD__
 	struct kinfo_proc *kp;
 	char err[_POSIX2_LINE_MAX];
 	int rc;
@@ -144,69 +92,9 @@ RzDebugInfo *bsd_info(RzDebug *dbg, const char *arg) {
 	kvm_close(kd);
 
 	return rdi;
-#elif __NetBSD__
-	struct kinfo_proc2 *kp;
-	char err[_POSIX2_LINE_MAX];
-	int np;
-	RzDebugInfo *rdi = RZ_NEW0(RzDebugInfo);
-	if (!rdi) {
-		return NULL;
-	}
-
-	kvm_t *kd = kvm_openfiles(NULL, NULL, NULL, KVM_NO_FILES, err);
-	if (!kd) {
-		free(rdi);
-		return NULL;
-	}
-
-	kp = kvm_getproc2(kd, KERN_PROC_PID, dbg->pid, sizeof(*kp), &np);
-	if (kp) {
-		rdi->pid = dbg->pid;
-		rdi->tid = dbg->tid;
-		rdi->uid = kp->p_uid;
-		rdi->gid = kp->p__pgid;
-		rdi->exe = rz_str_dup(kp->p_comm);
-
-		rdi->status = RZ_DBG_PROC_STOP;
-
-		switch (kp->p_stat) {
-		case SDEAD:
-			rdi->status = RZ_DBG_PROC_DEAD;
-			break;
-		case SSTOP:
-			rdi->status = RZ_DBG_PROC_STOP;
-			break;
-		case SZOMB:
-			rdi->status = RZ_DBG_PROC_ZOMBIE;
-			break;
-		case SACTIVE:
-		case SIDL:
-		case SDYING:
-			rdi->status = RZ_DBG_PROC_RUN;
-			break;
-		default:
-			rdi->status = RZ_DBG_PROC_SLEEP;
-		}
-	}
-
-	kvm_close(kd);
-
-	return rdi;
-#endif
 }
 
 RzList *bsd_pid_list(RzDebug *dbg, int pid, RzList *list) {
-#if __KFBSD__
-#ifdef __NetBSD__
-#define KVM_OPEN_FLAG KVM_NO_FILES
-#define KVM_GETPROCS(kd, opt, arg, cntptr) \
-	kvm_getproc2(kd, opt, arg, sizeof(struct kinfo_proc2), cntptr)
-#define KP_COMM(x) (x)->p_comm
-#define KP_PID(x)  (x)->p_pid
-#define KP_PPID(x) (x)->p_ppid
-#define KP_UID(x)  (x)->p_uid
-#define KINFO_PROC kinfo_proc2
-#elif defined(__OpenBSD__)
 #define KVM_OPEN_FLAG KVM_NO_FILES
 #define KVM_GETPROCS(kd, opt, arg, cntptr) \
 	kvm_getprocs(kd, opt, arg, sizeof(struct kinfo_proc), cntptr)
@@ -215,41 +103,19 @@ RzList *bsd_pid_list(RzDebug *dbg, int pid, RzList *list) {
 #define KP_PPID(x) (x)->p_ppid
 #define KP_UID(x)  (x)->p_uid
 #define KINFO_PROC kinfo_proc
-#elif __DragonFly__
-#define KVM_OPEN_FLAG O_RDONLY
-#define KVM_GETPROCS(kd, opt, arg, cntptr) \
-	kvm_getprocs(kd, opt, arg, cntptr)
-#define KP_COMM(x) (x)->kp_comm
-#define KP_PID(x)  (x)->kp_pid
-#define KP_PPID(x) (x)->kp_ppid
-#define KP_UID(x)  (x)->kp_uid
-#define KINFO_PROC kinfo_proc
-#else
-#define KVM_OPEN_FLAG O_RDONLY
-#define KVM_GETPROCS(kd, opt, arg, cntptr) \
-	kvm_getprocs(kd, opt, arg, cntptr)
-#define KP_COMM(x) (x)->ki_comm
-#define KP_PID(x)  (x)->ki_pid
-#define KP_PPID(x) (x)->ki_ppid
-#define KP_UID(x)  (x)->ki_uid
-#define KINFO_PROC kinfo_proc
-#endif
+
 	char errbuf[_POSIX2_LINE_MAX];
 	struct KINFO_PROC *kp, *entry;
 	int cnt = 0;
 	int i;
 
-#if __FreeBSD__
-	kvm_t *kd = kvm_openfiles(NULL, "/dev/null", NULL, KVM_OPEN_FLAG, errbuf);
-#else
 	kvm_t *kd = kvm_openfiles(NULL, NULL, NULL, KVM_OPEN_FLAG, errbuf);
-#endif
 	if (!kd) {
 		eprintf("kvm_openfiles failed: %s\n", errbuf);
 		return NULL;
 	}
 
-	kp = KVM_GETPROCS(kd, KERN_PROC_PROC, 0, &cnt);
+	kp = KVM_GETPROCS(kd, KERN_PROC_ALL, 0, &cnt);
 	for (i = 0; i < cnt; i++) {
 		entry = kp + i;
 		// Unless pid 0 is requested, only add the requested pid and it's child processes
@@ -263,7 +129,6 @@ RzList *bsd_pid_list(RzDebug *dbg, int pid, RzList *list) {
 	}
 
 	kvm_close(kd);
-#endif
 	return list;
 }
 

@@ -30,7 +30,7 @@
 
 #if WAIT_ON_ALL_CHILDREN
 static int rz_debug_handle_signals(RzDebug *dbg) {
-	eprintf("Warning: signal handling is not supported on this platform\n");
+	RZ_LOG_WARN("signal handling is not supported on this platform\n");
 	return 0;
 }
 #endif
@@ -95,7 +95,7 @@ static int rz_debug_native_continue(RzDebug *dbg, int pid, int tid, int sig) {
 		rz_list_foreach (dbg->threads, it, th) {
 			ret = rz_debug_ptrace(dbg, PTRACE_CONT, th->pid, 0, 0);
 			if (ret) {
-				eprintf("Error: (%d) is running or dead.\n", th->pid);
+				RZ_LOG_ERROR("(%d) is running or dead.\n", th->pid);
 			}
 		}
 	} else {
@@ -117,7 +117,7 @@ static RzDebugReasonType rz_debug_native_wait(RzDebug *dbg, int pid) {
 	RzDebugReasonType reason = RZ_DEBUG_REASON_UNKNOWN;
 
 	if (pid == -1) {
-		eprintf("ERROR: rz_debug_native_wait called with pid -1\n");
+		RZ_LOG_ERROR("rz_debug_native_wait called with pid -1\n");
 		return RZ_DEBUG_REASON_ERROR;
 	}
 	int status = -1;
@@ -128,11 +128,11 @@ static RzDebugReasonType rz_debug_native_wait(RzDebug *dbg, int pid) {
 		return RZ_DEBUG_REASON_ERROR;
 	}
 
-	// eprintf ("rz_debug_native_wait: status=%d (0x%x) (return=%d)\n", status, status, ret);
+	// rz_cons_printf ("rz_debug_native_wait: status=%d (0x%x) (return=%d)\n", status, status, ret);
 
 	if (ret != pid) {
 		reason = RZ_DEBUG_REASON_NEW_PID;
-		eprintf("switching to pid %d\n", ret);
+		rz_cons_printf("switching to pid %d\n", ret);
 		rz_debug_select(dbg, ret, ret);
 	}
 
@@ -150,15 +150,15 @@ static RzDebugReasonType rz_debug_native_wait(RzDebug *dbg, int pid) {
 	/* we don't know what to do yet, let's try harder to figure it out. */
 	if (reason == RZ_DEBUG_REASON_UNKNOWN) {
 		if (WIFEXITED(status)) {
-			eprintf("child exited with status %d\n", WEXITSTATUS(status));
+			rz_cons_printf("child exited with status %d\n", WEXITSTATUS(status));
 			reason = RZ_DEBUG_REASON_DEAD;
 		} else if (WIFSIGNALED(status)) {
-			eprintf("child received signal %d\n", WTERMSIG(status));
+			rz_cons_printf("child received signal %d\n", WTERMSIG(status));
 			reason = RZ_DEBUG_REASON_SIGNAL;
 		} else if (WIFSTOPPED(status)) {
 			if (WSTOPSIG(status) != SIGTRAP &&
 				WSTOPSIG(status) != SIGSTOP) {
-				eprintf("Child stopped with signal %d\n", WSTOPSIG(status));
+				rz_cons_printf("Child stopped with signal %d\n", WSTOPSIG(status));
 			}
 
 			/* the ptrace documentation says GETSIGINFO is only necessary for
@@ -172,30 +172,30 @@ static RzDebugReasonType rz_debug_native_wait(RzDebug *dbg, int pid) {
 			reason = dbg->reason.type;
 #ifdef WIFCONTINUED
 		} else if (WIFCONTINUED(status)) {
-			eprintf("child continued...\n");
+			rz_cons_printf("child continued...\n");
 			reason = RZ_DEBUG_REASON_NONE;
 #endif
 		} else if (status == 1) {
 			/* XXX(jjd): does this actually happen? */
-			eprintf("debugger is dead with status 1!\n");
+			rz_cons_printf("debugger is dead with status 1!\n");
 			reason = RZ_DEBUG_REASON_DEAD;
 		} else if (status == 0) {
 			/* XXX(jjd): does this actually happen? */
-			eprintf("debugger is dead with status 0\n");
+			rz_cons_printf("debugger is dead with status 0\n");
 			reason = RZ_DEBUG_REASON_DEAD;
 		} else {
 			if (ret != pid) {
 				reason = RZ_DEBUG_REASON_NEW_PID;
 			} else {
 				/* ugh. still don't know :-/ */
-				eprintf("returning from wait without knowing why...\n");
+				rz_cons_printf("returning from wait without knowing why...\n");
 			}
 		}
 	}
 
 	/* if we still don't know what to do, we have a problem... */
 	if (reason == RZ_DEBUG_REASON_UNKNOWN) {
-		eprintf("%s: no idea what happened...\n", __func__);
+		rz_cons_printf("%s: no idea what happened...\n", __func__);
 		reason = RZ_DEBUG_REASON_ERROR;
 	}
 	dbg->reason.tid = pid;
@@ -206,7 +206,7 @@ static RzDebugReasonType rz_debug_native_wait(RzDebug *dbg, int pid) {
 static RzDebugReasonType rz_debug_native_wait(RzDebug *dbg, int pid) {
 	RzDebugReasonType reason = RZ_DEBUG_REASON_UNKNOWN;
 	if (pid == -1) {
-		eprintf("ERROR: rz_debug_native_wait called with pid -1\n");
+		RZ_LOG_ERROR("rz_debug_native_wait called with pid -1\n");
 		return RZ_DEBUG_REASON_ERROR;
 	}
 
@@ -230,7 +230,7 @@ static RzList /*<RzDebugPid *>*/ *rz_debug_native_pids(RzDebug *dbg, int pid) {
 RZ_API RZ_OWN RzList /*<RzDebugPid *>*/ *rz_debug_native_threads(RzDebug *dbg, int pid) {
 	RzList *list = rz_list_new();
 	if (!list) {
-		eprintf("No list?\n");
+		rz_cons_printf("No list?\n");
 		return NULL;
 	}
 	return linux_thread_list(dbg, pid, list);
@@ -256,7 +256,7 @@ static int rz_debug_native_reg_write(RzDebug *dbg, int type, const ut8 *buf, int
 		return linux_reg_write(dbg, type, buf, size);
 	} else if (type == RZ_REG_TYPE_FPU) {
 		return linux_reg_write(dbg, type, buf, size);
-	} // else eprintf ("TODO: reg_write_non-gpr (%d)\n", type);
+	} // else rz_cons_printf ("TODO: reg_write_non-gpr (%d)\n", type);
 	return false;
 }
 
@@ -313,14 +313,14 @@ static int linux_map_thp(RzDebug *dbg, ut64 addr, int size) {
 	const size_t thpsize = 1 << 21;
 
 	if ((size % thpsize)) {
-		eprintf("size not a power of huge pages size\n");
+		rz_cons_printf("size not a power of huge pages size\n");
 		return false;
 	}
 	// In always mode, is more into mmap syscall level
 	// even though the address might not have the 'hg'
 	// vmflags
 	if (sys_thp_mode() != 1) {
-		eprintf("transparent huge page mode is not in madvise mode\n");
+		rz_cons_printf("transparent huge page mode is not in madvise mode\n");
 		return false;
 	}
 
@@ -335,11 +335,11 @@ static int linux_map_thp(RzDebug *dbg, ut64 addr, int size) {
 	rz_egg_setup(dbg->egg, dbg->arch, 8 * dbg->bits, 0, 0);
 	rz_egg_load(dbg->egg, code, 0);
 	if (!rz_egg_compile(dbg->egg)) {
-		eprintf("Cannot compile.\n");
+		rz_cons_printf("Cannot compile.\n");
 		goto err_linux_map_thp;
 	}
 	if (!rz_egg_assemble_asm(dbg->egg, asm_list)) {
-		eprintf("rz_egg_assemble: invalid assembly\n");
+		rz_cons_printf("rz_egg_assemble: invalid assembly\n");
 		goto err_linux_map_thp;
 	}
 	buf = rz_egg_get_bin(dbg->egg);
@@ -390,11 +390,11 @@ static RzDebugMap *linux_map_alloc(RzDebug *dbg, ut64 addr, int size, bool thp) 
 	rz_egg_setup(dbg->egg, dbg->arch, 8 * dbg->bits, 0, 0);
 	rz_egg_load(dbg->egg, code, 0);
 	if (!rz_egg_compile(dbg->egg)) {
-		eprintf("Cannot compile.\n");
+		rz_cons_printf("Cannot compile.\n");
 		goto err_linux_map_alloc;
 	}
 	if (!rz_egg_assemble_asm(dbg->egg, asm_list)) {
-		eprintf("rz_egg_assemble: invalid assembly\n");
+		rz_cons_printf("rz_egg_assemble: invalid assembly\n");
 		goto err_linux_map_alloc;
 	}
 	buf = rz_egg_get_bin(dbg->egg);
@@ -410,7 +410,7 @@ static RzDebugMap *linux_map_alloc(RzDebug *dbg, ut64 addr, int size, bool thp) 
 			if (thp) {
 				if (!linux_map_thp(dbg, map_addr, size)) {
 					// Not overly dramatic
-					eprintf("map promotion to huge page failed\n");
+					rz_cons_printf("map promotion to huge page failed\n");
 				}
 			}
 			rz_debug_map_sync(dbg);
@@ -441,11 +441,11 @@ static int linux_map_dealloc(RzDebug *dbg, ut64 addr, int size) {
 	rz_egg_setup(dbg->egg, dbg->arch, 8 * dbg->bits, 0, 0);
 	rz_egg_load(dbg->egg, code, 0);
 	if (!rz_egg_compile(dbg->egg)) {
-		eprintf("Cannot compile.\n");
+		rz_cons_printf("Cannot compile.\n");
 		goto err_linux_map_dealloc;
 	}
 	if (!rz_egg_assemble_asm(dbg->egg, asm_list)) {
-		eprintf("rz_egg_assemble: invalid assembly\n");
+		rz_cons_printf("rz_egg_assemble: invalid assembly\n");
 		goto err_linux_map_dealloc;
 	}
 	buf = rz_egg_get_bin(dbg->egg);
@@ -486,7 +486,7 @@ static RzList /*<RzDebugMap *>*/ *rz_debug_native_map_get(RzDebug *dbg) {
 	char region[PROC_REGION_SZ + 1], region2[PROC_REGION_SZ + 1], perms[PROC_PERM_SZ + 1];
 	FILE *fd;
 	if (dbg->pid == -1) {
-		// eprintf ("rz_debug_native_map_get: No selected pid (-1)\n");
+		// rz_cons_printf ("rz_debug_native_map_get: No selected pid (-1)\n");
 		return NULL;
 	}
 	/* prepend 0x prefix */
@@ -498,7 +498,7 @@ static RzList /*<RzDebugMap *>*/ *rz_debug_native_map_get(RzDebug *dbg) {
 	fd = rz_sys_fopen(path, "r");
 	if (!fd) {
 		char *errmsg = rz_str_newf("Cannot open '%s'", path);
-		perror(errmsg);
+		rz_sys_perror(errmsg);
 		free(errmsg);
 		return NULL;
 	}
@@ -534,8 +534,8 @@ static RzList /*<RzDebugMap *>*/ *rz_debug_native_map_get(RzDebug *dbg) {
 		if (i == 3) {
 			name[0] = '\0';
 		} else if (i != 4) {
-			eprintf("%s: Unable to parse \"%s\"\n", __func__, path);
-			eprintf("%s: problematic line: %s\n", __func__, line);
+			rz_cons_printf("%s: Unable to parse \"%s\"\n", __func__, path);
+			rz_cons_printf("%s: problematic line: %s\n", __func__, line);
 			rz_list_free(list);
 			return NULL;
 		}
@@ -564,7 +564,7 @@ static RzList /*<RzDebugMap *>*/ *rz_debug_native_map_get(RzDebug *dbg) {
 		map_start = rz_num_get(NULL, region);
 		map_end = rz_num_get(NULL, region2);
 		if (map_start == map_end || map_end == 0) {
-			eprintf("%s: ignoring invalid map size: %s - %s\n", __func__, region, region2);
+			rz_cons_printf("%s: ignoring invalid map size: %s - %s\n", __func__, region, region2);
 			continue;
 		}
 		map = rz_debug_map_new(name, map_start, map_end, perm, 0);
@@ -637,7 +637,7 @@ static bool rz_debug_native_kill(RzDebug *dbg, int pid, int tid, int sig) {
 }
 
 static int rz_debug_native_drx(RzDebug *dbg, int n, ut64 addr, int sz, int rwx, int g, int api_type) {
-	eprintf("drx: Unsupported platform\n");
+	rz_cons_printf("drx: Unsupported platform\n");
 	return -1;
 }
 
@@ -666,11 +666,11 @@ static int rz_debug_native_map_protect(RzDebug *dbg, ut64 addr, int size, int pe
 	rz_egg_setup(dbg->egg, dbg->arch, 8 * dbg->bits, 0, 0);
 	rz_egg_load(dbg->egg, code, 0);
 	if (!rz_egg_compile(dbg->egg)) {
-		eprintf("Cannot compile.\n");
+		rz_cons_printf("Cannot compile.\n");
 		return false;
 	}
 	if (!rz_egg_assemble(dbg->egg)) {
-		eprintf("rz_egg_assemble: invalid assembly\n");
+		rz_cons_printf("rz_egg_assemble: invalid assembly\n");
 		return false;
 	}
 	buf = rz_egg_get_bin(dbg->egg);

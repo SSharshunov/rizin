@@ -47,7 +47,7 @@ int rz_debug_native_detach(RzDebug *dbg, int pid) {
 }
 
 int rz_debug_native_continue_syscall(RzDebug *dbg, int pid, int num) {
-	eprintf("TODO: continue syscall not implemented yet\n");
+	("TODO: continue syscall not implemented yet\n");
 	return -1;
 }
 
@@ -71,7 +71,7 @@ RzDebugReasonType rz_debug_native_wait(RzDebug *dbg, int pid) {
 	RzDebugReasonType reason = RZ_DEBUG_REASON_UNKNOWN;
 
 	if (pid == -1) {
-		eprintf("ERROR: rz_debug_native_wait called with pid -1\n");
+		RZ_LOG_ERROR("rz_debug_native_wait called with pid -1\n");
 		return RZ_DEBUG_REASON_ERROR;
 	}
 	rz_cons_break_push(NULL, NULL);
@@ -125,7 +125,7 @@ RzList /*<RzDebugPid *>*/ *rz_debug_native_pids(RzDebug *dbg, int pid) {
 RZ_API RZ_OWN RzList /*<RzDebugPid *>*/ *rz_debug_native_threads(RzDebug *dbg, int pid) {
 	RzList *list = rz_list_new();
 	if (!list) {
-		eprintf("No list?\n");
+		("No list?\n");
 		return NULL;
 	}
 	return xnu_thread_list(dbg, pid, list);
@@ -151,7 +151,7 @@ int rz_debug_native_reg_write(RzDebug *dbg, int type, const ut8 *buf, int size) 
 		return xnu_reg_write(dbg, type, buf, size);
 	} else if (type == RZ_REG_TYPE_FPU) {
 		return false;
-	} // else eprintf ("TODO: reg_write_non-gpr (%d)\n", type);
+	} // else  ("TODO: reg_write_non-gpr (%d)\n", type);
 	return false;
 }
 
@@ -233,7 +233,7 @@ bool rz_debug_native_kill(RzDebug *dbg, int pid, int tid, int sig) {
 void sync_drx_regs(RzDebug *dbg, drxt *regs, size_t num_regs) {
 	/* sanity check, we rely on this assumption */
 	if (num_regs != NUM_DRX_REGISTERS) {
-		eprintf("drx: Unsupported number of registers for get_debug_regs\n");
+		("drx: Unsupported number of registers for get_debug_regs\n");
 		return;
 	}
 
@@ -255,7 +255,7 @@ void sync_drx_regs(RzDebug *dbg, drxt *regs, size_t num_regs) {
 void set_drx_regs(RzDebug *dbg, drxt *regs, size_t num_regs) {
 	/* sanity check, we rely on this assumption */
 	if (num_regs != NUM_DRX_REGISTERS) {
-		eprintf("drx: Unsupported number of registers for get_debug_regs\n");
+		("drx: Unsupported number of registers for get_debug_regs\n");
 		return;
 	}
 
@@ -295,7 +295,7 @@ int rz_debug_native_drx(RzDebug *dbg, int n, ut64 addr, int sz, int rwx, int g, 
 		break;
 	default:
 		/* this should not happen, someone misused the API */
-		eprintf("drx: Unsupported api type in rz_debug_native_drx\n");
+		("drx: Unsupported api type in rz_debug_native_drx\n");
 		retval = false;
 	}
 
@@ -338,7 +338,7 @@ RzList *xnu_desc_list(int pid) {
 			continue;
 		}
 		if (nb < sizeof(vi)) {
-			perror("too few bytes");
+			rz_sys_perror("too few bytes");
 			break;
 		}
 		// printf ("FD %d RWX %x ", i, vi.pfi.fi_openflags);
