@@ -149,7 +149,7 @@ RzList *bsd_pid_list(RzDebug *dbg, int pid, RzList *list) {
 		return NULL;
 	}
 
-	kp = KVM_GETPROCS(kd, KERN_PROC_PROC, 0, &cnt);
+	kp = KVM_GETPROCS(kd, KERN_PROC_ALL, 0, &cnt);
 	for (i = 0; i < cnt; i++) {
 		entry = kp + i;
 		// Unless pid 0 is requested, only add the requested pid and it's child processes
@@ -168,7 +168,6 @@ RzList *bsd_pid_list(RzDebug *dbg, int pid, RzList *list) {
 
 RzList *bsd_native_sysctl_map(RzDebug *dbg) {
 	return NULL;
-#endif
 }
 
 RzList *bsd_desc_list(int pid) {
