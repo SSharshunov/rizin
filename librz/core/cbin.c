@@ -13,6 +13,7 @@
 #include <rz_util/rz_iterator.h>
 
 #include "../bin/dwarf/dwarf_private.h"
+#include "omf/omf.h"
 #include "core_private.h"
 
 #define is_invalid_address_va(va, vaddr, paddr)  (((va) && (vaddr) == UT64_MAX) || (!(va) && (paddr) == UT64_MAX))
@@ -37,6 +38,8 @@
 #define bprintf \
 	if (binfile && binfile->rbin && binfile->rbin->verbose) \
 	eprintf
+
+RZ_API bool rz_core_bin_apply_omf_debug(RzCore *core, RzBinFile *binfile);
 
 static RZ_NULLABLE RZ_BORROW const RzPVector /*<RzBinString *>*/ *core_bin_strings(RzCore *r, RzBinFile *file);
 
@@ -242,6 +245,9 @@ RZ_API bool rz_core_bin_apply_info(RzCore *r, RzBinFile *binfile, ut32 mask) {
 	}
 	if (mask & RZ_CORE_BIN_ACC_DWARF) {
 		rz_core_bin_apply_dwarf(r, binfile);
+	}
+	if (mask & RZ_CORE_BIN_ACC_OMF_DEBUG) {
+		rz_core_bin_apply_omf_debug(r, binfile);
 	}
 	if (mask & RZ_CORE_BIN_ACC_ENTRIES) {
 		rz_core_bin_apply_entry(r, binfile, va);
