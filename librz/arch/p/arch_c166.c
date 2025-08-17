@@ -3,7 +3,6 @@
 
 #include <deprecated_arch_helper.h>
 
-#include "librz/arch/isa/c166/c166_ops.h"
 #include "librz/arch/isa/c166/c166_disas.c"
 
 #include "asm/asm_c166.c"
