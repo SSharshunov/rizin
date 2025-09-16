@@ -394,6 +394,7 @@ static const char *c166_fmt_mem(const C166ExtState *ext, char *buf, ut16 mem) {
 	}
 	return buf;
 }
+
 static inline bool IS_GPR(ut8 addr) {
 	return ((addr >= 0xF0) && (addr <= 0xFF));
 }

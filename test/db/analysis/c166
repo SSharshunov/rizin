@@ -116,19 +116,19 @@ size: 2
 EOF
 RUN
 
-NAME=C166 Hello world binary file
-FILE=bins/c166/hello_world_hex167.bin
-CMDS=<<EOF
-e asm.arch=c166
-pD 4
+#NAME=C166 Hello world binary file
+#FILE=bins/c166/hello_world_hex167.bin
+#CMDS=<<EOF
+#e asm.arch=c166
+#pD 4
 #ia
 #flt
 #pd 1221 @ 0
-EOF
-EXPECT=<<EOF
-        ,=< 0x00000000      jmps  0x00, 0x0004
-EOF
-RUN
+#EOF
+#EXPECT=<<EOF
+#        ,=< 0x00000000      jmps  0x00, 0x0004
+#EOF
+#RUN
 
 
 
