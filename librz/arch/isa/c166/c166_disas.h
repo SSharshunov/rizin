@@ -9,7 +9,7 @@
 #include <rz_types.h>
 #include <rz_lib.h>
 
-#define C166_INSTR_MAXLEN    16
+#define C166_INSTR_MAXLEN    16 + 16 // ?
 #define C166_OPERANDS_MAXLEN 32
 
 #define C166_BYTESIZE_2 2
@@ -60,6 +60,9 @@
 #define BASE_ESFR_B_ADDR 0xF100 ///< Base address for calculate ESFR phisical address (bit)
 
 #define REG_R(n) (BASE_GPR_ADDR + (2 * n))
+
+#define IDX0 0xFF08
+#define IDX1 0xFF0A
 
 /**
  * C166 Register definitions
@@ -407,9 +410,9 @@ typedef enum {
 	C166_CMPI1_Rwn_data4 = 0x80, ///< <b>[0x80]</b> Compare immediate word data to direct GPR and increment GPR by 1 <b>(2 bytes)</b>
 	C166_NEG_Rwn = 0x81, ///< <b>[0x81]</b> Negate direct word GPR <b>(2 bytes)</b>
 	C166_CMPI1_Rwn_mem = 0x82, ///< <b>[0x82]</b> Compare direct word memory to direct GPR and increment GPR by 1 <b>(4 bytes)</b>
-	// 0x83
+	C166_CoXXX_83 = 0x83, ///< <b>[0x83]</b> CoXXX <b>(v2 family)</b> <b>(4 bytes)</b>
 	C166_MOV_oRwn_mem = 0x84, ///< <b>[0x84]</b> Move direct word memory to indirect memory <b>(4 bytes)</b>
-	// 0x85
+	C166_ENWDT = 0x85, ///< <b>[0x85]</b> End Watchdog Timer <b>(4 bytes)</b> <b>(v2 family)</b>
 	C166_CMPI1_Rwn_data16 = 0x86, ///< <b>[0x86]</b> Compare immediate word data to direct GPR and increment GPR by 1 <b>(4 bytes)</b>
 	C166_IDLE = 0x87, ///< <b>[0x87]</b> Enter Idle Mode <b>(4 bytes)</b>
 	C166_MOV_noRwm_Rwn = 0x88, ///< <b>[0x88]</b> Pre-decrement destination pointer by 2 and move direct word GPR to indirect memory <b>(2 bytes)</b>
@@ -423,7 +426,7 @@ typedef enum {
 	C166_CMPI2_Rwn_data4 = 0x90, ///< <b>[0x90]</b> Compare immediate word data to direct GPR and increment GPR by 2 <b>(2 bytes)</b>
 	C166_CPL_Rwn = 0x91, ///< <b>[0x91]</b> Complement direct word GPR <b>(2 bytes)</b>
 	C166_CMPI2_Rwn_mem = 0x92, ///< <b>[0x92]</b> Compare direct word memory to direct GPR and increment GPR by 2 <b>(4 bytes)</b>
-	// 0x93
+	C166_CoXXX_93 = 0x93, ///< <b>[0x93]</b> CoXXX <b>(v2 family)</b> <b>(4 bytes)</b>
 	C166_MOV_mem_oRwn = 0x94, ///< <b>[0x94]</b> Move indirect word memory to direct memory <b>(4 bytes)</b>
 	// 0x95
 	C166_CMPI2_Rwn_data16 = 0x96, ///< <b>[0x96]</b> Compare immediate word data to direct GPR and increment GPR by 2 <b>(4 bytes)</b>
@@ -439,7 +442,7 @@ typedef enum {
 	C166_CMPD1_Rwn_data4 = 0xA0, ///< <b>[0xA0]</b> Compare immediate word data to direct GPR and decrement GPR by 1 <b>(2 bytes)</b>
 	C166_NEGB_Rbn = 0xA1, ///< <b>[0xA1]</b> Negate direct byte GPR <b>(2 bytes)</b>
 	C166_CMPD1_Rwn_mem = 0xA2, ///< <b>[0xA2]</b> Compare direct word memory to direct GPR and decrement GPR by 1 <b>(4 bytes)</b>
-	// 0xA3
+	C166_CoXXX_A3 = 0xA3, ///< <b>[0xA3]</b> CoXXX <b>(v2 family)</b> <b>(4 bytes)</b>
 	C166_MOVB_oRwn_mem = 0xA4, ///< <b>[0xA4]</b> Move direct byte memory to indirect memory <b>(4 bytes)</b>
 	C166_DISWDT = 0xA5, ///< <b>[0xA5]</b> Disable Watchdog Timer <b>(4 bytes)</b>
 	C166_CMPD1_Rwn_data16 = 0xA6, ///< <b>[0xA6]</b> Compare immediate word data to direct GPR and and decrement GPR by 1 <b>(4 bytes)</b>
@@ -455,7 +458,7 @@ typedef enum {
 	C166_CMPD2_Rwn_data4 = 0xB0, ///< <b>[0xB0]</b> Compare immediate word data to direct GPR and decrement GPR by 2 <b>(2 bytes)</b>
 	C166_CPLB_Rbn = 0xB1, ///< <b>[0xB1]</b> Complement direct byte GPR <b>(2 bytes)</b>
 	C166_CMPD2_Rwn_mem = 0xB2, ///< <b>[0xB2]</b> Compare direct word memory to direct GPR and decrement GPR by 2 <b>(4 bytes)</b>
-	// 0xB3,
+	C166_CoSTORE_B3 = 0xB3, // 0xB3, // CoSTORE
 	C166_MOVB_mem_oRwn = 0xB4, ///< <b>[0xB4]</b> Move indirect word memory to direct memory <b>(4 bytes)</b>
 	C166_EINIT = 0xB5, ///< <b>[0xB5]</b> Signify End-of-Initialization on RSTOUT-pin <b>(4 bytes)</b>
 	C166_CMPD2_Rwn_data16 = 0xB6, ///< <b>[0xB6]</b> Compare immediate word data to direct GPR and and decrement GPR by 2 <b>(4 bytes)</b>
@@ -471,7 +474,7 @@ typedef enum {
 	C166_MOVBZ_Rwn_Rbm = 0xC0, ///< <b>[0xC0]</b> Move direct byte GPR with zero extension to direct word GPR <b>(2 bytes)</b>
 	// 0xC1
 	C166_MOVBZ_reg_mem = 0xC2, ///< <b>[0xC2]</b> Move direct byte memory with zero extension to direct word register <b>(4 bytes)</b>
-	// 0xC3
+	C166_CoSTORE_C3 = 0xC3, // CoSTORE
 	C166_MOV_oRwm_data16_Rwn = 0xC4, ///< <b>[0xC4]</b> Move direct word GPR to indirect memory by base plus constant <b>(4 bytes)</b>
 	C166_MOVBZ_mem_reg = 0xC5, ///< <b>[0xC5]</b> Move direct byte register with zero extension to direct word memory <b>(4 bytes)</b>
 	C166_SCXT_reg_data16 = 0xC6, ///< <b>[0xBE]</b> Push direct word register onto system stack and update register with immediate data <b>(4 bytes)</b>
@@ -484,13 +487,12 @@ typedef enum {
 	C166_JMPR_cc_SLT_rel = 0xCD, ///< <b>[0xCD]</b> Jump relative if condition is met <b>(2 bytes)</b>
 	C166_BCLR_bitoff12 = 0xCE, ///< <b>[0xCE]</b> Clear direct bit (x.12) <b>(2 bytes)</b>
 	C166_BSET_bitoff12 = 0xCF, ///< <b>[0xCF]</b> Set direct bit (x.12) <b>(2 bytes)</b>
-
 	C166_MOVBS_Rwn_Rbm = 0xD0, ///< <b>[0xD0]</b> Move direct byte GPR with sign extension to direct word GPR <b>(2 bytes)</b>
 	C166_ATOMIC_or_EXTR_irang2 = 0xD1, /**< <b>[0xD1]</b><br>
 								ATOMIC #irang2 - Begin ATOMIC sequence <b>(2 bytes)</b><br>
 								EXTR #irang2 - Begin EXTended Register sequence <b>(2 bytes)</b><br>*/
 	C166_MOVBS_reg_mem = 0xD2, ///< <b>[0xD2]</b> Move direct byte memory with sign extension to direct word register <b>(4 bytes)</b>
-	// 0xD3
+	C166_CoMOV = 0xD3, // CoMOV
 	C166_MOV_Rwn_oRwm_data16 = 0xD4, ///< <b>[0xD4]</b> Move indirect word memory by base plus constant to direct word GPR <b>(4 bytes)</b>
 	C166_MOVBS_mem_reg = 0xD5, ///< <b>[0xD5]</b> Move direct byte register with sign extension to direct word memory <b>(4 bytes)</b>
 	C166_SCXT_reg_mem = 0xD6, ///< <b>[0xD6]</b> Push direct word register onto system stack and update register with immediate data <b>(4 bytes)</b>
@@ -575,10 +577,10 @@ typedef enum {
 	C166_CC_UGT,    ///< [ED] Unsigned Greater Than
 	C166_CC_ULE,    ///< [FD] Unsigned Less Than or Equal
 
-	// C166_CC_NUSR0,  ///< USR-bit 0 is cleared (*)
-	// C166_CC_NUSR1,  ///< USR-bit 1 is cleared (*)
-	// C166_CC_USR0,   ///< USR-bit 0 is set1)
-	// C166_CC_USR1    ///< USR-bit 1 is set1)
+	C166_CC_NUSR0,  ///< USR-bit 0 is cleared (*)
+	C166_CC_NUSR1,  ///< USR-bit 1 is cleared (*)
+	C166_CC_USR0,   ///< USR-bit 0 is set1)
+	C166_CC_USR1    ///< USR-bit 1 is set1)
 
 } C166CondCode;
 

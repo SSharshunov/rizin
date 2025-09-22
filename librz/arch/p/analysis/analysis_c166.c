@@ -883,6 +883,13 @@ static void c166_op_set_type(RZ_NONNULL C166_Inst *instr, RzAnalysis *analysis, 
 	case C166_BAND_bitaddr_bitaddr:
 	case C166_BOR_bitaddr_bitaddr:
 		break;
+	case C166_CoXXX_83:
+	case C166_CoMOV:
+	case C166_CoXXX_93:
+	case C166_CoXXX_A3:
+	case C166_CoSTORE_C3:
+	case C166_CoSTORE_B3:
+		break;
 	default:
 		printf("c166_op_set_type 0x%02x\n", instr->id);
 		rz_warn_if_reached();

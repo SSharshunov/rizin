@@ -412,3 +412,396 @@ d "or 0xff26, #0x0c00" 7693000C
 d "subcb 0xfe00:0x3020, 0xfe40" 35202030
 
 d "jmpr cc_UC, 0x0000" 0dff
+
+d "CoMULu R3, [R4]" 83340056
+d "CoMULu [0xff0a], [R4]" 93140056
+d "CoMULu R3, R4" A3340056
+
+d "CoMULu R5, [R4], rnd" 83540156
+d "CoMULu [0xff0a], [R4], rnd" 93140156
+d "CoMULu R3, R4, rnd" A3340156
+
+d "CoMACu [0xff0a], [R4], rnd" 93141156
+d "CoMACu R3, [R4], rnd" 83341156
+d "CoMACu R3, R4, rnd" A3341156
+
+d ".word 0xa334 .word 0x2156" A3342156
+
+d "CoMULus R3, [R4]" 83348056
+d "CoMULus [0xff08], [R4]" 93048056
+d "CoMULus R3, R4" A3348056
+
+d "CoMULus R3, [R4], rnd" 83348156
+d "CoMULus [0xff08], [R4], rnd" 93048156
+d "CoMULus R3, R4, rnd" A3348156
+
+d "CoMULu- R3, [R4]" 83340856
+d "CoMULu- [0xff08], [R4]" 93040856
+d "CoMULu- R3, R4" A3340856
+
+d "CoMULus- R3, [R4]" 83348856
+d "CoMULus- [0x0000], [R4]" 93348856
+d "CoMULus- R3, R4" A3348856
+
+d "CoMACsu- R3, [R4]" 83346056
+d "CoMACsu- [0xff08], [R4]" 93046056
+d "CoMACsu- R3, R4" A3346056
+
+d "CoMACRsu R3, [R4]" 83347056
+d "CoMACRsu [0xff08], [R4]" 93047056
+d "CoMACRsu R3, R4" A3347056
+
+d "CoMACRsu R3, [R4], rnd" 83347156
+d "CoMACRsu [0xff08], [R4], rnd" 93047156
+d "CoMACRsu R3, R4, rnd" A3347156
+
+d "CoMACRus R3, [R4]" 8334B056
+d "CoMACRus [0xff08], [R4]" 9304B056
+d "CoMACRus R3, R4" A334B056
+
+d "CoMACRus R3, [R4], rnd" 8334B156
+d "CoMACRus [0xff08], [R4], rnd" 9304B156
+d "CoMACRus R3, R4, rnd" A334B156
+
+d "CoMACus- R3, [R4]" 8334A056
+d "CoMACus- [0xff08], [R4]" 9304A056
+d "CoMACus- R3, R4" A334A056
+
+d "CoMACus R3, [R4]" 83349056
+d "CoMACus [0xff08], [R4]" 93049056
+d "CoMACus R3, R4" A3349056
+
+d "CoMACus R3, [R4], rnd" 83349156
+d "CoMACus [0xff08], [R4], rnd" 93049156
+d "CoMACus R3, R4, rnd" A3349156
+
+d "CoMACRu R3, [R4]" 83343056
+d "CoMACRu [0xff08], [R4]" 93043056
+d "CoMACRu R3, R4" A3343056
+
+d "CoMACRu R3, [R4], rnd" 83343156
+d "CoMACRu [0xff08], [R4], rnd" 93043156
+d "CoMACRu R3, R4, rnd" A3343156
+
+d "CoMACu R3, [R4]" 83341056
+d "CoMACu [0xff08], [R4]" 93041056
+d "CoMACu R3, R4" A3341056
+
+
+d "CoMACu- R3, [R4]" 83342056
+d "CoMACu- [0xff08], [R4]" 93042056
+d "CoMACu- R3, R4" A3342056
+
+d "CoMULsu R3, [R4]" 83344056
+d "CoMULsu [0xff08], [R4]" 93044056
+d "CoMULsu R3, R4" A3344056
+
+d "CoMULsu R3, [R4], rnd" 83344156
+d "CoMULsu [0xff08], [R4], rnd" 93044156
+d "CoMULsu R3, R4, rnd" A3344156
+
+d "CoMACsu R3, [R4]" 83345056
+d "CoMACsu [0xff08], [R4]" 93045056
+d "CoMACsu R3, R4" A3345056
+d "CoMACsu R3, [R4], rnd" 83345156
+d "CoMACsu [0xff08], [R4], rnd" 93045156
+d "CoMACsu R3, R4, rnd" A3345156
+d ".word 0xa334 .word 0x6156" A3346156
+d ".word 0xa334 .word 0xa156" A334A156
+d ".word 0xa334 .word 0xe156" A334E156
+
+d "CoMUL R3, [R4]" 8334C056
+d "CoMUL [0xff08], [R4]" 9304C056
+d "CoMUL R3, R4" A334C056
+
+d "CoMUL R3, [R4], rnd" 8334C156
+d "CoMUL [0xff08], [R4], rnd" 9304C156
+d "CoMUL R3, R4, rnd" A334C156
+
+d "CoMAC R3, [R4]" 8334D056
+d "CoMAC [0xff08], [R4]" 9304D056
+d "CoMAC R3, R4" A334D056
+
+d "CoMAC R3, [R4], rnd" 8334D156
+d "CoMAC [0xff08], [R4], rnd" 9304D156
+d "CoMAC R3, R4, rnd" A334D156
+
+d "CoMAC- R3, [R4]" 8334E056
+d "CoMAC- [0xff08], [R4]" 9304E056
+d "CoMAC- R3, R4" A334E056
+
+d "CoMACR R3, [R4]" 8334F056
+d "CoMACR [0xff08], [R4]" 9304F056
+d "CoMACR R3, R4" A334F056
+
+#d "CoMACR R3, [R4], rnd ???" 83342156
+#d "CoMACR R3, [R4], rnd ???" 83346156
+#d "CoMACR R3, [R4], rnd ???" 8334A156
+#d "CoMACR R3, [R4], rnd ???" 8334E156
+
+d "CoMACR R3, [R4], rnd" 8334F156
+d "CoMACR [0xff08], [R4], rnd" 9304F156
+d "CoMACR R3, R4, rnd" A334F156
+
+d ".word 0x9334 .word 0x2156" 93342156
+d ".word 0x9334 .word 0x6156" 93346156
+d ".word 0x9334 .word 0xa156" 9334A156
+d ".word 0x9334 .word 0xe156" 9334E156
+
+d "CoADD R3, [R4]" 83340256
+d "CoADD [0xff08], [R4]" 93040256
+d "CoADD R3, R4" A3340256
+
+d "CoSUBR R3, [R4]" 83341256
+d "CoSUBR [0xff08], [R4]" 93041256
+d "CoSUBR R3, R4" A3341256
+
+d "CoLOAD R3, [R4]" 83342256
+d "CoLOAD [0xff08], [R4]" 93042256
+d "CoLOAD R3, R4" A3342256
+
+d ".word 0x8334 .word 0x3256" 83343256
+
+d "CoADD2 R3, [R4]" 83344256
+d "CoADD2 [0xff08], [R4]" 93044256
+d "CoADD2 R3, R4" A3344256
+
+d "CoSUB2R R3, [R4]" 83345256
+d "CoSUB2R [0xff08], [R4]" 93045256
+d "CoSUB2R R3, R4" A3345256
+
+d "CoLOAD2 R3, [R4]" 83346256
+d "CoLOAD2 [0xff08], [R4]" 93046256
+d "CoLOAD2 R3, R4" A3346256
+
+d "CoASHR #data5" A334A256
+d ".word 0xa334 .word 0xd256" A334D256
+d ".word 0xa334 .word 0xe256" A334E256
+d ".word 0xa334 .word 0xf256" A334F256
+
+d "CoCMP R3, [R4]" 8334C256
+d "CoCMP [0xff08], [R4]" 9304C256
+d "CoCMP R3, R4" A334C256
+
+d "CoSUB R3, [R4]" 83340A56
+d "CoSUB [0xff08], [R4]" 93040A56
+d "CoSUB R3, R4" A3340A56
+
+d "CoLOAD- R3, [R4]" 83342A56
+d "CoLOAD- [0xff08], [R4]" 93042A56
+d "CoLOAD- R3, R4" A3342A56
+
+d "CoMAX R3, [R4]" 83343A56
+d "CoMAX [0xff08], [R4]" 93043A56
+d "CoMAX R3, R4" A3343A56
+
+d "CoSUB2 R3, [R4]" 83344A56
+d "CoSUB2 [0xff08], [R4]" 93044A56
+d "CoSUB2 R3, R4" A3344A56
+
+d ".word 0x8334 .word 0x5a56" 83345A56
+d "CoLOAD2- R3, [R4]" 83346A56
+d "CoLOAD2- [0xff08], [R4]" 93046A56
+d ".word 0xa334 .word 0x5a56" A3345A56
+d "CoLOAD2- R3, R4" A3346A56
+
+d "CoMIN R3, [R4]" 83347A56
+d "CoMIN [0xff08], [R4]" 93047A56
+d "CoMIN R3, R4" A3347A56
+d "CoMIN R3, R4" A3347A56
+
+d "CoSHL [R8]" 83888A56
+d "CoSHR [R0]" 83009A56
+d "CoABS R3, [R4]" 8334CA56
+d ".word 0x8334 .word 0xda56" 8334DA56
+d ".word 0x8334 .word 0xea56" 8334EA56
+d ".word 0x8334 .word 0xfa56" 8334FA56
+d "CoABS [0xff08], [R4]" 9304CA56
+d "CoASHR R3, rnd" A334BA56
+d ".word 0xa334 .word 0xda56" A334DA56
+d ".word 0xa334 .word 0xea56" A334EA56
+d ".word 0xa334 .word 0xfa56" A334FA56
+
+d "CoMULsu- R3, [R4]" 83344856
+d "CoMULsu- [0xff08], [R4]" 93044856
+d "CoMULsu- R3, R4" A3344856
+
+d "CoMUL- R3, [R4]" 8334C856
+d "CoMUL- [0xff08], [R4]" 9304C856
+d "CoMUL- R3, R4" A334C856
+
+d ".word 0x9334 .word 0xaa56" 9334AA56
+d ".word 0x9334 .word 0xba56" 9334BA56
+d ".word 0x9334 .word 0xda56" 9334DA56
+d ".word 0x9334 .word 0xea56" 9334EA56
+d ".word 0x9334 .word 0xfa56" 9334FA56
+
+
+d ".word 0xa334 .word 0x1856" A3341856
+d ".word 0x8334 .word 0x1856" 83341856
+d "CoMACMu [0xff08], [R4]" 93041856
+d ".word 0xa334 .word 0x1956" A3341956
+d ".word 0x8334 .word 0x1956" 83341956
+d "CoMACMu [0xff08], [R4], rnd" 93041956
+
+d ".word 0x9334 .word 0x0956" 93340956
+d ".word 0x9334 .word 0x2956" 93342956
+d ".word 0x9334 .word 0x4956" 93344956
+d ".word 0x9334 .word 0x6956" 93346956
+d ".word 0x9334 .word 0x8956" 93348956
+d ".word 0x9334 .word 0xa956" 9334a956
+d ".word 0x9334 .word 0xc956" 9334c956
+d ".word 0x9334 .word 0xe956" 9334e956
+
+d ".word 0xa334 .word 0x3856" A3343856
+d ".word 0x8334 .word 0x3856" 83343856
+d "CoMACMRu [0xff08], [R4]" 93043856
+d ".word 0xa334 .word 0x3956" A3343956
+d ".word 0x8334 .word 0x3956" 83343956
+d "CoMACMRu [0xff08], [R4], rnd" 93043956
+
+d ".word 0xa334 .word 0x5856" A3345856
+d ".word 0x8334 .word 0x5856" 83345856
+d "CoMACMsu [0xff08], [R4]" 93045856
+d ".word 0xa334 .word 0x5956" A3345956
+d ".word 0x8334 .word 0x5956" 83345956
+d "CoMACMsu [0xff08], [R4], rnd" 93045956
+
+d ".word 0xa334 .word 0x7856" A3347856
+d ".word 0x8334 .word 0x7856" 83347856
+d "CoMACMRsu [0xff08], [R4]" 93047856
+d ".word 0xa334 .word 0x7956" A3347956
+d ".word 0x8334 .word 0x7956" 83347956
+d "CoMACMRsu [0xff08], [R4], rnd" 93047956
+
+d ".word 0xa334 .word 0x9856" A3349856
+d ".word 0x8334 .word 0x9856" 83349856
+d "CoMACMus [0xff08], [R4]" 93049856
+d ".word 0xa334 .word 0x9956" A3349956
+d ".word 0x8334 .word 0x9956" 83349956
+d "CoMACMus [0xff08], [R4], rnd" 93049956
+
+d ".word 0xa334 .word 0xb856" A334B856
+d ".word 0x8334 .word 0xb856" 8334B856
+d "CoMACMRus [0xff0a], [R4]" 9314B856
+d ".word 0xa334 .word 0xb956" A334B956
+d ".word 0x8334 .word 0xb956" 8334B956
+d "CoMACMRus [0xff0a], [R4], rnd" 9314B956
+
+d ".word 0xa334 .word 0xd856" A334D856
+d ".word 0x8334 .word 0xd856" 8334D856
+d "CoMACM [0xff0a], [R4]" 9314D856
+d ".word 0xa334 .word 0xd956" A334D956
+d ".word 0x8334 .word 0xd956" 8334D956
+d "CoMACM [0xff0a], [R4], rnd" 9314D956
+
+d ".word 0xa334 .word 0xf856" A334F856
+d ".word 0x8334 .word 0xf856" 8334F856
+d "CoMACMR [0xff08], [R4]" 9304F856
+d ".word 0xa334 .word 0xf956" A334F956
+d ".word 0x8334 .word 0xf956" 8334F956
+d "CoMACMR [0xff08], [R4], rnd" 9304F956
+
+
+
+
+#d "CoNOP CoNOP [RWm]" 93345A56
+#d "CoNOP CoNOP [IDXi], [RWm]" 93345A56
+#d "CoNOP [IDXi]" 93345A56
+
+d ".word 0xa334 .word 0xa856" A334A856
+d ".word 0x8334 .word 0xa856" 8334A856
+d "CoMACMus- [0xff0a], [R4]" 9314A856
+
+d ".word 0xa334 .word 0x2856" A3342856
+d ".word 0x8334 .word 0x2856" 83342856
+d "CoMACMu- [0xff08], [R4]" 93042856
+
+d ".word 0xa334 .word 0x6856" A3346856
+d ".word 0x8334 .word 0x6856" 83346856
+d "CoMACMsu- [0xff08], [R4]" 93046856
+
+d ".word 0xa334 .word 0xe856" A334E856
+d ".word 0x8334 .word 0xe856" 8334E856
+d "CoMACM- [0xff0a], [R4]" 9314E856
+
+
+d "CoASHR [R5]" 8355AA56
+d "CoASHR [R3], rnd" 8333BA56
+d "CoASHR [R4], rnd" 8344BA56
+
+
+
+
+d ".word 0x8334 .word 0x1a56" 83341A56
+d ".word 0x9334 .word 0x1a56" 93341A56
+d "CoABS" A3341A56
+
+d ".word 0x8334 .word 0x3256" 83343256
+d ".word 0x9334 .word 0x3256" 93343256
+d "CoNEG" A3343256
+
+d ".word 0x8334 .word 0x7256" 83347256
+d ".word 0x9334 .word 0x7256" 93347256
+d "CoNEG rnd" A3347256
+
+d ".word 0x8334 .word 0xb256" 8334B256
+d ".word 0x9334 .word 0x9256" 93349256
+d ".word 0x9334 .word 0xa256" 9334A256
+d ".word 0x9334 .word 0xd256" 9334D256
+d ".word 0x9334 .word 0xe256" 9334E256
+d ".word 0x9334 .word 0xf256" 9334F256
+d ".word 0x9334 .word 0xb256" 9334B256
+# ???? Duplicate from `CoASHR #data5, rnd`
+# d "CoRND" A334B256
+d "CoASHR #data5, rnd" A334B256
+
+d ".word 0x9334 .word 0x9a56" 93349A56
+d "CoSHR R3" A3349A56
+
+d ".word 0x8334 .word 0x9256" 83349256
+d "CoSHR #data5" A3349256
+
+d ".word 0x9334 .word 0x8a56" 93348A56
+d "CoSHL R3" A3348A56
+
+d ".word 0x8334 .word 0x8256" 83348256
+d ".word 0x9334 .word 0x8256" 93348256
+d "CoSHL #data5" A3348256
+
+d ".word 0x8334 .word 0x1a56" 83341A56
+d ".word 0x8334 .word 0xda56" 8334DA56
+d ".word 0x8334 .word 0xea56" 8334EA56
+d ".word 0x8334 .word 0xfa56" 8334FA56
+
+d "CoSHL R3" A3348A56
+d "CoSHR R3" A3349A56
+
+d ".word 0xa334 .word 0x5a56" A3345A56
+d ".word 0xa334 .word 0xda56" A334DA56
+d ".word 0xa334 .word 0xea56" A334EA56
+d ".word 0xa334 .word 0xfa56" A334FA56
+
+
+d "CoSTORE [R3], (null)" B334FA56
+d "CoSTORE [R3], 0xffde" B3340056
+d "CoSTORE [R3], 0xfe5c" B3342056
+d "CoSTORE [R3], 0xffdc" B3342856
+d "CoSTORE [R3], (null)" B3346056
+d "CoSTORE [R3], 0xffda" B3343056
+d "CoSTORE R3, (null)" C334FA56
+d "CoSTORE R3, MAS" C3341056
+
+# D3 Xm 00
+d ".word 0xd339 .word 0xfa56" D339FA56
+
+
+d "CoMOV [0x0000], [R4]" D3340056
+d "CoMOV [0xff0a], [R4]" D3140056
+d "CoMOV [0xff08], [R4]" D3040056
+d "CoMOV [0x0000], [R2]" D3320056
+
+d ".word 0xd334 .word 0xba56" D334BA56
+d ".word 0xd314 .word 0xba56" D314BA56
+d ".word 0xd304 .word 0xba56" D304BA56
+d "CoMOV [0x0000], [R2]" D3320056

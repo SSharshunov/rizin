@@ -79,7 +79,7 @@ static st32 disassemble(RzAsm *a, RzAsmOp *op, const ut8 *buf, st32 len) {
 		}
 		op->size = ret;
 	}
-	op->asm_toks = rz_asm_tokenize_asm_regex(&op->buf_asm, state->token_patterns);
+	// op->asm_toks = rz_asm_tokenize_asm_regex(&op->buf_asm, state->token_patterns);
 	// op->asm_toks->op_type = op->op_type; // ???
 	return op->size;
 }
