@@ -332,6 +332,8 @@ static const char *c166_instr_name(ut8 instr) {
 		return "srvwdt";
 	case C166_DISWDT:
 		return "diswdt";
+	case C166_ENWDT:
+		return "enwdt";
 	case C166_EINIT:
 		return "einit";
 	default:
@@ -822,7 +824,7 @@ static ut8 c166_instr_irang2(C166State *state, C166_Inst *instr) {
 	} else if (sub_op == 0b10) {
 		c166_activate_ext(state, instr->addr, (C166ExtState){ .esfr = true, .mode = C166_EXT_MODE_NONE, .value = (op & 3), .i = 0 });
 		INSTR("%s", "extr");
-	}
+	} else INSTR("%s", "invalid");
 	OPERANDS("#%x", irang2);
 	return C166_BYTESIZE_2;
 }
@@ -886,8 +888,9 @@ static const char *c166_instr_extended_name(C166_Inst *instr) {
 	ut8 opcode = instr->id;
 	ut8 extID = get_operand(instr, 2);
 
-	if ((opcode == 0xD3) && (extID == 0x00))
-		return "CoMOV";
+	if (opcode == 0xD3)
+		return extID == 0x00 ? "CoMOV" : "invalid";
+
 	if ((opcode == 0xB3) || (opcode == 0xC3))
 		return "CoSTORE";
 
@@ -926,9 +929,6 @@ static const char *c166_instr_extended_name(C166_Inst *instr) {
 		return "CoNEG";
 	if ((opcode == 0xA3) && (extID == 0x72))
 		return "CoNEG";
-
-	if ((opcode == 0xD3) && (extID == 0x00))
-		return "CoMOV";
 
 	if ((opcode == 0x83) && (extID == 0x9A))
 		return "CoSHR";
@@ -1077,161 +1077,316 @@ static const char *c166_instr_extended_name(C166_Inst *instr) {
 		if (extID == 0xC8)
 			return "CoMUL-";
 	}
-	rz_warn_if_reached();
+	RZ_LOG_INFO("Unknown extID 0x%02x [0x%02x].\n", opcode, extID);
 	return "invalid";
 }
 
-static const char *wwwww_MAC_unit_reg(ut8 bits) {
+static const char *CoREG(ut8 bits) {
 	switch (bits) {
 	case 0b00000: {
 		return "0xffde"; ///< MAC-Unit Status Word
-		// return "MSW"; ///< MAC-Unit Status Word
 	}
 	case 0b00001: {
 		return "0xfe5e"; ///< MAC-Unit Accumulator High Word
-		// return "MAH"; ///< MAC-Unit Accumulator High Word
 	}
 	case 0b00010: {
 		return "MAS"; ///< Limited MAC-Unit Accumulator High Word
-		// return "MAS"; ///< Limited MAC-Unit Accumulator High Word
 	}
 	case 0b00100: {
 		return "0xfe5c"; ///< MAC-Unit Accumulator Low Word
-		// return "MAL"; ///< MAC-Unit Accumulator Low Word
 	}
 	case 0b00101: {
 		return "0xffdc"; ///< MAC-Unit Control Word
-		// return "MCW"; ///< MAC-Unit Control Word
 	}
 	case 0b00110: {
 		return "0xffda"; ///< MAC-Unit Repeat Word
-		// return "MRW"; ///< MAC-Unit Repeat Word
 	}
 	default:
-		rz_warn_if_reached();
+		RZ_LOG_INFO("Unknown bits: 0x%02x.\n", bits);
+		// rz_warn_if_reached();
 		return NULL;
 	}
 }
 
-static const ut16 get_IDX_address(ut8 opX) {
-	if (opX > 1) {
-		rz_warn_if_reached();
-		return 0x0000;
+static const char *idx_formatter(char *buf, ut8 nm) {
+	const ut8 idx = (nm >> 7);
+	const ut16 addr = (idx ? IDX1 : IDX0);
+	const ut8 idx_op = (nm >> 4) & 0x7;
+
+	const char *format = NULL;
+
+	switch (idx_op) {
+	case 0b010: { ///< IDX +2
+		format = "[0x%04x +2]";
+		break;
 	}
-	return opX ? IDX1 : IDX0;
+	case 0b011: { ///< IDX -2
+		format = "[0x%04x -2]";
+		break;
+	}
+	case 0b100: { ///< IDX + QX0
+		format = "[0x%04x + QX0]";
+		break;
+	}
+	case 0b101: { ///< IDX - QX0
+		format = "[0x%04x - QX0]";
+		break;
+	}
+	case 0b110: { ///< IDX + QX1
+		format = "[0x%04x + QX1]";
+		break;
+	}
+	case 0b111: { ///< IDX - QX1
+		format = "[0x%04x - QX1]";
+		break;
+	}
+	case 0b000: ///< RESERVED
+	case 0b001: ///< no-operation
+	default:
+		format = "[0x%04x]";
+		break;
+	}
+	snprintf(buf, C166_INSTR_MAXLEN, format, addr);
+	return buf;
+}
+
+static const char *qqq_formatter(char *buf, ut8 op, ut8 n) {
+	ut8 q = op & 0x7;
+	const char *format = NULL;
+	switch (q) {
+	case 0b010: { ///< Rw +2
+		format = "[R%i +2]";
+		break;
+	}
+	case 0b011: { ///< Rw -2
+		format = "[R%i -2]";
+		break;
+	}
+	case 0b100: { ///< Rw + QR0
+		format = "[R%i + QR0]";
+		break;
+	}
+	case 0b101: { ///< Rw - QR0
+		format = "[R%i - QR0]";
+		break;
+	}
+	case 0b110: { ///< Rw + QR1
+		format = "[R%i + QR1]";
+		break;
+	}
+	case 0b111: { ///< Rw - QR1
+		format = "[R%i - QR1]";
+		break;
+	}
+	case 0b000: ///< RESERVED
+	case 0b001: ///< no-operation
+	default:
+		format = "[R%i]";
+		break;
+	}
+	snprintf(buf, C166_INSTR_MAXLEN, format, n);
+	return buf;
+}
+
+static const char *repeat_control(ut8 opt) {
+	ut8 rrr = opt >> 5;
+	switch (rrr) {
+	case 0b010: { // 0x40
+		return "- USR0 "; ///< ‘- USR0 CoXXX’ instruction, decrements repeat counter.
+	}
+	case 0b011: { // 0x60
+		return "- USR1 "; ///< ‘- USR1 CoXXX’ instruction, decrements repeat counter.
+	}
+	default:
+		///< 0b000: regular CoXXX instruction
+		///< 0b001: RESERVED
+		///< 0b1xx: RESERVED
+		return NULL;
+	}
+}
+
+inline static ut16 idx_addr(ut8 n) {
+	return n > 1 ? 0x0000 : (n ? IDX1 : IDX0);
 }
 
 static ut8 c166_instr_extended(C166_Inst *instr) {
-	ut8 nm = get_operand(instr, 1); // nm
-	ut8 opX = (nm & 0xF0) >> 4;
+	ut8 nm = get_operand(instr, 1);
 	ut8 n = (nm & 0xF0) >> 4;
 	ut8 m = nm & 0x0F;
-	ut8 extID = get_operand(instr, 2); // CA
-	ut8 opt2 = get_operand(instr, 3); // rrr0:0000
-	// const ut8 rrr = ((op >> 5) & 0b0011) + 1;
-	// wwww:w : 5-bit word address CoREG
-	// rrr : 3-bit repeat control for CoXXX instructions
-	// qqq : 3-bit addressing mode specifier for CoXXX instructions
+	ut8 extID = get_operand(instr, 2);
+	ut8 opt2 = get_operand(instr, 3); ///< rrr0:0000 : 3-bit repeat control for CoXXX instructions
+	///< wwww:w : 5-bit word address CoREG
 
+	///< qqq : 3-bit addressing mode specifier for CoXXX instructions
+	///< ut8 rrr = opt2 >> 5;
+	const char *rrr = repeat_control(opt2);
 	ut8 opcode = instr->id;
+
 	const char *instruction_name = c166_instr_extended_name(instr);
 	if (RZ_STR_EQ(instruction_name, "invalid")) {
-		INSTR(".word 0x%02x%02x .word 0x%02x%02x", instr->id, nm, extID, opt2);
-		goto end;
+		goto err;
 	}
 
 	INSTR("%s", instruction_name);
 
-	if ((opcode == 0xD3) && (extID == 0x00)) {
-		// D3 Xm 00 rrr0:0qqq
-		OPERANDS("[0x%04x], [R%i]", get_IDX_address(opX), m); // CoMOV [IDX3*], [R4*]
-	} else
+	if (opcode == 0xD3) {
+		///< CoMOV [IDXi*], [Rwm*]
+		///< D3 Xm 00 rrr0:0qqq
+		INSTR("%s%s", rrr ? rrr : "", instruction_name); ///< `- USRx` repeat control label
+		OPERANDS("%s, %s",
+			idx_formatter(SBUF_16, nm), // or maybe extID
+			qqq_formatter(SBUF_16, opt2, m)
+		);
+		goto end;
+	}
 
-		if (opcode == 0xB3) {
-		// B3 nn wwww:w000 rrr0:0qqq
+	if (opcode == 0xB3) {
+		///< CoSTORE [Rwn*], CoReg
+		///< B3 nn wwww:w000 rrr0:0qqq
 		const ut8 wwwww = (extID >> 3);
-		// const ut8 rrr = (opt2 >> 5);
-		// const ut8 qqq = (opt2 & 0x07);
-		OPERANDS("[R%i], %s", n, wwwww_MAC_unit_reg(wwwww)); // CoSTORE [RWn*], CoReg
-	} else
+		OPERANDS("[R%i], %s", n, CoREG(wwwww));
+		goto end;
+	}
 
-		if (opcode == 0xC3) {
-		// C3 nn wwww:w000 rrr0:0000
+	if (opcode == 0xC3) {
+		///< CoSTORE Rwn, CoReg
+		///< C3 nn wwww:w000 rrr0:0000
 		const ut8 wwwww = (extID >> 3);
-		OPERANDS("R%i, %s", n, wwwww_MAC_unit_reg(wwwww)); // CoSTORE RWn, CoReg
-	} else
+		OPERANDS("R%i, %s", n, CoREG(wwwww)); // CoSTORE RWn, CoReg
 
-		if ((opcode == 0x83) && (extID == 0xAA)) {
+		// printf("[ 0x%04x ] opcode: 0x%02x%02x%02x%02x\n", instr->addr, opcode, nm, extID, opt2);
+		goto end;
+	}
+
+
+	if ((opcode == 0x83) && (extID == 0xAA)) {
 		OPERANDS("[R%i]", m); // CoASHR [RWm*]
+		goto end;
 	} else if ((opcode == 0x83) && (extID == 0xBA)) {
+		///< CoASHR [Rwm*], rnd
+		///< 83 mm BA rrr0:0qqq
 		OPERANDS("[R%i], rnd", m); // CoASHR [RWm*], rnd
+		goto end;
 	} else if ((opcode == 0xA3) && (extID == 0xAA)) {
 		OPERANDS("R%i", n); // CoASHR RWn
+		goto end;
 	} else if ((opcode == 0xA3) && (extID == 0xBA)) {
+		///< CoASHR Rwn, rnd
+		///< A3 nn BA rrr0:0000
 		OPERANDS("R%i, rnd", n); // CoASHR RWn, rnd
+		goto end;
 	} else if ((opcode == 0xA3) && (extID == 0xA2)) {
 		OPERANDS("#data5"); // CoXXX #data5
+		goto end;
 	} else if ((opcode == 0xA3) && (extID == 0x92)) {
 		OPERANDS("#data5"); // CoXXX #data5
+		goto end;
 	} else if ((opcode == 0xA3) && (extID == 0x82)) {
 		OPERANDS("#data5"); // CoXXX #data5
+		goto end;
 	} else if ((opcode == 0xA3) && (extID == 0xA2)) {
 		OPERANDS("#data5"); // CoXXX #data5
+		goto end;
 	} else if ((opcode == 0xA3) && (extID == 0xB2)) {
+		///< CoASHR #data5, rnd
+		///< A3 00 B2 rrr#:#
 		OPERANDS("#data5, rnd"); // CoXXX #data5, rnd
+		goto end;
 	} else if ((opcode == 0xA3) && (extID == 0x72)) {
 		OPERANDS("rnd"); // CoXXX rnd
+		goto end;
 	} else if ((opcode == 0xA3) && (extID == 0x1A)) {
 		// OPERANDS("");
+		goto end;
 	} else if ((opcode == 0xA3) && (extID == 0x32)) {
 		// OPERANDS("");
+		goto end;
 	} else if ((opcode == 0xA3) && (extID == 0xB2)) {
 		// OPERANDS("");
+		goto end;
 	} else if ((opcode == 0x83) && (extID == 0x8A)) {
 		OPERANDS("[R%i]", m); // ????? CoSHL [RWm*]
+		goto end;
 	} else if ((opcode == 0xA3) && (extID == 0x8A)) {
 		OPERANDS("R%i", n);
+		goto end;
 	} else
 
-		if ((opcode == 0x83) && (extID == 0x9A)) {
+	if ((opcode == 0x83) && (extID == 0x9A)) {
 		OPERANDS("[R%i]", m); // ????? CoSHR [RWm*]
+		goto end;
 	} else if ((opcode == 0xA3) && (extID == 0x9A)) {
 		OPERANDS("R%i", n); // CoSHR RWn
+		goto end;
 	} else
 
-		if ((opcode == 0x93) && ((extID & 0x0F) == 0x00)) {
+	if ((opcode == 0x93) && ((extID & 0x0F) == 0x00)) {
 		// CoXXX_oIDXi_oRWm(); 93 Xm F0 rrr0:0qqq
-		OPERANDS("[0x%04x], [R%i]", get_IDX_address(opX), m); // CoXXX [IDXi*], [RWm*]
+		// ut16 idx = IDX(nm);
+		// if (n > 1) goto err;
+		OPERANDS("%s, [R%i]",
+			idx_formatter(SBUF_16, nm), // or extID
+			m); // CoXXX [IDXi*], [RWm*]
+		// OPERANDS("[0x%04x], [R%i]", idx_addr(n), m); // CoXXX [IDXi*], [RWm*]
+		goto end;
 	} else if ((opcode == 0x93) && ((extID & 0x0F) == 0x02)) {
 		// CoXXX_RWn_oRWm();
-		OPERANDS("[0x%04x], [R%i]", get_IDX_address(opX), m); // CoXXX [IDXi*], [RWm*]
+		// ut16 idx = IDX(nm);
+		// if (n > 1) goto err;
+		OPERANDS("%s, [R%i]",
+			idx_formatter(SBUF_16, nm), // or extID
+			m); // CoXXX [IDXi*], [RWm*]
+		// OPERANDS("[0x%04x], [R%i]", idx_addr(n), m); // CoXXX [IDXi*], [RWm*]
+		goto end;
 	} else if ((opcode == 0x93) && ((extID & 0x0F) == 0x0A)) {
 		// CoXXX_RWn_oRWm();
-		OPERANDS("[0x%04x], [R%i]", get_IDX_address(opX), m); // CoXXX [IDXi*], [RWm*]
+		// ut16 idx = IDX(nm);
+		// if (n > 1) goto err;
+		OPERANDS("%s, [R%i]",
+			idx_formatter(SBUF_16, nm), // or extID
+			m); // CoXXX [IDXi*], [RWm*]
+		// OPERANDS("[0x%04x], [R%i]", idx_addr(n), m); // CoXXX [IDXi*], [RWm*]
+		goto end;
 	} else if ((opcode == 0x93) && ((extID & 0x0F) == 0x08)) {
 		// CoXXX_RWn_oRWm();
-		OPERANDS("[0x%04x], [R%i]", get_IDX_address(opX), m); // CoXXX [IDXi*], [RWm*]
+		OPERANDS("%s, [R%i]",
+			idx_formatter(SBUF_16, nm), // or extID
+			m); // CoXXX [IDXi*], [RWm*]
+		// OPERANDS("[0x%04x], [R%i]", idx_addr(n), m); // CoXXX [IDXi*], [RWm*]
+		goto end;
 	} else if ((opcode == 0x93) && ((extID & 0x0F) == 0x09)) {
 		// CoXXX_RWn_oRWm();
-		OPERANDS("[0x%04x], [R%i], rnd", get_IDX_address(opX), m); // CoXXX [IDXi*], [RWm*], rnd
+		OPERANDS("%s, [R%i], rnd",
+			idx_formatter(SBUF_16, nm), // or extID
+			m); // CoXXX [IDXi*], [RWm*], rnd
+		// OPERANDS("[0x%04x], [R%i], rnd", idx_addr(n), m); // CoXXX [IDXi*], [RWm*], rnd
+		goto end;
 	} else if ((opcode == 0x93) && ((extID & 0x0F) == 0x01)) {
 		// CoXXX_RWn_oRWm();
-		OPERANDS("[0x%04x], [R%i], rnd", get_IDX_address(opX), m); // CoXXX [IDXi*], [RWm*], rnd
+		OPERANDS("%s, [R%i], rnd",
+			idx_formatter(SBUF_16, nm), // or extID
+			m); // CoXXX [IDXi*], [RWm*], rnd
+		// OPERANDS("[0x%04x], [R%i], rnd", idx_addr(n), m); // CoXXX [IDXi*], [RWm*], rnd
+		goto end;
 	} else
 
-		if ((opcode == 0x83) && ((extID & 0x0F) == 0x00)) {
+	if ((opcode == 0x83) && ((extID & 0x0F) == 0x00)) {
 		// CoXXX_RWn_oRWm();
 
 		OPERANDS("R%i, [R%i]", n, m); // CoXXX RWn, [RWm*]
+		goto end;
 	} else if ((opcode == 0x83) && ((extID & 0x0F) == 0x02)) {
 		// CoXXX_RWn_oRWm();
 		OPERANDS("R%i, [R%i]", n, m); // CoXXX RWn, [RWm*]
+		goto end;
 	} else if ((opcode == 0x83) && ((extID & 0x0F) == 0x0A)) {
 		// CoXXX_RWn_oRWm();
 		OPERANDS("R%i, [R%i]", n, m); // CoXXX RWn, [RWm*]
+		goto end;
 	} else if ((opcode == 0x83) && ((extID & 0x0F) == 0x01)) {
 		// CoMULu_RWn_oRWm_rnd();
 		OPERANDS("R%i, [R%i], rnd", n, m); // CoXXX RWn, [RWm*], rnd
+		goto end;
 	} else if (opcode == 0x83) {
 		// CoMULu_RWn_oRWm();
 		if ((extID == 0x08) ||
@@ -1239,38 +1394,39 @@ static ut8 c166_instr_extended(C166_Inst *instr) {
 			(extID == 0x88) ||
 			(extID == 0xC8)) {
 			OPERANDS("R%i, [R%i]", n, m); // CoXXX RWn, [RWm*]
+			goto end;
 		}
 	} else if ((opcode == 0xA3) && ((extID & 0x0F) == 0x01)) {
 		// CoXXX_RWn_RWm_rnd();
 		OPERANDS("R%i, R%i, rnd", n, m); // CoXXX RWn, [RWm*], rnd
+		goto end;
 	} else
 
-		if ((opcode == 0xA3) && ((extID & 0x0F) == 0x00)) {
+	if ((opcode == 0xA3) && ((extID & 0x0F) == 0x00)) {
 		// CoXXX_RWn_RWm();
 
 		OPERANDS("R%i, R%i", n, m); // CoXXX RWn, RWm
-	} else
-
-		if ((opcode == 0xA3) && ((extID & 0x0F) == 0x02)) {
+		goto end;
+	} else if ((opcode == 0xA3) && ((extID & 0x0F) == 0x02)) {
 		// CoXXX_RWn_RWm();
-
 		OPERANDS("R%i, R%i", n, m); // CoXXX RWn, RWm
-	} else
-
-		if ((opcode == 0xA3) && ((extID & 0x0F) == 0x0A)) {
+		goto end;
+	} else if ((opcode == 0xA3) && ((extID & 0x0F) == 0x0A)) {
 		// CoXXX_RWn_RWm();
-
 		OPERANDS("R%i, R%i", n, m); // CoXXX RWn, RWm
+		goto end;
 	} else if (opcode == 0xA3) {
 		// CoXXX_RWn_RWm();
-		if ((extID == 0x08) ||
-			(extID == 0x48) ||
-			(extID == 0x88) ||
-			(extID == 0xC8)) {
+		if ((extID == 0x08) || (extID == 0x48) ||
+			(extID == 0x88) || (extID == 0xC8)) {
 			OPERANDS("R%i, R%i", n, m); // CoXXX RWn, RWm
+			goto end;
 		}
-	} else
-		OPERANDS("#0x%02x, #0x%02x, #0x%02x", nm, extID, opt2);
+	}
+err:
+	INSTR(".word 0x%02x%02x .word 0x%02x%02x", instr->id, nm, extID, opt2);
+	// OPERANDS("");
+	memset(&instr->operands, 0, C166_INSTR_MAXLEN);
 end:
 	return C166_BYTESIZE_4;
 }
@@ -1364,16 +1520,16 @@ RZ_API st32 c166_decode_command(RZ_NONNULL C166State *state, RZ_NONNULL C166_Ins
 	case C166_XORB_Rbn_x:
 		instr->byte_size = c166_instr_rb_x(instr);
 		break;
-	case C166_DIV_Rwn:
-	case C166_DIVL_Rwn:
-	case C166_DIVLU_Rwn:
-	case C166_DIVU_Rwn:
-	case C166_NEG_Rwn:
-	case C166_CPL_Rwn:
+	case C166_DIV_Rwn: // 4B nn 2
+	case C166_DIVL_Rwn: // 6B nn 2
+	case C166_DIVLU_Rwn: // 7B nn 2
+	case C166_DIVU_Rwn: // 5B nn 2
+	case C166_NEG_Rwn: // 81 n0 2
+	case C166_CPL_Rwn: // 91 n0 2
 		instr->byte_size = c166_instr_rw(instr);
 		if (instr->byte_size == 0) {
 			INSTR("invalid");
-			instr->byte_size = 2;
+			instr->byte_size = C166_BYTESIZE_2;
 			goto ok;
 		}
 		break;
@@ -1607,15 +1763,16 @@ RZ_API st32 c166_decode_command(RZ_NONNULL C166State *state, RZ_NONNULL C166_Ins
 	case C166_RET:
 	case C166_RETS:
 	case C166_RETI:
-		instr->byte_size = 2;
+		instr->byte_size = C166_BYTESIZE_2;
 		break;
-	case C166_SRST:
-	case C166_IDLE:
-	case C166_PWRDN:
-	case C166_SRVWDT:
-	case C166_DISWDT:
-	case C166_EINIT:
-		instr->byte_size = 4;
+	case C166_SRST: // B7 48 B7 B7
+	case C166_IDLE: // 87 78 87 87
+	case C166_PWRDN: // 97 68 97 97
+	case C166_SRVWDT: // A7 58 A7 A7
+	case C166_DISWDT: // A5 5A A5 A5
+	case C166_EINIT: // B5 4A B5 B5
+	case C166_ENWDT: // 85 7A 85 85
+		instr->byte_size = C166_BYTESIZE_4;
 		break;
 	case C166_CoMOV:
 	case C166_CoSTORE_B3:
@@ -1625,21 +1782,20 @@ RZ_API st32 c166_decode_command(RZ_NONNULL C166State *state, RZ_NONNULL C166_Ins
 	case C166_CoXXX_A3:
 		instr->byte_size = c166_instr_extended(instr);
 		goto ok;
-	case 0x3b:
-	case 0x44:
-	case 0x45:
-	case 0x8B:
-	case 0x95:
-	case 0xC1:
-	case 0xC7:
-	case 0xE3:
-	case 0xE5:
-	case 0xF5:
-	case 0xF8:
-	case 0xF9:
+	// case 0x3b:
+	// case 0x44:
+	// case 0x45:
+	// case 0x8B:
+	// case 0x95:
+	// case 0xC1:
+	// case 0xC7:
+	// case 0xE3:
+	// case 0xE5:
+	// case 0xF5:
+	// case 0xF8:
+	// case 0xF9:
 	default:
-		printf("0x%02x\n", opcode);
-		rz_warn_if_reached();
+		// printf("[ 0x%04x ] opcode: 0x%02x 0x%02x%02x%02x%02x\n", instr->addr, opcode, bytes[0], bytes[1], bytes[2], bytes[3]);
 		INSTR("invalid");
 		instr->byte_size = 1;
 		goto ok;

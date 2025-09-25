@@ -412,7 +412,7 @@ typedef enum {
 	C166_CMPI1_Rwn_mem = 0x82, ///< <b>[0x82]</b> Compare direct word memory to direct GPR and increment GPR by 1 <b>(4 bytes)</b>
 	C166_CoXXX_83 = 0x83, ///< <b>[0x83]</b> CoXXX <b>(v2 family)</b> <b>(4 bytes)</b>
 	C166_MOV_oRwn_mem = 0x84, ///< <b>[0x84]</b> Move direct word memory to indirect memory <b>(4 bytes)</b>
-	C166_ENWDT = 0x85, ///< <b>[0x85]</b> End Watchdog Timer <b>(4 bytes)</b> <b>(v2 family)</b>
+	C166_ENWDT = 0x85, ///< <b>[0x85]</b> Enable Watchdog Timer <b>(4 bytes)</b> <b>(v2 family)</b>
 	C166_CMPI1_Rwn_data16 = 0x86, ///< <b>[0x86]</b> Compare immediate word data to direct GPR and increment GPR by 1 <b>(4 bytes)</b>
 	C166_IDLE = 0x87, ///< <b>[0x87]</b> Enter Idle Mode <b>(4 bytes)</b>
 	C166_MOV_noRwm_Rwn = 0x88, ///< <b>[0x88]</b> Pre-decrement destination pointer by 2 and move direct word GPR to indirect memory <b>(2 bytes)</b>
@@ -719,5 +719,5 @@ static inline ut16 get_operand(const C166_Inst *i, ut8 index) {
  * @return Instruction byte size, 2 or 4 or -1 on error
  */
 RZ_API st32 c166_decode_command(RZ_NONNULL C166State *state, RZ_NONNULL C166_Inst *instr, const ut8 *bytes, st32 len);
-RZ_API bool check_unused_opcode(const ut8 opcode);
+static bool check_unused_opcode(const ut8 opcode);
 #endif /* _C166_DISAS_H */

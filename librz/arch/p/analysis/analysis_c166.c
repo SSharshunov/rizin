@@ -163,7 +163,7 @@ static RzAnalysisValue *c166_new_mem_value(const RzAnalysis *analysis, const C16
 	switch (instr->ext.mode) {
 	case C166_EXT_MODE_NONE:
 		val->reg = reg;
-		val->base = rz_reg_get_value(analysis->reg, reg) << 14;
+		// val->base = rz_reg_get_value(analysis->reg, reg) << 14;
 		break;
 	case C166_EXT_MODE_SEG:
 		val->base = ((ut32)instr->ext.value) << 16;
@@ -876,6 +876,7 @@ static void c166_op_set_type(RZ_NONNULL C166_Inst *instr, RzAnalysis *analysis, 
 	case C166_SRST:
 	case C166_SRVWDT:
 	case C166_DISWDT:
+	case C166_ENWDT:
 	case C166_PWRDN:
 	case C166_IDLE:
 		break;
@@ -940,7 +941,8 @@ static int c166_op(RzAnalysis *analysis, RzAnalysisOp *op, ut64 addr, const ut8 
 		op->size = ret;
 		return op->size;
 	}
-
+	if (RZ_STR_ISEMPTY(instr.instr))
+		printf("instr.addr: 0x%04x [0x%02x]\n", instr.addr, instr.id);
 	rz_warn_if_fail(RZ_STR_ISNOTEMPTY(instr.instr));
 	rz_warn_if_fail(ret == 1 || ret == 2 || ret == 4);
 

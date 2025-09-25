@@ -414,14 +414,17 @@ d "subcb 0xfe00:0x3020, 0xfe40" 35202030
 d "jmpr cc_UC, 0x0000" 0dff
 
 d "CoMULu R3, [R4]" 83340056
-d "CoMULu [0xff0a], [R4]" 93140056
+d "CoMACu [0xff0a], [R4]" 93941056
+d "CoMACu [0xff08], [R4]" 93141056
 d "CoMULu R3, R4" A3340056
 
 d "CoMULu R5, [R4], rnd" 83540156
-d "CoMULu [0xff0a], [R4], rnd" 93140156
+d "CoMULu [0xff08], [R4], rnd" 93140156
+d "CoMULu [0xff0a], [R4], rnd" 93940156
 d "CoMULu R3, R4, rnd" A3340156
 
-d "CoMACu [0xff0a], [R4], rnd" 93141156
+d "CoMACu [0xff08], [R4], rnd" 93141156
+d "CoMACu [0xff0a], [R4], rnd" 93941156
 d "CoMACu R3, [R4], rnd" 83341156
 d "CoMACu R3, R4, rnd" A3341156
 
@@ -440,11 +443,14 @@ d "CoMULu- [0xff08], [R4]" 93040856
 d "CoMULu- R3, R4" A3340856
 
 d "CoMULus- R3, [R4]" 83348856
-d "CoMULus- [0x0000], [R4]" 93348856
+d "CoMULus- [0xff08 -2], [R4]" 93348856
+d "CoMULus- [0xff0a -2], [R4]" 93B48856
 d "CoMULus- R3, R4" A3348856
 
 d "CoMACsu- R3, [R4]" 83346056
-d "CoMACsu- [0xff08], [R4]" 93046056
+d "CoMACsu- [0xff08 - QX1], [R4]" 93746056
+d "CoMACsu- [0xff08 - QX1], [R15]" 937F6056
+d "CoMACsu- [0xff0a - QX1], [R4]" 93F46056
 d "CoMACsu- R3, R4" A3346056
 
 d "CoMACRsu R3, [R4]" 83347056
@@ -683,17 +689,21 @@ d "CoMACMus [0xff08], [R4], rnd" 93049956
 
 d ".word 0xa334 .word 0xb856" A334B856
 d ".word 0x8334 .word 0xb856" 8334B856
-d "CoMACMRus [0xff0a], [R4]" 9314B856
+d "CoMACMRus [0xff08], [R4]" 9314B856
+d "CoMACMRus [0xff0a], [R4]" 9394B856
 d ".word 0xa334 .word 0xb956" A334B956
 d ".word 0x8334 .word 0xb956" 8334B956
-d "CoMACMRus [0xff0a], [R4], rnd" 9314B956
+d "CoMACMRus [0xff0a], [R4], rnd" 9394B956
+d "CoMACMRus [0xff08], [R4], rnd" 9314B956
 
 d ".word 0xa334 .word 0xd856" A334D856
 d ".word 0x8334 .word 0xd856" 8334D856
-d "CoMACM [0xff0a], [R4]" 9314D856
+d "CoMACM [0xff08], [R4]" 9314D856
+d "CoMACM [0xff0a], [R4]" 9394D856
 d ".word 0xa334 .word 0xd956" A334D956
 d ".word 0x8334 .word 0xd956" 8334D956
-d "CoMACM [0xff0a], [R4], rnd" 9314D956
+d "CoMACM [0xff08], [R4], rnd" 9314D956
+d "CoMACM [0xff0a], [R4], rnd" 9394D956
 
 d ".word 0xa334 .word 0xf856" A334F856
 d ".word 0x8334 .word 0xf856" 8334F856
@@ -702,16 +712,12 @@ d ".word 0xa334 .word 0xf956" A334F956
 d ".word 0x8334 .word 0xf956" 8334F956
 d "CoMACMR [0xff08], [R4], rnd" 9304F956
 
-
-
-
-#d "CoNOP CoNOP [RWm]" 93345A56
-#d "CoNOP CoNOP [IDXi], [RWm]" 93345A56
-#d "CoNOP [IDXi]" 93345A56
+d "CoNOP [0xff08 -2], [R4]" 93345A56
 
 d ".word 0xa334 .word 0xa856" A334A856
 d ".word 0x8334 .word 0xa856" 8334A856
-d "CoMACMus- [0xff0a], [R4]" 9314A856
+d "CoMACMus- [0xff08], [R4]" 9314A856
+d "CoMACMus- [0xff0a], [R4]" 9394A856
 
 d ".word 0xa334 .word 0x2856" A3342856
 d ".word 0x8334 .word 0x2856" 83342856
@@ -723,7 +729,8 @@ d "CoMACMsu- [0xff08], [R4]" 93046856
 
 d ".word 0xa334 .word 0xe856" A334E856
 d ".word 0x8334 .word 0xe856" 8334E856
-d "CoMACM- [0xff0a], [R4]" 9314E856
+d "CoMACM- [0xff08], [R4]" 9314E856
+d "CoMACM- [0xff0a], [R4]" 9394E856
 
 
 d "CoASHR [R5]" 8355AA56
@@ -796,12 +803,29 @@ d "CoSTORE R3, MAS" C3341056
 d ".word 0xd339 .word 0xfa56" D339FA56
 
 
-d "CoMOV [0x0000], [R4]" D3340056
-d "CoMOV [0xff0a], [R4]" D3140056
-d "CoMOV [0xff08], [R4]" D3040056
-d "CoMOV [0x0000], [R2]" D3320056
+d "- USR0 CoMOV [0xff08 +2], [R4 + QR1]" D3240056
+d "- USR0 CoMOV [0xff0a +2], [R4 + QR1]" D3A40056
+d "- USR0 CoMOV [0xff08 -2], [R4 + QR1]" D3340056
+d "- USR0 CoMOV [0xff0a -2], [R4 + QR1]" D3B40056
+d "- USR0 CoMOV [0xff08], [R4 + QR1]" D3040056
+d "- USR0 CoMOV [0xff08], [R4 + QR1]" D3140056
+d "- USR0 CoMOV [0xff0a], [R4 + QR1]" D3940056
+
+
+
+
+d "- USR0 CoMOV [0xff08], [R4 + QR1]" D3040056
+d "- USR0 CoMOV [0xff08 -2], [R2]" D3320040
+d "- USR0 CoMOV [0xff0a -2], [R2]" D3B20040
+d "- USR1 CoMOV [0xff08 -2], [R2]" D3320060
+d "- USR1 CoMOV [0xff0a -2], [R2]" D3B20060
 
 d ".word 0xd334 .word 0xba56" D334BA56
 d ".word 0xd314 .word 0xba56" D314BA56
 d ".word 0xd304 .word 0xba56" D304BA56
-d "CoMOV [0x0000], [R2]" D3320056
+d "- USR0 CoMOV [0xff08 -2], [R2 + QR1]" D3320056
+d "- USR0 CoMOV [0xff0a -2], [R2 + QR1]" D3B20056
+d "CoMOV [0xff08 -2], [R2]" D3320020
+d "CoMOV [0xff0a -2], [R2]" D3B20020
+d "CoMOV [0xff08 -2], [R2]" D3320000
+d "CoMOV [0xff0a -2], [R2]" D3B20000

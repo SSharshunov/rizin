@@ -19,7 +19,7 @@
 
 #include "librz/arch/isa/c166/c166_disas.h"
 
-RZ_API bool check_unused_opcode(const ut8 opcode) {
+static bool check_unused_opcode(const ut8 opcode) {
 	switch (opcode) {
 	case 0x3b:
 	case 0x44:
@@ -52,7 +52,6 @@ RZ_API bool check_unused_opcode(const ut8 opcode) {
  * human-readable assembly representation. Uses the c166_decode_command helper function
  * to perform the actual disassembly.
  */
-
 static st32 disassemble(RzAsm *a, RzAsmOp *op, const ut8 *buf, st32 len) {
 	rz_return_val_if_fail(a && op && buf, -1);
 
@@ -68,7 +67,7 @@ static st32 disassemble(RzAsm *a, RzAsmOp *op, const ut8 *buf, st32 len) {
 		op->size = 1;
 		return op->size;
 	}
-	st32 ret = c166_decode_command(state, &inst, buf, len);
+	op->size = c166_decode_command(state, &inst, buf, len);
 	if (RZ_STR_EQ(inst.instr, "invalid")) {
 		rz_asm_op_setf_asm(op, FMT_WORD, buf[0], buf[1]);
 	} else {
@@ -77,7 +76,6 @@ static st32 disassemble(RzAsm *a, RzAsmOp *op, const ut8 *buf, st32 len) {
 		} else {
 			rz_asm_op_setf_asm(op, "%s", inst.instr);
 		}
-		op->size = ret;
 	}
 	// op->asm_toks = rz_asm_tokenize_asm_regex(&op->buf_asm, state->token_patterns);
 	// op->asm_toks->op_type = op->op_type; // ???
@@ -100,28 +98,21 @@ static RZ_OWN RzPVector /*<RzAsmTokenPattern *>*/ *get_token_patterns() {
 
 	TOKEN(META, "(\\[|\\]|-)");
 	// TOKEN(META, "(\\+[rc]?)");
-
 	TOKEN(NUMBER, "(0x[[:digit:]abcdef]+)");
-
 	TOKEN(REGISTER, "(r[0-9]{1,2}|DPP[0-3]|TFR|SP|PSW|MD[LHC]|r[hl][0-9]{1,2})");
-
 	TOKEN(MNEMONIC, "^([a-zA-Z_]+)");
-
 	TOKEN(SEPARATOR, "([[:blank:]]+)|([,.;#\\(\\)\\{\\}:])");
-
 	TOKEN(NUMBER, "([[:digit:]]+)");
 
 	return pvec;
 }
 
 static bool init(void **user) {
-
 	C166State *state = RZ_NEW0(C166State);
 	if (!state) {
 		RZ_LOG_FATAL("Could not allocate memory for C166State!\n");
 		return false;
 	}
-	// rz_return_val_if_fail(state, false);
 
 	C166ExtState ext = {
 		.esfr = false,
@@ -148,6 +139,16 @@ static bool fini(void *user) {
 	return true;
 }
 
+static char **avr_cpu_descriptions() {
+	static char *cpu_desc[] = {
+		"c166-generic", "Siemens/Infineon C166 family",
+		"c166v1", "Siemens/Infineon C16x v1 family",
+		"c166v2", "Siemens/Infineon C16x v2 family",
+		NULL
+	};
+	return cpu_desc;
+}
+
 RzAsmPlugin rz_asm_plugin_c166 = {
 	.name = "c166",
 	.arch = "c166",
@@ -158,5 +159,9 @@ RzAsmPlugin rz_asm_plugin_c166 = {
 	.disassemble = &disassemble,
 	.init = &init,
 	.fini = &fini,
-	.cpus = "c166-generic"
+	.cpus =
+		"c166-generic,"
+		"c166v1,"
+		"c166v2",
+	.get_cpu_desc = avr_cpu_descriptions,
 };
