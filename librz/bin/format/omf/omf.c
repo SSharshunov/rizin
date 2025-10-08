@@ -68,7 +68,7 @@ static ut16 omf_get_idx(const ut8 *buf, int buf_size) {
 	return *buf;
 }
 
-static void free_lname(OMF_multi_datas *lname) {
+void free_lname(OMF_multi_datas *lname) {
 	ut32 ct = 0;
 
 	while (ct < lname->nb_elem) {
