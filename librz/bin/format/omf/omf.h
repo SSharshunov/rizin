@@ -27,7 +27,7 @@ typedef struct OMF_DATA {
 	ut64 size;
 	ut32 offset;
 	ut16 seg_idx;
-	ut32 perm;
+	ut8 type;
 	bool is_data;
 	bool is_segment;
 	struct OMF_DATA *next;
@@ -36,10 +36,12 @@ typedef struct OMF_DATA {
 // sections return by the plugin are the addr of datas because sections are
 // separate on non contiguous block on the omf file
 typedef struct {
+	ut32 index;
 	ut32 name_idx;
 	ut64 size;
 	ut8 bits;
 	ut64 vaddr;
+	ut8 type;
 	OMF_data *data;
 } OMF_segment;
 
@@ -53,6 +55,16 @@ typedef struct {
 } OMF_pedata;
 
 typedef struct {
+	// ut32 name_idx;
+	ut64 size;
+	ut8 bits;
+	ut64 vaddr;
+	ut8 type;
+	OMF_data *data;
+} OMF_vecdata;
+
+typedef struct {
+	ut32 index;
 	char *name;
 	ut16 seg_idx;
 	ut32 offset;
@@ -65,8 +77,10 @@ typedef struct {
 	ut32 nb_name;
 	OMF_segment **sections;
 	ut32 nb_section;
-	OMF_segment **pedata;
+	OMF_pedata **pedata;
 	ut32 nb_pedata;
+	OMF_vecdata **vecdata;
+	ut32 nb_vecdata;
 	OMF_symbol **symbols;
 	ut32 nb_symbol;
 	OMF_record_handler *records;
@@ -81,8 +95,8 @@ typedef struct {
 
 // this value was chosen arbitrarily to made the loader work correctly
 // if someone want to implement rellocation for omf he has to remove this
-#define OMF_BASE_ADDR 0x1000
-#define OMF166_BASE_ADDR 0xC00000
+#define OMF_BASE_ADDR    0x1000
+#define OMF166_BASE_ADDR 0x00
 
 bool rz_bin_checksum_omf_ok(const ut8 *buf, ut64 buf_size);
 rz_bin_omf_obj *rz_bin_internal_omf_load(const ut8 *buf, ut64 size);
@@ -99,5 +113,5 @@ int rz_bin_omf166_send_sections(RzPVector /*<RzBinSection *>*/ *vec, OMF_segment
 ut64 rz_bin_omf166_get_paddr_sym(rz_bin_omf_obj *obj, OMF_symbol *sym);
 ut64 rz_bin_omf166_get_vaddr_sym(rz_bin_omf_obj *obj, OMF_symbol *sym);
 const char *rz_bin_omf166_get_module_information(rz_bin_omf_obj *obj);
-
+void free_lname(OMF_multi_datas *lname);
 #endif

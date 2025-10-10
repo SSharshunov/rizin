@@ -76,7 +76,7 @@ ao 1~size
 #pdq 1
 EOF
 EXPECT=<<EOF
-size: 1
+size: 2
 EOF
 RUN
 
@@ -93,8 +93,8 @@ ao 3~size
 EOF
 EXPECT=<<EOF
 size: 2
-size: 1
 size: 2
+size: 4
 EOF
 RUN
 

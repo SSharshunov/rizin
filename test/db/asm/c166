@@ -4,21 +4,23 @@ d "and r1, r2;and 0xfe02, #0x4523;or r3, r4;xor r5, r6;cpl r1" 60126601234570345
 d "mov [-r2], r1;movb [-r4], rh1;mov [r5], 0xfe00:0x0020" 8812893484052000
 d "bclr 0xfd40.0;bset 0xfd42.0;bclr 0xfd44.2;bset 0xfd46.2" 0E200F212E222F23
 
-d "add r1, r2;and r3, r4;mov [-r6], r5;jmpr cc_UC, 0x0018;mul r7, r8;sub r5, r6;bset 0xfd48.0;cmp r1, r2;jmpr cc_Z/EQ, 0x0006" 0012603488560D080B7820560F2440122DFA
+d "add r1, r2;and r3, r4;mov [-r6], r5;jmpr cc_UC, 0x00000018;mul r7, r8;sub r5, r6;bset 0xfd48.0;cmp r1, r2;jmpr cc_Z/EQ, 0x00000006" 0012603488560D080B7820560F2440122DFA
 
 # If suddenly a broken byte appears instead of the opcode,
 # but the operand remains intact, disassembly will go down the wrong path
 # Expected: `add r1, r2;and r3, r4;mov [-r6], r5 ......`
 # Actual:   `add r1, r2;.byte 0x3b;subc 0xfe00:0x0d56, psw ......`
-d "add r1, r2;.byte 0x3b;subc 0xfe00:0x0d56, 0xff10;add r0, [r3];or r2, #0;xor 0xfe1e, #0x4024;addc 0xfe5a, 0xfe00:0x0000" 00123B3488560D080B7820560F2440122DFA
+d "add r1, r2;.word 0x3b34;mov [-r6], r5;jmpr cc_UC, 0x00000018;mul r7, r8;sub r5, r6;bset 0xfd48.0;cmp r1, r2;jmpr cc_Z/EQ, 0x00000006" 00123B3488560D080B7820560F2440122DFA
 
-d "add r1, r2;.byte 0x3b;and r3, r4;mov [-r6], r5;jmpr cc_UC, 0x0019;mul r7, r8;sub r5, r6;bset 0xfd48.0;cmp r1, r2;jmpr cc_Z/EQ, 0x0007" 00123B603488560D080B7820560F2440122DFA
+d "add r1, r2;.word 0x3b00;and r3, r4;mov [-r6], r5;jmpr cc_UC, 0x0000001a;mul r7, r8;sub r5, r6;bset 0xfd48.0;cmp r1, r2;jmpr cc_Z/EQ, 0x00000008" 00123B00603488560D080B7820560F2440122DFA
+d "add r1, r2;.word 0x3b60;subc 0xfe00:0x0d56, 0xff10;add r0, [r3];or r2, #0;xor 0xfe1e, #0x4024;addc 0xfe5a, 0xfe00:0x0000" 00123B603488560D080B7820560F2440122DFA
 
-d ".byte 0x44;.byte 0x95" 4495
-d ".byte 0x44;.byte 0x8b" 448B
-d ".byte 0x95" 95
-d ".byte 0xe5" E5
-d ".byte 0x44;mov [-r2], r1" 448812
+d ".word 0x4495" 4495
+d ".word 0x448b" 448B
+d ".word 0x9500" 9500
+d ".word 0xe500" E500
+d ".word 0x4488;invalid" 448812
+d ".word 0x4400;mov [-r2], r1" 44008812
 
 # These are made up from the C166 manual
 d "add r6, r2" 0062
@@ -185,18 +187,18 @@ d "extpr #0x01ab, #0x01" D7C0AB01
 
 d "idle" 87788787
 
-d "jb 0xfd02.3, 0x000c" 8A010430
-d "jbc 0xfd02.3, 0x000c" AA010430
+d "jb 0xfd02.3, 0x0000000c" 8A010430
+d "jbc 0xfd02.3, 0x0000000c" AA010430
 d "jmpa cc_SLE, 0x0660" EAB06006
 d "jmpi cc_NZ/NE, [r1]" 9C31
 d "jmpi cc_ULE, [r15]" 9CFF
-d "jmpr cc_Z/EQ, 0x0042" 2D20
-d "nop;nop;nop;nop;nop;nop;nop;nop;nop;nop;nop;nop;nop;nop;nop;nop;jmpr cc_UGT, 0x0002" CC00CC00CC00CC00CC00CC00CC00CC00CC00CC00CC00CC00CC00CC00CC00CC00EDF0
-d "nop;nop;nop;nop;nop;nop;nop;nop;nop;nop;nop;nop;nop;nop;nop;jmpr cc_UGT, 0x0000" CC00CC00CC00CC00CC00CC00CC00CC00CC00CC00CC00CC00CC00CC00CC00EDF0
+d "jmpr cc_Z/EQ, 0x00000042" 2D20
+d "nop;nop;nop;nop;nop;nop;nop;nop;nop;nop;nop;nop;nop;nop;nop;nop;jmpr cc_UGT, 0x00000002" CC00CC00CC00CC00CC00CC00CC00CC00CC00CC00CC00CC00CC00CC00CC00CC00EDF0
+d "nop;nop;nop;nop;nop;nop;nop;nop;nop;nop;nop;nop;nop;nop;nop;jmpr cc_UGT, 0x00000000" CC00CC00CC00CC00CC00CC00CC00CC00CC00CC00CC00CC00CC00CC00CC00EDF0
 d "jmps 0x00, 0x0660" FA006006
-d "nop;nop;nop;nop;nop;nop;nop;nop;nop;nop;nop;nop;nop;nop;nop;nop;nop;nop;nop;nop;nop;nop;nop;nop;nop;nop;nop;nop;nop;nop;jnb 0xfd02.3, 0x0000" CC00CC00CC00CC00CC00CC00CC00CC00CC00CC00CC00CC00CC00CC00CC00CC00CC00CC00CC00CC00CC00CC00CC00CC00CC00CC00CC00CC00CC00CC009A01E030
-d "jnb 0xfd02.3, 0x000c" 9A010430
-d "jnbs 0xfd02.3, 0x000c" BA010430
+d "nop;nop;nop;nop;nop;nop;nop;nop;nop;nop;nop;nop;nop;nop;nop;nop;nop;nop;nop;nop;nop;nop;nop;nop;nop;nop;nop;nop;nop;nop;jnb 0xfd02.3, 0x00000000" CC00CC00CC00CC00CC00CC00CC00CC00CC00CC00CC00CC00CC00CC00CC00CC00CC00CC00CC00CC00CC00CC00CC00CC00CC00CC00CC00CC00CC00CC009A01E030
+d "jnb 0xfd02.3, 0x0000000c" 9A010430
+d "jnbs 0xfd02.3, 0x0000000c" BA010430
 
 d "mov r1, r0" F010
 d "mov r0, #0x01" E010
@@ -411,7 +413,7 @@ d "or 0xffc4, #0x0400" 76E20004
 d "or 0xff26, #0x0c00" 7693000C
 d "subcb 0xfe00:0x3020, 0xfe40" 35202030
 
-d "jmpr cc_UC, 0x0000" 0dff
+d "jmpr cc_UC, 0x00000000" 0dff
 
 d "CoMULu R3, [R4]" 83340056
 d "CoMACu [0xff0a], [R4]" 93941056

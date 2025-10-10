@@ -17,9 +17,9 @@
 
 // clang-format off
 #define SBUF_16 \
-	(char[C166_INSTR_MAXLEN]) { 0 } /* CI linter gives an error */
-#define SBUF_7 (char[7]) { 0 }
-#define SBUF_9 (char[9]) { 0 }
+	(char[C166_INSTR_MAXLEN]) RZ_EMPTY /* CI linter gives an error */
+#define SBUF_7 (char[7]) RZ_EMPTY
+#define SBUF_9 (char[9]) RZ_EMPTY
 // clang-format on
 
 #define INSTR(...)    rz_snprintf(instr->instr, C166_INSTR_MAXLEN - 1, __VA_ARGS__);

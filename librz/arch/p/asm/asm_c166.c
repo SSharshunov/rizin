@@ -60,11 +60,11 @@ static st32 disassemble(RzAsm *a, RzAsmOp *op, const ut8 *buf, st32 len) {
 		RZ_LOG_FATAL("C166State was NULL.\n");
 	}
 
-	C166_Inst inst = { 0 };
+	C166_Inst inst = RZ_EMPTY;
 	inst.addr = (ut32)a->pc;
 	if (check_unused_opcode(buf[0])) {
-		rz_asm_op_setf_asm(op, FMT_BYTE, buf[0]);
-		op->size = 1;
+		rz_asm_op_setf_asm(op, FMT_WORD, buf[0], buf[1]);
+		op->size = 2;
 		return op->size;
 	}
 	op->size = c166_decode_command(state, &inst, buf, len);
@@ -77,7 +77,7 @@ static st32 disassemble(RzAsm *a, RzAsmOp *op, const ut8 *buf, st32 len) {
 			rz_asm_op_setf_asm(op, "%s", inst.instr);
 		}
 	}
-	// op->asm_toks = rz_asm_tokenize_asm_regex(&op->buf_asm, state->token_patterns);
+	op->asm_toks = rz_asm_tokenize_asm_regex(&op->buf_asm, state->token_patterns);
 	// op->asm_toks->op_type = op->op_type; // ???
 	return op->size;
 }
@@ -97,11 +97,14 @@ static RZ_OWN RzPVector /*<RzAsmTokenPattern *>*/ *get_token_patterns() {
 	}
 
 	TOKEN(META, "(\\[|\\]|-)");
+	TOKEN(META, "(cc_.+),");
 	// TOKEN(META, "(\\+[rc]?)");
-	TOKEN(NUMBER, "(0x[[:digit:]abcdef]+)");
+	// TOKEN(NUMBER, "(0x[[:digit:]abcdef]+)");
+	// TOKEN(NUMBER, "([0]x[[:digit:]abcdef]+)");
+	TOKEN(NUMBER, "([#]0x[[:digit:]abcdef]+)");
 	TOKEN(REGISTER, "(r[0-9]{1,2}|DPP[0-3]|TFR|SP|PSW|MD[LHC]|r[hl][0-9]{1,2})");
 	TOKEN(MNEMONIC, "^([a-zA-Z_]+)");
-	TOKEN(SEPARATOR, "([[:blank:]]+)|([,.;#\\(\\)\\{\\}:])");
+	TOKEN(SEPARATOR, "([[:blank:]]+)|([,.;\\(\\)\\{\\}:])");
 	TOKEN(NUMBER, "([[:digit:]]+)");
 
 	return pvec;

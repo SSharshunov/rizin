@@ -40,9 +40,9 @@ static bool is_valid_omf166_type(ut8 type) {
 		OMF166_PUBDEF, OMF166_GLBDEF, OMF166_EXTDEF, OMF166_LOCSYM,
 		OMF166_BLKDEF, OMF166_DEBSYM, OMF166_LEDATA, OMF166_PEDATA,
 		OMF166_VECTAB, OMF166_FIXUPP, OMF166_TSKEND, OMF166_XSECDEF,
-		OMF166_ERROR1, OMF166_ERROR2, OMF166_ERROR3, OMF166_ERROR4,
-		OMF166_ERROR5, OMF166_ERROR6, OMF166_ERROR7, OMF166_ERROR8,
-		OMF166_ERROR9, 0
+		OMF166_UNKNOWN0, OMF166_INCLUDES, OMF166_UNKNOWN2, OMF166_UNKNOWN3,
+		OMF166_UNKNOWN4, OMF166_UNKNOWN5,
+		0
 	};
 	for (; types[ct]; ct++) {
 		if (type == types[ct]) {
@@ -54,12 +54,12 @@ static bool is_valid_omf166_type(ut8 type) {
 }
 
 void print_bytes(const unsigned char *array, size_t length) {
-    printf("[%ld] ", length);
+	printf("[%ld] ", length);
 	for (int i = 0; i < length; i++) {
-        // Print each char as an unsigned hexadecimal byte
-        printf("0x%02x ", (unsigned char)array[i]);
-    }
-    printf("\n");
+		// Print each char as an unsigned hexadecimal byte
+		printf("0x%02x ", (unsigned char)array[i]);
+	}
+	printf("\n");
 }
 
 bool rz_bin_checksum_omf166_ok(const ut8 *buf, ut64 buf_size) {
@@ -139,11 +139,14 @@ static bool load_omf166_lnames(OMF_record *record, const ut8 *buf, ut64 buf_size
 		}
 		// sometimes there is a name with a null size so we just skip it
 		char cb = buf[3 + tmp_size];
+#if 0
+		/* TODO: check names counter */
 		if (cb < 1) {
 			names[ct_name++] = NULL;
 			tmp_size++;
 			continue;
 		}
+#endif
 		if (record->size + 3 < tmp_size + cb) {
 			RZ_LOG_ERROR("Invalid Lnames record (bad size)\n");
 			free(ret);
@@ -156,26 +159,23 @@ static bool load_omf166_lnames(OMF_record *record, const ut8 *buf, ut64 buf_size
 		if ((tmp_size + 4 + cb) < buf_size) {
 			memcpy(names[ct_name], buf + 3 + tmp_size + 1, cb);
 		}
-#ifdef X_DEBUG
+#ifndef X_DEBUG
 		printf("LNAMES ct_name: %03d, `%s`\n", ct_name, names[ct_name]);
 #endif
 		ct_name++;
 		tmp_size += cb + 1; // buf[3 + tmp_size] + 1;
-
 	}
 #ifdef X_DEBUG
-		printf("=========================> load_omf = LNAMES  =  [%05d] [0x%08llx] 0x%02x (%lld)\t", record->size, global_ct, record->type, buf_size);
-		print_bytes(buf, record->size+3);
+	printf("=========================> load_omf = LNAMES  =  [%05d] [0x%08llx] 0x%02x (%lld)\t", record->size, global_ct, record->type, buf_size);
+	print_bytes(buf, record->size + 3);
 #endif
 	return true;
 }
-
 
 static int load_omf166_symb(OMF_record *record, ut32 ct, const ut8 *buf, int buf_size, int bits, ut16 seg_idx) {
 	ut32 nb_symb = 0;
 	ut8 str_size = 0;
 	OMF_symbol *symbol;
-	// printf("+++++++++++++++++++++++++++++++++++++++++++++++++\n");
 	ut32 lct = ct;
 
 	while (nb_symb < ((OMF_multi_datas *)record->content)->nb_elem) {
@@ -197,31 +197,29 @@ static int load_omf166_symb(OMF_record *record, ut32 ct, const ut8 *buf, int buf
 		// 	}
 		// 	symbol->offset = rz_read_le32(buf + ct + 1 + str_size);
 		// } else {
-			// if (ct + 1 + str_size + 2 - 3 > record->size) {
-			// 	RZ_LOG_ERROR("%d: Invalid Pubdef record (bad size)\n", __LINE__);
-			// 	return false;
-			// }
+		// if (ct + 1 + str_size + 2 - 3 > record->size) {
+		// 	RZ_LOG_ERROR("%d: Invalid Pubdef record (bad size)\n", __LINE__);
+		// 	return false;
+		// }
 		// }
 
+		symbol->index = nb_symb;
 		symbol->seg_idx = seg_idx;
 
 		if (!(symbol->name = RZ_NEWS0(char, str_size + 1))) {
-			printf("======================!symbol->name\n");
 			return false;
 		}
 		symbol->name[str_size] = 0;
 		memcpy(symbol->name, buf + lct + 1, sizeof(char) * str_size);
 
-		// symbol->offset = 0xC00000 + rz_read_le16(buf + lct + 1 + str_size);
 		symbol->offset = (seg_idx << 16) + rz_read_le16(buf + lct + 1 + str_size);
-		// printf("load_omf166_symb %s\n", symbol->name);
-		printf("ct: %d, str_size: %d, symbol->offset: 0x%04x \n", lct, str_size, symbol->offset);
 #ifdef X_DEBUG
+		printf("symbol->index: %d - ct: %d, str_size: %d, symbol->offset: 0x%08x `%s`\n",
+			symbol->index, lct, str_size, symbol->offset, symbol->name);
 #endif
 
 		lct += 1 + str_size + (bits == 32 ? 4 : 2);
 		if (lct >= buf_size) {
-			printf("======================lct >= buf_size\n");
 			return false;
 		}
 		// if (buf[lct] & 0x80) { // type index
@@ -240,34 +238,35 @@ static int load_omf166_symb(OMF_record *record, ut32 ct, const ut8 *buf, int buf
 
 static int load_omf166_global_sym_record(OMF_record *record, const ut8 *buf, int buf_size, ut64 global_ct) {
 
-	const char *rec_name = NULL;
-	if (record->type == OMF166_LOCSYM) rec_name = "LOCSYM";
-	if (record->type == OMF166_PUBDEF) rec_name = "PUBDEF";
-	if (record->type == OMF166_GLBDEF) rec_name = "GLBDEF";
-	printf("\nload_omf = %s  =  [%05d] [0x%08llx] 0x%02x (%d)\n", rec_name, record->size, global_ct, record->type, buf_size);
 #ifdef X_DEBUG
-
+	const char *rec_name = NULL;
+	if (record->type == OMF166_LOCSYM)
+		rec_name = "LOCSYM";
+	if (record->type == OMF166_PUBDEF)
+		rec_name = "PUBDEF";
+	if (record->type == OMF166_GLBDEF)
+		rec_name = "GLBDEF";
+	printf("\nload_omf = %s  =  [%05d] [0x%08llx] 0x%02x (%d)\n", rec_name, record->size, global_ct, record->type, buf_size);
 #endif
 	OMF_multi_datas *ret = NULL;
 	ut16 ct = 3;
 
-
 	if (!(ret = RZ_NEW0(OMF_multi_datas))) {
 		return false;
 	}
-#if 0
-	ut16 seg_idx = rz_read_le32(buf + 5);;
+#if 1
+	ut16 seg_idx = rz_read_le32(buf + 5);
+	;
 	ut32 base = rz_read_le32(buf + ct);
 #else
 	ut16 seg_idx = omf166_get_idx(buf + 5, buf_size - 5);
 	ut16 base = omf166_get_idx(buf + ct, buf_size - ct);
 #endif
 	ct += 4;
-	while(record->size > ct) {
-		// printf("=========================> load_omf = GLBDEF  = ct: %d, offset: [0x%08x]\n", ct, offset);
+	while (record->size > ct) {
 		int n = buf[ct];
 		ct++;
-		char name[255] = {0};
+		char name[255] = { 0 };
 		rz_str_ncpy(name, (const char *)&buf[ct], n + 1);
 		ct += n;
 		ut16 Ofs16 = rz_read_le16(buf + ct);
@@ -278,26 +277,30 @@ static int load_omf166_global_sym_record(OMF_record *record, const ut8 *buf, int
 		ct += 2;
 
 		ret->nb_elem++;
+#ifdef X_DEBUG
 		printf("\t ct: %d, seg_idx: [0x%08x] base: [0x%08x] Ofs16:[0x%04x] Rep8:[0x%02x] TI:[0x%04x] (%d)`%s`\n",
 			ct, seg_idx, base, Ofs16, Rep8, TI, n, name);
-#ifdef X_DEBUG
-
+#else
+		(void)Ofs16;
+		(void)Rep8;
+		(void)TI;
+		(void)base;
 #endif
 	}
 
 	record->content = ret;
-	print_bytes(buf, record->size+3);
-	printf("=== load_omf166_pubdef ret->nb_elem: %d\n", ret->nb_elem);
 #ifdef X_DEBUG
+	print_bytes(buf, record->size + 3);
+	printf("=== load_omf166_pubdef ret->nb_elem: %d\n", ret->nb_elem);
 #endif
-		if (ret->nb_elem > 0) {
-			if (!(ret->elems = RZ_NEWS0(OMF_symbol, ret->nb_elem))) {
-				return false;
-			}
-		}
-		if (!load_omf166_symb(record, 7, buf, buf_size, 16, seg_idx)) {
+	if (ret->nb_elem > 0) {
+		if (!(ret->elems = RZ_NEWS0(OMF_symbol, ret->nb_elem))) {
 			return false;
 		}
+	}
+	if (!load_omf166_symb(record, 7, buf, buf_size, 16, seg_idx)) {
+		return false;
+	}
 	return true;
 }
 
@@ -323,8 +326,8 @@ static int load_omf_data(const ut8 *buf, int buf_size, OMF_record *record, ut64 
 	// 	offset = rz_read_le32(buf + ct);
 	// 	ct += 4;
 	// } else {
-		offset = rz_read_le16(buf + ct);
-		ct += 2;
+	offset = rz_read_le16(buf + ct);
+	ct += 2;
 	// }
 	if (!(ret = RZ_NEW0(OMF_data))) {
 		return false;
@@ -340,7 +343,7 @@ static int load_omf_data(const ut8 *buf, int buf_size, OMF_record *record, ut64 
 
 #ifdef X_DEBUG
 	printf("=========================> load_omf = LEDATA  =  [%05d] [0x%08llx] 0x%02x (%d)\t", record->size, global_ct, record->type, buf_size);
-	print_bytes(buf, record->size+3);
+	print_bytes(buf, record->size + 3);
 #endif
 
 	return true;
@@ -353,7 +356,7 @@ static int load_omf_blkdef(const ut8 *buf, int buf_size, OMF_record *record, ut6
 	OMF_data *ret;
 
 	ut8 GroupIndex = 0x00;
- 	ut8 SectionIndex = 0x00;
+	ut8 SectionIndex = 0x00;
 	// ut8 FrameNumber = 0x00;
 	ut16 page_idx = 0x00;
 
@@ -374,14 +377,15 @@ static int load_omf_blkdef(const ut8 *buf, int buf_size, OMF_record *record, ut6
 	}
 	// ut8 FrameNumber = rz_read_le16(buf + 5);
 	if ((FrameNumber & 0x8000) != 0) {
-		page_idx = FrameNumber; (void)page_idx;
+		page_idx = FrameNumber;
+		(void)page_idx;
 	} else {
 		seg_idx = FrameNumber;
 	}
 
 	// ct++;
 
-	char name[255*3] = {0};
+	char name[255 * 3] = { 0 };
 	// const char *name = rz_strdup(buf[14]);
 	ut8 n = buf[ct]; // ct = 7
 	ct++;
@@ -400,20 +404,20 @@ static int load_omf_blkdef(const ut8 *buf, int buf_size, OMF_record *record, ut6
 
 	ct += 3;
 	ut16 TI = rz_read_le16(buf + ct);
+
 	// ut16 TI = omf166_get_idx(buf + ct, buf_size - ct);
 
-// printf("\nload_omf = BLKDEF  =  [%05ld] [0x%08llx] 0x%02x (%d)\n",
-// 		record->size, global_ct, record->type, buf_size);
 #ifdef X_DEBUG
 	printf("BLKDEF [0x%08llx], 0x%02x   0x%02x 0x%02x  GroupIndex: 0x%02x SectionIndex: 0x%02x FrameNumber: 0x%04x (%s), (%d) name: `%s` (%d) BlockOffset16: 0x%04x BlockLength16: 0x%04x (%d), %s, TI: 0x%04x\t",
 		global_ct, buf[0], buf[1], buf[2], GroupIndex, SectionIndex,
-		FrameNumber, ((FrameNumber & 0x8000) != 0) ? "PAGE Number" : "SEGMENT Number", n, name, record->size-7-n-1, BlockOffset16, BlockLength16, BlockLength16, PInfoProcedure ? "fP" : "nP", TI);
-	print_bytes(buf+7+n+1, record->size-7+3-n-1);
+		FrameNumber, ((FrameNumber & 0x8000) != 0) ? "PAGE Number" : "SEGMENT Number", n, name, record->size - 7 - n - 1, BlockOffset16, BlockLength16, BlockLength16, PInfoProcedure ? "fP" : "nP", TI);
+	print_bytes(buf + 7 + n + 1, record->size - 7 + 3 - n - 1);
 	printf("\n");
-
-#endif
-
-#if RZ_BUILD_DEBUG
+#else
+	(void)BlockOffset16;
+	(void)BlockLength16;
+	(void)TI;
+	(void)PInfoProcedure;
 #endif
 
 	if (!(ret = RZ_NEW0(OMF_data))) {
@@ -427,7 +431,7 @@ static int load_omf_blkdef(const ut8 *buf, int buf_size, OMF_record *record, ut6
 	ret->seg_idx = seg_idx;
 	ret->next = NULL;
 	record->type = OMF166_BLKDEF;
-/*
+	/*
 	size_t length = rz_read_le16(buf + 1);
 
 	ut8 BlockBase = buf[3];
@@ -454,8 +458,8 @@ static int load_omf_blkdef(const ut8 *buf, int buf_size, OMF_record *record, ut6
 [27] 0x00 0x00 0xc0 0x00 0x0c 0x73 0x65 0x74 0x5f 0x69 0x6e 0x74 0x65 0x72 0x76 0x61 0x6c 0xc0 0x17 0x1a 0x01 0x80 0x00 0x00 0x80 0x8d 0xd3
 [13] 0x00 0x00 0xc0 0x00 0x00 0xc8 0x17 0x0c 0x01 0x00 0x00 0x00  0x90
 
- 	ut8 GroupIndex = 0x00;
- 	ut8 SectionIndex = 0x00;
+	ut8 GroupIndex = 0x00;
+	ut8 SectionIndex = 0x00;
 	ut8 FrameNumber = 0x00;
 
 
@@ -482,24 +486,25 @@ static int load_omf_blkdef(const ut8 *buf, int buf_size, OMF_record *record, ut6
 }
 
 #define BOOL_STR(x) x ? "true" : "false"
-static const char *get_data_type(ut8 data_type) {
+// static
+const char *get_data_type(ut8 data_type) {
 	switch (data_type) {
-		case 0: {
-			return "BIT";
-		}
-		case 1: {
-			return "DATA";
-		}
-		case 2: {
-			return "CODE";
-		}
-		case 3: {
-			return "CONST";
-		}
-		default: {
-			rz_warn_if_reached();
-			return NULL;
-		}
+	case 0: {
+		return "BIT";
+	}
+	case 1: {
+		return "DATA";
+	}
+	case 2: {
+		return "CODE";
+	}
+	case 3: {
+		return "CONST";
+	}
+	default: {
+		rz_warn_if_reached();
+		return NULL;
+	}
 	}
 }
 static int load_omf_pedata(const ut8 *buf, int buf_size, OMF_record *record, ut64 global_ct) {
@@ -514,28 +519,20 @@ static int load_omf_pedata(const ut8 *buf, int buf_size, OMF_record *record, ut6
 
 	ct += 2;
 	ut8 data_type = rz_read_le8(buf + ct);
+	ct++;
 
 	// ut16 abs_offset = rz_bin_omf166_get_abs_addr(SegmentNumber8, Offset);
 
+#ifdef X_DEBUG
 	const char *dt = get_data_type(data_type);
-
-
-	char data2[255*6] = {0};
-	size_t data_length = 0;
-	if (data_type == 1) {
-		data_length = record->size - 5;
-		if (data_length > 1){
-			rz_str_ncpy(data2, (const char *)&buf[7], data_length);
-		}
-	}
-	if (data_type == 2) {
-		data_length = record->size - 5;
-	}
-	printf("load_omf = PEDATA  =  [%05d] [0x%08llx] 0x%02x (%7d) SegmentNumber8: %02x, Offset: 0x%04x, data_type: %s ||  `%s`  || dl: %ld\t",
+	// char data2[255*6] = {0};
+	size_t data_length = record->size - 5;
+	printf("load_omf = PEDATA  =  [%05d] [0x%08llx] 0x%02x (%7d) SegmentNumber8: %02x, Offset: 0x%04x, data_type: %s || {0x%04lx} dl: %ld\t",
 		record->size, global_ct, record->type, buf_size,
 		SegmentNumber8, Offset,
-		dt, data2, data_length);
+		dt, Offset + data_length, data_length);
 	printf("\n");
+#endif
 	/**
 	 * 0xB9 | RecLen | ABS-Address | DatTyp | Data | Chks
 	 * ABS-Address = SegmentNumber8 | OffsetLow8 | OffsetHigh8
@@ -546,7 +543,6 @@ static int load_omf_pedata(const ut8 *buf, int buf_size, OMF_record *record, ut6
 	 */
 
 	if (!(ret_pedata = RZ_NEW0(OMF_pedata))) {
-		RZ_LOG_ERROR("!(ret_seg = RZ_NEW0(OMF_pedata))\n");
 		return false;
 	}
 	record->content = ret_pedata;
@@ -560,7 +556,7 @@ static int load_omf_pedata(const ut8 *buf, int buf_size, OMF_record *record, ut6
 	ret_pedata->data = ret_data;
 
 	ret_pedata->name_idx = PE_INDEX++;
-	ret_pedata->size = record->size - 1 - (ct - 3); //Seclen;
+	ret_pedata->size = record->size - 1 - (ct - 3); // Seclen;
 	ret_pedata->bits = 16;
 
 	ret_pedata->type = data_type;
@@ -573,10 +569,8 @@ static int load_omf_pedata(const ut8 *buf, int buf_size, OMF_record *record, ut6
 	record->type = OMF166_PEDATA;
 
 #ifdef X_DEBUG
-	print_bytes(buf, record->size+3);
+	print_bytes(buf, record->size + 3);
 	printf("\n");
-#endif
-#if RZ_BUILD_DEBUG
 #endif
 	return true;
 }
@@ -597,7 +591,7 @@ static int load_omf_secdef(const ut8 *buf, int buf_size, OMF_record *record, ut6
 	ut8 Type = SecTyp >> 6; ///< 0:=BIT, 1:=DATA, 2:=CODE, 3:=CONST
 	bool X = (SecTyp & 0x20) >> 5; ///< is set if the section is of type ’xhuge’ (length 0 ... 16M).
 	bool H = (SecTyp & 0x10) >> 4; ///< is set if the section is of type ’huge’ (length 0 ... 64K).
-	ut8 bitpos = SecTyp & 0x0F ;
+	ut8 bitpos = SecTyp & 0x0F;
 
 	ct++;
 	ut8 SecAtr = buf[ct]; // ct = 4
@@ -614,125 +608,71 @@ static int load_omf_secdef(const ut8 *buf, int buf_size, OMF_record *record, ut6
 	offset2 = rz_read_le16(buf + ct); // ct = 7
 
 	ct += 2;
-	ut16 Seclen = rz_read_le16(buf + ct); // ct = 8
+	// ut16 Seclen = rz_read_le16(buf + ct); // ct = 8
+	ut16 Seclen = record->type == OMF166_XSECDEF ? rz_read_le32(buf + ct) : rz_read_le16(buf + ct);
 
 	//   0xC5 |   RecLen   | SecTyp | SecAtr                         |   Seclen   |                | ChkSum
 	// load_omf = SECDEF  = [12] [0xdc4] 0xb0 (120027) SecTyp = DATA,  Seclen [072] x: false, h: false, b: true	[15] 0xb0   0x0c 0x00   0x48  0x00 0x01 0x00 0x5b 0x02 0x01 0x00 0x32 0x11 0x01 0x59
-/*
-	[15] 0xb0   0x0c 0x00    0x80    0x00      0xc0 0x00   0x8a 0x16   0x50 0x02 0x1b 0x02 0x01      0xf4
-	[15] 0xb0   0x0c 0x00    0x50    0x00      0xc0 0x00   0x4c 0x1e   0x6f 0x00 0x1c 0x04 0x01      0x3a
-*/
+	/*
+		[15] 0xb0   0x0c 0x00    0x80    0x00      0xc0 0x00   0x8a 0x16   0x50 0x02 0x1b 0x02 0x01      0xf4
+		[15] 0xb0   0x0c 0x00    0x50    0x00      0xc0 0x00   0x4c 0x1e   0x6f 0x00 0x1c 0x04 0x01      0x3a
+	*/
 
-	printf("load_omf: %s, seg_idx: 0x%02x, offset: 0x%04x {0x%04x}, [%02d] [%03lld] 0x%02x (%d) ",
+#ifndef X_DEBUG
+	printf("[%2d] %7s, seg_idx: 0x%02x, offset: 0x%04x {0x%04x}, [%02d] [%03lld] 0x%02x (%d) ",
+		SEC_INDEX,
 		record->type == OMF166_XSECDEF ? "XSECDEF" : "SECDEF ",
 		SegmentNumber8,
 		offset,
 		offset2,
 		record->size, global_ct, record->type, buf_size);
 	const char *dt = get_data_type(Type);
-	printf("SecTyp = %s,   Seclen [%03d] x: %s, h: %s, b: 0x%x SecAtr: 0x%02x\t", dt, Seclen, BOOL_STR(X), BOOL_STR(H), bitpos, SecAtr);
+	printf("SecTyp = %5s,   Seclen [%06d] x: %s, h: %s, b: 0x%x SecAtr: 0x%02x\t", dt, Seclen, BOOL_STR(X), BOOL_STR(H), bitpos, SecAtr);
 	printf("\tsecdef: ");
 	print_bytes(buf, record->size + 3);
 	printf("\n");
-#if RZ_BUILD_DEBUG
 #endif
-	// printf("\n");
-	// 0x80 0x00 0xc0 0x00 0x1e 0x1a 0x08 0x00 0x33 0x02 0x01 0x8e
-	// The ’bitpos’ field has the same meaning as defined in the Siemens OMF166 spec.
-
 	if (!(ret_seg = RZ_NEW0(OMF_segment))) {
-		RZ_LOG_ERROR("!(ret_seg = RZ_NEW0(OMF_segment))\n");
 		return false;
 	}
 	record->content = ret_seg;
 
-	// rz_return_val_if_fail(ret = RZ_NEW0(OMF_data), false);
+	// rz_return_val_if_fail(ret = RZ_NEW0(OMF_data), false); // todo
 	if (!(ret_data = RZ_NEW0(OMF_data))) {
-		RZ_LOG_ERROR("!(ret_data = RZ_NEW0(OMF_data))\n");
 		return false;
 	}
 
-	ret_seg->name_idx = SEC_INDEX++;
-	ret_seg->size = Seclen;
+	/* ???
+	ut32 secsize = 1;
+	if (H)
+		secsize = 16 * 1024;
+	if (X)
+		secsize = 16 * 1024 * 1024;
+	*/
+	ret_seg->index = SEC_INDEX;
+	ret_seg->name_idx = SEC_INDEX;
+	ret_seg->size = Seclen; // * secsize;
 	ret_seg->bits = 16;
 	ret_seg->data = ret_data;
+	ret_seg->type = Type;
 	// record->content->vaddr = 16;
+	SEC_INDEX++;
 
-	ut32 secsize = 1;
-	if (H) secsize = 16*1024;
-	if (X) secsize = 16*1024*1024;
-
-	ut32 perm = (Type == 0x2) ? RZ_PERM_RX : RZ_PERM_R;
-
-	ret_data->size = Seclen * secsize; // ???? record->size - 1 - (ct - 3);
+	ret_data->size = Seclen; // * secsize; // ???? record->size - 1 - (ct - 3);
 	ret_data->paddr = global_ct + ct;
-	ret_data->offset = offset;
+	ret_data->offset = offset2;
 	ret_data->seg_idx = SegmentNumber8;
-	ret_data->perm = perm;
-	ret_data->is_data = (Type == 0x1);
+	// ret_data->perm = perm;
+	ret_data->type = Type;
 	ret_data->is_segment = true;
 	ret_data->next = NULL;
 	record->type = OMF166_SECDEF;
-
-#if RZ_BUILD_DEBUG
-#endif
-	return true;
-}
-
-static int load_omf_vectab(const ut8 *buf, int buf_size, OMF_record *record, ut64 global_ct) {
-	// 0xE9 | RecLen | ABS-Address | DatTyp | Data        | Chks
-	// E9     09 00    C0 18 00      02       FA C0 78 00  02
-	if (record->size < 9) {
-		RZ_LOG_ERROR("Invalid VECTAB record (bad size)\n");
-		return false;
-	}
-	ut16 ct = 3;
-	OMF_data *ret;
-	ut8 SegmentNumber8 = rz_read_le8(buf + ct); // ct = 3;
-	ct++;
-	ut16 Offset = rz_read_le16(buf + ct);  // ct = 4;
-	ct += 2;
-	ut8 DatTyp = rz_read_le8(buf + ct);  // ct = 6;
-	ct++;
-	ut32 Data = rz_read_be32(buf + ct);
-
-	ut16 abs_offset = rz_bin_omf166_get_abs_addr(SegmentNumber8, Offset);
-
-	printf("load_omf = VECTAB =  [%05d] [0x%08llx] 0x%02x (%d)\t", record->size, global_ct, record->type, buf_size);
-
-	if (DatTyp == 0x0) {
-		printf("DatTyp = BIT \t");
-	} else if (DatTyp == 0x1) {
-		printf("DatTyp = DATA\t");
-	} else if (DatTyp == 0x2) {
-		printf("DatTyp = CODE\t");
-	} else if (DatTyp == 0x3) {
-		printf("DatTyp = CONS\t");
-	} else {
-		printf("DatTyp = UNKNOWN(%d), DatTyp [0x%02x]\t", DatTyp, DatTyp);
-	}
-	printf("SegmentNumber8: 0x%02x, Offset: [0x%08x], Data: [0x%08x]\n", SegmentNumber8, abs_offset, Data);
-
-	if (!(ret = RZ_NEW0(OMF_data))) {
-		RZ_LOG_ERROR("!(ret = RZ_NEW0(OMF_data))\n");
-		return false;
-	}
-	record->content = ret;
-	ret->size = 0; // ???? record->size - 1 - (ct - 3);
-	ret->paddr = global_ct + ct;
-	ret->offset = Offset;
-	ret->seg_idx = SegmentNumber8;
-	// ret->perm = perm;
-	// ret->is_data = (Type == 0x1);
-	// ret->is_segment = true;
-	ret->next = NULL;
-	record->type = OMF166_VECTAB;
 	return true;
 }
 
 static int load_omf_modinf(const ut8 *buf, int buf_size, OMF_record *record, ut64 global_ct) {
 #if RZ_BUILD_DEBUG
-/*
+	/*
 	  7   6   5   4   3   2   1   0
 	*********************************
 	* D | F | x | m | m | m | C | M *
@@ -800,143 +740,124 @@ static const char *ti[] = {
 #define IS_TI(x) ((x >= 0x40) && (x <= 0x54))
 
 static int load_omf_typnew(const ut8 *buf, int buf_size, OMF_record *record, ut64 global_ct) {
-#if RZ_BUILD_DEBUG
-	/*
-		Value represented final type
-		0x40 untyped
-		0x41 bit
-		0x42 char
-		0x43 unsigned char
-		0x44 int
-		0x45 unsigned int
-		0x46 long
-		0x47 unsigned long
-		0x48 float (32-Bit IEEE)
-		0x49 double (64-Bit IEEE)
-		0x4A void
-		0x4B label
-		0x4C < a166 BITWORD >
-		0x4D < a166 NEAR >
-		0x4E < a166 FAR >
-		0x4F < a166 DATA3 >
-		0x50 < a166 DATA4 >
-		0x51 < a166 DATA8 >
-		0x52 < a166 DATA16 >
-		0x53 < a166 INTNO >
-		0x54 < a166 REGBANK >
-	*/
 	/*
 		F0   0F 00   24 01 06 00 00 00 83 00   05  63 6C 6F 63 6B            42
 		F0   0E 00   24 01 10 00 00 00 84 00   04  6D 72 65 63               9E
 		F0   12 00   24 01 04 00 00 00 86 00   08  69 6E 74 65 72 76 61 6C   E2
 		F0   36 00   20 04 00 43 00 00 00 00 00 00 00 04 68 6F 75 72 43 00 01 00 00 00 00 00 03 6D 69 6E 43 00 02 00 00 00 00 00 03 73 65 63 45 00 04 00 00 00 00 00 04 6D 73 65 63 AE
 	*/
-#endif
 	size_t length = rz_read_le16(buf + 1);
 	printf("load_omf = TYPNEW [0x%02x] (0x%02llx) ", TI_INDEX | 0x80, global_ct); // %d , buf_size
 	ut8 compound_type = buf[3];
 	switch (compound_type) {
-		case 0x20: {
-			ut32 cct = 4;
-			ut16 NrOfComp16 = rz_read_le16(buf + cct);
-			cct += 2;
-			printf("COMPONENT-LIST Descriptor NrOfComp16: %d\n", NrOfComp16);
-			for (int i = 0; i < NrOfComp16; i++) {
-				ut16 TI16 = rz_read_le16(buf + cct); cct = cct + 2;
-				ut32 OFFS32 = rz_read_le16(buf + cct); cct = cct + 4;
-				ut8 REP8 = rz_read_at_le8(buf, cct); cct++;
-				ut8 POS8 = rz_read_at_le8(buf, cct); cct++;
-				ut8 n = rz_read_at_le8(buf, cct); cct++;
-				char name[255] = {0};
-				// const char *name = rz_strdup(buf[14]);
-				rz_str_ncpy(name, (const char *)&buf[cct], n + 1);
-				cct += n;
-				printf("\t TI16: 0x%04x (%s), OFFS32: 0x%04x, REP8: 0x%02x, POS8: 0x%02x, n: %d (%s)\n",
-					TI16, IS_TI(TI16) ? ti[TI16] : NULL, OFFS32, REP8, POS8, n, name);
-				// printf("\t(%s), OFFS32: 0x%04x, REP8: 0x%02x, POS8: 0x%02x, n: %d (%s)\n",
-				// 	ti[TI16], OFFS32, REP8, POS8, n, name);
-			}
-
-
-			break;
-		}
-		case 0x21: {
-			printf("POINTER Descriptor ");
-			print_bytes(buf, length+3);
-			printf("\n");
-			break;
-		}
-		case 0x22: {
-			printf("ARRAY Descriptor ");
-			print_bytes(buf, length+3);
-			printf("\n");
-			break;
-		}
-		case 0x23: {
-			// ut8 ATTRIB8
-			///<  0x23 | ATTRIB8 | RTYPE-TI16 | PARMLIST-TI16
-			///<  0x23 0x01 0x44 0x00 0x82 0x00 0x1f
-			///<  0x23 0x01 0x4a 0x00 0x4a 0x00 0x51
-			///<  0x23 0x01 0x44 0x00 0x4a 0x00 0x57
-			ut32 cct = 4;
-			ut8 ATTRIB8 = rz_read_at_le8(buf, cct); // cct = 4
+	case 0x20: {
+#if RZ_BUILD_DEBUG
+		ut32 cct = 4;
+		ut16 NrOfComp16 = rz_read_le16(buf + cct);
+		cct += 2;
+		printf("COMPONENT-LIST Descriptor NrOfComp16: %d\n", NrOfComp16);
+		for (int i = 0; i < NrOfComp16; i++) {
+			ut16 TI16 = rz_read_le16(buf + cct);
+			cct = cct + 2;
+			ut32 OFFS32 = rz_read_le16(buf + cct);
+			cct = cct + 4;
+			ut8 REP8 = rz_read_at_le8(buf, cct);
 			cct++;
-			ut32 RTYPE_TI16 = rz_read_le16(buf + cct); // cct = 5
-			cct += 2;
-			ut32 PARMLIST_TI16 = rz_read_le16(buf + cct); // cct = 7
-			/*ut8 n = rz_read_at_le8(buf, cct); // cct = 11
+			ut8 POS8 = rz_read_at_le8(buf, cct);
+			cct++;
+			ut8 n = rz_read_at_le8(buf, cct);
+			cct++;
+			char name[255] = { 0 };
+			rz_str_ncpy(name, (const char *)&buf[cct], n + 1);
+			cct += n;
+			printf("\t TI16: 0x%04x (%s), OFFS32: 0x%04x, REP8: 0x%02x, POS8: 0x%02x, n: %d (%s)\n",
+				TI16, IS_TI(TI16) ? ti[TI16] : "(null)", OFFS32, REP8, POS8, n, name);
+		}
+#endif
+
+		break;
+	}
+	case 0x21: {
+		printf("POINTER Descriptor ");
+		print_bytes(buf, length + 3);
+		printf("\n");
+		break;
+	}
+	case 0x22: {
+		printf("ARRAY Descriptor ");
+		print_bytes(buf, length + 3);
+		printf("\n");
+		break;
+	}
+	case 0x23: {
+		// ut8 ATTRIB8
+		///<  0x23 | ATTRIB8 | RTYPE-TI16 | PARMLIST-TI16
+		///<  0x23 0x01 0x44 0x00 0x82 0x00 0x1f
+		///<  0x23 0x01 0x4a 0x00 0x4a 0x00 0x51
+		///<  0x23 0x01 0x44 0x00 0x4a 0x00 0x57
+		ut32 cct = 4;
+		ut8 ATTRIB8 = rz_read_at_le8(buf, cct); // cct = 4
+		cct++;
+		ut32 RTYPE_TI16 = rz_read_le16(buf + cct); // cct = 5
+		cct += 2;
+		ut32 PARMLIST_TI16 = rz_read_le16(buf + cct); // cct = 7
+		/*ut8 n = rz_read_at_le8(buf, cct); // cct = 11
 			char name[255] = {0};
 			// const char *name = rz_strdup(buf[14]);
 			rz_str_ncpy(&name, &buf[cct], n + 1);
 			// cct = cct + n;*/
-			printf("FUNCTION Descriptor `%s`, ret: %s, paramlist: 0x%04x\n",
-				ATTRIB8 == 1 ? "NEAR" : "FAR",
-				ti[RTYPE_TI16], PARMLIST_TI16);
+		printf("FUNCTION Descriptor `%s`, ret: %s, paramlist: 0x%04x\n",
+			ATTRIB8 == 1 ? "NEAR" : "FAR",
+			ti[RTYPE_TI16], PARMLIST_TI16);
 
-			break;
-		}
-		case 0x24: {
-			printf("STRUCT/UNION Descriptor ");
-			// ATTRIB8 | SIZE32 | MEMBER-TI16 | tagname
-			ut32 cct = 4;
-			ut8 ATTRIB8 = rz_read_at_le8(buf, cct); // cct = 4
-			cct++;
-			ut32 SIZE32 = rz_read_le32(buf + cct); // cct = 5
-			// // cct++;
-			cct += 4;
-			ut16 MEMBER_TI16 = rz_read_le16(buf + cct); // cct = 9
-			cct += 2;
-			ut8 n = rz_read_at_le8(buf, cct); // cct = 11
+		break;
+	}
+	case 0x24: {
+		printf("STRUCT/UNION Descriptor ");
+		// ATTRIB8 | SIZE32 | MEMBER-TI16 | tagname
+		ut32 cct = 4;
+		ut8 ATTRIB8 = rz_read_at_le8(buf, cct); // cct = 4
+		cct++;
+		ut32 SIZE32 = rz_read_le32(buf + cct); // cct = 5
+		// // cct++;
+		cct += 4;
+		ut16 MEMBER_TI16 = rz_read_le16(buf + cct); // cct = 9
+		cct += 2;
+		ut8 n = rz_read_at_le8(buf, cct); // cct = 11
 
-			cct++;
-			char name[255] = {0};
-			// const char *name = rz_strdup(buf[14]);
-			rz_str_ncpy(name, (const char *)&buf[cct], n + 1);  // cct = 12
-			// cct = cct + n;
-			printf("STRUCT/UNION Descriptor `%s`, sizeof struct or union (%04d), MEMBER_TI16: 0x%04x ret: %s, name[%d]: `%s`\n",
-				ATTRIB8 == 1 ? "struct" : "union",
-				SIZE32,
-				MEMBER_TI16,
-				"x", //ti[MEMBER_TI16],
-				n,
-				name);
-			break;
-		}
-		case 0x25: {
-			printf("BITFIELD Descriptor ");
-			print_bytes(buf, length+3);
-			printf("\n");
-			break;
-		}
-		default: {
-			rz_warn_if_reached();
-			break;
-		}
+		cct++;
+		char name[255] = { 0 };
+		// const char *name = rz_strdup(buf[14]);
+		rz_str_ncpy(name, (const char *)&buf[cct], n + 1); // cct = 12
+		// cct = cct + n;
+		printf("STRUCT/UNION Descriptor `%s`, sizeof struct or union (%04d), MEMBER_TI16: 0x%04x ret: %s, name[%d]: `%s`\n",
+			ATTRIB8 == 1 ? "struct" : "union",
+			SIZE32,
+			MEMBER_TI16,
+			"x", // ti[MEMBER_TI16],
+			n,
+			name);
+		break;
+	}
+	case 0x25: {
+		printf("BITFIELD Descriptor ");
+		print_bytes(buf, length + 3);
+		printf("\n");
+		break;
+	}
+	default: {
+		rz_warn_if_reached();
+		break;
+	}
 	}
 	TI_INDEX++;
 
 	return true;
 }
+
+// static const char *find_keil_string(const ut8 *buf, ut64 buf_size) {
+
+// }
 
 static int load_omf_content(OMF_record *record, const ut8 *buf, ut64 global_ct, ut64 buf_size) {
 
@@ -946,71 +867,224 @@ static int load_omf_content(OMF_record *record, const ut8 *buf, ut64 global_ct, 
 		return false;
 	}
 
-	if ((record->type > 0x60) && (record->type < 68)) return true;
-
 	switch (record->type) {
-		case OMF166_LNAMES: {
-			return load_omf166_lnames(record, buf, buf_size, global_ct);
-		}
-		case OMF166_PUBDEF:
-		case OMF166_LOCSYM:
-		case OMF166_GLBDEF: {
-			return load_omf166_global_sym_record(record, buf, buf_size, global_ct);
-		}
-		case OMF166_DEBSYM: {
-			// printf("load_omf = DEBSYM  =  [%05ld] [0x%08llx] 0x%02x (%lld)\n", length, global_ct, record->type, buf_size);
-			return true;
-		}
-		case OMF166_BLKDEF: {
-			return load_omf_blkdef(buf, buf_size, record, global_ct);
-		}
-		case OMF166_PEDATA: {
-			return load_omf_pedata(buf, buf_size, record, global_ct);
-		}
-		case OMF166_THEADR:
-		case OMF166_LHEADR: {
-			return true;
-		}
-		case OMF166_MODINF: {
-			return load_omf_modinf(buf, buf_size, record, global_ct);
-		}
-		case OMF166_VECTAB: {
-			return load_omf_vectab(buf, buf_size, record, global_ct);
-		}
-		case OMF166_MODEND:
-		case OMF166_BLKEND:
-		case OMF166_LINNUM:
-		case OMF166_REGDEF:
-		case OMF166_COMMENT:
-		case OMF166_GRPDEF:
-		case OMF166_DEPLST: {
-			return true;
-		}
-		case OMF166_LEDATA: {
-			printf("load_omf = LEDATA  =  [%05d] [0x%08llx] 0x%02x (%lld)\n", record->size, global_ct, record->type, buf_size);
-			return load_omf_data(buf, buf_size, record, global_ct);
-		}
+	case OMF166_LNAMES: {
+		return load_omf166_lnames(record, buf, buf_size, global_ct);
+	}
+	case OMF166_GLBDEF:
+	case OMF166_LOCSYM:
+	case OMF166_PUBDEF: {
+		return load_omf166_global_sym_record(record, buf, buf_size, global_ct);
+	}
+	case OMF166_DEBSYM: {
+		printf("load_omf = DEBSYM  =  [%05d] [0x%08llx] 0x%02x (%lld)\n", record->size, global_ct, record->type, buf_size);
+		return true;
+	}
+	case OMF166_BLKDEF: {
+		return load_omf_blkdef(buf, buf_size, record, global_ct);
+	}
+	case OMF166_VECTAB:
+	case OMF166_PEDATA: {
+		return load_omf_pedata(buf, buf_size, record, global_ct);
+	}
+	case OMF166_LHEADR:
+	case OMF166_THEADR: {
+		char name[255] = RZ_EMPTY;
+		ut8 n = rz_read_at_le8(buf, 3);
+		rz_str_ncpy(name, (const char *)&buf[4], n + 1); // cct = 12
+		printf("load_omf = %s  =  [0x%08llx] (%05d) `%s`\n",
+			record->type == OMF166_THEADR ? "THEADR" : "LHEADR",
+			global_ct,
+			record->size,
+			name);
+		// print_bytes(buf, record->size + 3);
+		// printf("\n");
+		return true;
+	}
+	case OMF166_MODINF: {
+		return load_omf_modinf(buf, buf_size, record, global_ct);
+	}
+	case OMF166_MODEND: {
+#ifdef X_DEBUG
+		printf("load_omf = MODEND  =  [%05d] [0x%08llx] 0x%02x (%lld)\n", record->size, global_ct, record->type, buf_size);
+#endif
+		return true;
+	}
+	case OMF166_BLKEND: {
+#ifdef X_DEBUG
+		printf("load_omf = BLKEND  =  [%05d] [0x%08llx] 0x%02x (%lld)\n", record->size, global_ct, record->type, buf_size);
+#endif
+		return true;
+	}
+	case OMF166_LINNUM: {
+#ifdef X_DEBUG
+		printf("load_omf = LINNUM  =  [%05d] [0x%08llx] 0x%02x (%lld)\n", record->size, global_ct, record->type, buf_size);
+#endif
+		return true;
+	}
+	case OMF166_REGDEF: {
+		// E3   0F 00   00 00 FC  07  49 4E 54 52 45 47 53                              FF FF 00    F1
+		// E3   18 00   00 20 FC  10  3F 43 5F 4D 41 49 4E 52 45 47 49 53 54 45 52 53   FF FF 00    1D
+#ifdef X_DEBUG
+		printf("load_omf = REGDEF  =  [%05d] [0x%08llx] 0x%02x (%lld)\n", record->size, global_ct, record->type, buf_size);
+#endif
+		return true;
+	}
+	case OMF166_COMMENT: {
+#ifdef X_DEBUG
+		printf("load_omf = COMMENT  =  [%05d] [0x%08llx] 0x%02x (%lld)\n", record->size, global_ct, record->type, buf_size);
+#endif
+		return true;
+	}
+	case OMF166_GRPDEF: {
+#ifdef X_DEBUG
+		printf("load_omf = GRPDEF  =  [%05d] [0x%08llx] 0x%02x (%lld)\n", record->size, global_ct, record->type, buf_size);
+#endif
+		return true;
+	}
+	case OMF166_DEPLST: {
+#ifdef X_DEBUG
+		printf("load_omf = DEPLST  =  [%05d] [0x%08llx] 0x%02x (%lld)\n", record->size, global_ct, record->type, buf_size);
+#endif
+		return true;
+	}
+	case OMF166_LEDATA: {
+#ifdef X_DEBUG
+		printf("load_omf = LEDATA  =  [%05d] [0x%08llx] 0x%02x (%lld)\n", record->size, global_ct, record->type, buf_size);
+#endif
+		return load_omf_data(buf, buf_size, record, global_ct);
+	}
 
-		case OMF166_TYPNEW: {
-			return load_omf_typnew(buf, buf_size, record, global_ct);
-		}
+	case OMF166_TYPNEW: {
+		return load_omf_typnew(buf, buf_size, record, global_ct);
+	}
 
-		case OMF166_SECDEF:
-		case OMF166_XSECDEF: {
-			return load_omf_secdef(buf, buf_size, record, global_ct);
+	case OMF166_SECDEF:
+	case OMF166_XSECDEF: {
+		return load_omf_secdef(buf, buf_size, record, global_ct);
+	}
+	case OMF166_UNKNOWN0: {
+		// 60    5E 00    00 02 03 00 95 00 00 00 0C 00 00
+		// 05  69 64 61 74 61 					= idata
+		// 05  73 64 61 74 61 					= sdata
+		// 05  62 64 61 74 61 					= bdata
+		// 04  6E 65 61 72 						= near
+		// 03  66 61 72 						= far
+		// 0A  6E 65 61 72 20 63 6F 6E 73 74 	= near const
+		// 09  66 61 72 20 63 6F 6E 73 74 		= far const
+		// 04  68 75 67 65 						= huge
+		// 0A  68 75 67 65 20 63 6F 6E 73 74 	= huge const
+		// 05  78 68 75 67 65 					= xhuge
+		// 0B  78 68 75 67 65 20 63 6F 6E 73 74 = xhuge const
+		// DB
+#ifdef X_DEBUG_UNK
+		printf("load_omf = UNKNOWN0  =  [%05d] [0x%08llx] 0x%02x (%10lld)\t UNKNOWN Bytes [0x%02x 0x%02x]\n",
+			record->size, global_ct, record->type, buf_size, buf[7], buf[8]);
+		print_bytes(buf, record->size + 3);
+		printf("\n");
+#endif
+		ut8 left = 14;
+		while ((record->size - 1) > left) {
+			char name[255] = RZ_EMPTY;
+			ut8 n = rz_read_at_le8(buf, left);
+			rz_str_ncpy(name, (const char *)&buf[++left], n + 1);
+#ifdef X_DEBUG_UNK
+			printf("\t(%2d) `%s`\n", n, name);
+#endif
+			left += n;
 		}
-		case OMF166_ERROR1:
-		case OMF166_ERROR2:
-		case OMF166_ERROR3:
-		case OMF166_ERROR4:
-		case OMF166_ERROR5: {
-			return true;
+		return true;
+	}
+	case OMF166_INCLUDES: {
+		// 61    40 00    2C 03 9D 55 01 00
+		// 38    43 3A 5C 4B 65 69 6C 5F 76 35 5C 63 31 36 36 5C 45 78 61 6D 70 6C 65 73 5C 58 43 31 36 78 20 44 65 76 69 63 65 73 5C 4D 45 41 53 55 52 45 5C 47 65 74 6C 69 6E 65 2E 63
+		// C:\Keil_v5\c166\Examples\XC16x Devices\MEASURE\Getline.c
+		// CA
+#ifdef X_DEBUG_UNK
+		char name[255] = RZ_EMPTY;
+		ut8 n = rz_read_at_le8(buf, 9);
+		rz_str_ncpy(name, (const char *)&buf[10], n + 1); // cct = 12
+		printf("load_omf = INCLUDES  =  [%05d] [0x%08llx] 0x%02x (%10lld)\t `%s`\n", record->size, global_ct, record->type, buf_size, name);
+		// print_bytes(buf, 9);
+		if (record->size > 11 + n) {
+			print_bytes(buf, record->size + 3);
+			printf("\n");
 		}
-		default: {
-			printf("load_omf = ??????? =  [%05d] [0x%08llx] 0x%02x (%lld)\n", record->size, global_ct, record->type, buf_size);
-			rz_warn_if_reached();
-			break;
+#endif
+		return true;
+	}
+	case OMF166_UNKNOWN2: {
+#ifdef X_DEBUG_UNK
+		char name[255] = RZ_EMPTY;
+		ut8 n = rz_read_at_le8(buf, 7);
+		rz_str_ncpy(name, (const char *)&buf[8], n + 1); // cct = 12
+		printf("load_omf = UNKNOWN2  =  [%05d] [0x%08llx] 0x%02x (%10lld)\t `%s`\n", record->size, global_ct, record->type, buf_size, name);
+		// print_bytes(buf, 7);
+		if (record->size > 9 + n) {
+			print_bytes(buf, record->size + 3);
+			printf("\n");
 		}
+#endif
+		return true;
+	}
+	case OMF166_UNKNOWN3: { // ?????
+#ifdef X_DEBUG_UNK
+		char name[255] = RZ_EMPTY;
+		ut8 n = rz_read_at_le8(buf, 7);
+		rz_str_ncpy(name, (const char *)&buf[8], n + 1); // cct = 12
+		printf("load_omf = UNKNOWN3  =  [%05d] [0x%08llx] 0x%02x (%10lld)\t `%s`\n", record->size, global_ct, record->type, buf_size, name);
+		print_bytes(buf, record->size + 3);
+		printf("\n");
+#endif
+		return true;
+	}
+	case OMF166_UNKNOWN4: {
+#ifdef X_DEBUG_UNK
+		printf("load_omf = UNKNOWN4  =  [%05d] [0x%08llx] 0x%02x (%10lld)\t", record->size, global_ct, record->type, buf_size);
+		print_bytes(buf, record->size + 3);
+		printf("\n");
+#endif
+		/*
+		64  35 00
+		03 00 00 00
+		02 00 02 00 0C 00 00 00 00 00 00 00 FF FF FF FF
+		01 00 02 00 12 00 00 00 01 00 00 00 FF FF FF FF
+		01 00 02 00 13 00 00 00 01 00 00 00 FF FF FF FF
+		33
+
+		64  15 00
+		01 00 00 00
+		02 00 01 00 21 00 00 00 00 00 00 00 01 05 02 04
+		56
+
+		64  15 00
+		01 00 00 00
+		02 00 01 00 2a 00 00 00 00 00 00 00 01 05 02 04
+		4d
+
+		64  15 00
+		01 00 00 00
+		01 00 01 00 17 00 00 00 00 00 00 00 ff ff ff ff
+		71
+
+		64  15 00
+		01 00 00 00
+		02 00 01 00 18 00 00 00 00 00 00 00 01 05 02 04
+		5f
+
+		64  15 00
+		01 00 00 00
+		02 00 01 00 38 00 00 00 00 00 00 00 01 05 02 04
+		3f
+		*/
+
+		return true;
+	}
+	default: {
+		printf("load_omf = ??????? =  [%05d] [0x%08llx] 0x%02x (%lld)\t", record->size, global_ct, record->type, buf_size);
+		rz_warn_if_reached();
+		break;
+	}
 	}
 	if (!(record->content = RZ_NEWS0(char, record->size))) {
 		return false;
@@ -1122,7 +1196,7 @@ static int cpy_omf_names(rz_bin_omf_obj *obj) {
 				return false;
 			}
 #ifdef X_DEBUG
-			printf("cpy_omf_names: (%04d) %s\n", ct_obj-1, obj->names[ct_obj-1]);
+			printf("cpy_omf_names: (%04d) %s\n", ct_obj - 1, obj->names[ct_obj - 1]);
 			// printf("cpy_omf_names: %s (%d)\n", obj->names[ct_obj-1], obj->sections[ct_obj]->name_idx);
 #endif
 		}
@@ -1139,15 +1213,11 @@ static void get_omf166_section_info(rz_bin_omf_obj *obj) {
 		obj->sections[ct_obj] = ((OMF_record *)tmp)->content;
 		// ((OMF_record *)tmp)->content = NULL;
 
-		ut32 xxx = (obj->sections[ct_obj]->name_idx - 0x0c70) / 15;
 #ifdef X_DEBUG
-		printf("get_omf166_section_info: 0x%04x {%d} = 0x%04x = %d = 0x%04x {%d} `%s`\n",
+		printf("get_omf166_section_info: name_idx: 0x%02x [%02d], ct_obj: {%d} `%s`\n",
 			obj->sections[ct_obj]->name_idx,
 			obj->sections[ct_obj]->name_idx,
-			xxx,
-			// (obj->sections[ct_obj]->name_idx - 0x0c70) / 15, // + (ct_obj * 15),
-			0x0c70 + (ct_obj * 15),
-			ct_obj, ct_obj,
+			ct_obj,
 			obj->names[ct_obj]);
 #endif
 		if (!ct_obj) {
@@ -1156,7 +1226,6 @@ static void get_omf166_section_info(rz_bin_omf_obj *obj) {
 			obj->sections[ct_obj]->vaddr = obj->sections[ct_obj - 1]->vaddr +
 				obj->sections[ct_obj - 1]->size;
 		}
-		// obj->sections[ct_obj]-> = obj->names[ct_obj++];
 		ct_obj++;
 		tmp = tmp->next;
 	}
@@ -1184,6 +1253,50 @@ static int get_omf166_pedata_info(rz_bin_omf_obj *obj) {
 	return true;
 }
 
+// static int load_symbol_info(rz_bin_omf_obj *obj, ut8 type) {
+// 	OMF_record_handler *tmp = obj->records;
+// 	OMF_multi_datas *symbols;
+// 	int ct_obj = 0;
+// 	int ct_rec = 0;
+
+// 	OMF_symbol **ob_symbols = NULL;
+
+// 	const char *rec_name = NULL;
+// 	if (type == OMF166_LOCSYM) {
+// 		rec_name = "LOCSYM";
+// 		ob_symbols = obj->loc_symbols;
+// 	}
+// 	if (type == OMF166_PUBDEF) {
+// 		rec_name = "PUBDEF";
+// 		ob_symbols = obj->pubdef_symbols;
+// 	}
+// 	if (type == OMF166_GLBDEF) {
+// 		rec_name = "GLBDEF";
+// 		ob_symbols = obj->glbdef_symbols;
+// 	}
+
+// 	// while ((tmp = get_next_omf166_record_type(tmp, type))) {
+// 	// 	symbols = (OMF_multi_datas *)((OMF_record *)tmp)->content;
+
+// 	// 	ct_rec = -1;
+// 	// 	while (++ct_rec < symbols->nb_elem) {
+// 	// 		if (!(ob_symbols[ct_obj] = RZ_NEW0(OMF_symbol))) {
+// 	// 			return false;
+// 	// 		}
+// 	// 		memcpy(ob_symbols[ct_obj], ((OMF_symbol *)symbols->elems) + ct_rec, sizeof(*(ob_symbols[ct_obj])));
+// 	// 		ob_symbols[ct_obj]->name = rz_str_dup(((OMF_symbol *)symbols->elems)[ct_rec].name);
+// 	// 		ob_symbols[ct_obj]->offset = ((OMF_symbol *)symbols->elems)[ct_rec].offset;
+// 	// 		ob_symbols[ct_obj]->seg_idx = ((OMF_symbol *)symbols->elems)[ct_rec].seg_idx;
+
+// 	// 		printf("load_symbol_info %s offset: [0x%08x] seg_idx: 0x%04x name: `%s`\n",
+// 	// 			rec_name, ob_symbols[ct_obj]->offset, ob_symbols[ct_obj]->seg_idx, ob_symbols[ct_obj]->name);
+// 	// 		ct_obj++;
+// 	// 	}
+// 	// 	tmp = tmp->next;
+// 	// }
+// 	return true;
+// }
+
 static int get_omf166_symbol_info(rz_bin_omf_obj *obj) {
 	OMF_record_handler *tmp = obj->records;
 	OMF_multi_datas *symbols;
@@ -1203,7 +1316,46 @@ static int get_omf166_symbol_info(rz_bin_omf_obj *obj) {
 			obj->symbols[ct_obj]->offset = ((OMF_symbol *)symbols->elems)[ct_rec].offset;
 			obj->symbols[ct_obj]->seg_idx = ((OMF_symbol *)symbols->elems)[ct_rec].seg_idx;
 
-			printf("get_omf166_symbol_info offset: [0x%08x] seg_idx: 0x%04x name: `%s`\n",
+			printf("get_omf166_symbol_info OMF166_PUBDEF offset: ct_obj: %d ct_rec: %d [0x%08x] seg_idx: 0x%04x name: `%s`\n",
+				ct_obj, ct_rec, obj->symbols[ct_obj]->offset, obj->symbols[ct_obj]->seg_idx, obj->symbols[ct_obj]->name);
+			ct_obj++;
+		}
+		tmp = tmp->next;
+	}
+
+	tmp = obj->records;
+	while ((tmp = get_next_omf166_record_type(tmp, OMF166_GLBDEF))) {
+		symbols = (OMF_multi_datas *)((OMF_record *)tmp)->content;
+		ct_rec = -1;
+		while (++ct_rec < symbols->nb_elem) {
+			if (!(obj->symbols[ct_obj] = RZ_NEW0(OMF_symbol))) {
+				return false;
+			}
+			memcpy(obj->symbols[ct_obj], ((OMF_symbol *)symbols->elems) + ct_rec, sizeof(*(obj->symbols[ct_obj])));
+			obj->symbols[ct_obj]->name = rz_str_dup(((OMF_symbol *)symbols->elems)[ct_rec].name);
+			obj->symbols[ct_obj]->offset = ((OMF_symbol *)symbols->elems)[ct_rec].offset;
+			obj->symbols[ct_obj]->seg_idx = ((OMF_symbol *)symbols->elems)[ct_rec].seg_idx;
+
+			printf("get_omf166_symbol_info OMF166_GLBDEF offset: [0x%08x] seg_idx: 0x%04x name: `%s`\n",
+				obj->symbols[ct_obj]->offset, obj->symbols[ct_obj]->seg_idx, obj->symbols[ct_obj]->name);
+			ct_obj++;
+		}
+		tmp = tmp->next;
+	}
+	tmp = obj->records;
+	while ((tmp = get_next_omf166_record_type(tmp, OMF166_LOCSYM))) {
+		symbols = (OMF_multi_datas *)((OMF_record *)tmp)->content;
+		ct_rec = -1;
+		while (++ct_rec < symbols->nb_elem) {
+			if (!(obj->symbols[ct_obj] = RZ_NEW0(OMF_symbol))) {
+				return false;
+			}
+			memcpy(obj->symbols[ct_obj], ((OMF_symbol *)symbols->elems) + ct_rec, sizeof(*(obj->symbols[ct_obj])));
+			obj->symbols[ct_obj]->name = rz_str_dup(((OMF_symbol *)symbols->elems)[ct_rec].name);
+			obj->symbols[ct_obj]->offset = ((OMF_symbol *)symbols->elems)[ct_rec].offset;
+			obj->symbols[ct_obj]->seg_idx = ((OMF_symbol *)symbols->elems)[ct_rec].seg_idx;
+
+			printf("get_omf166_symbol_info OMF166_LOCSYM offset: [0x%08x] seg_idx: 0x%04x name: `%s`\n",
 				obj->symbols[ct_obj]->offset, obj->symbols[ct_obj]->seg_idx, obj->symbols[ct_obj]->name);
 			ct_obj++;
 		}
@@ -1217,9 +1369,9 @@ static int get_omf166_data_info(rz_bin_omf_obj *obj) {
 	// OMF_data *tmp_data;
 	ut32 ct_obj = 0;
 	while ((tmp = get_next_omf166_record_type(tmp, OMF166_SECDEF))) {
-	// printf("get_next_omf166_record_type(tmp, OMF166_SECDEF) : `%s`\n", ((OMF_record *)tmp)->content ? "true" : "false");
+		// printf("get_next_omf166_record_type(tmp, OMF166_SECDEF) : `%s`\n", ((OMF_record *)tmp)->content ? "true" : "false");
 
-	// while ((tmp = get_next_omf166_record_type(tmp, OMF166_LEDATA))) {
+		// while ((tmp = get_next_omf166_record_type(tmp, OMF166_LEDATA))) {
 		// if (((OMF_data *)((OMF_record *)tmp)->content)->seg_idx - 1 >= obj->nb_section) {
 		// 	RZ_LOG_ERROR("Invalid Ledata record (bad segment index)\n");
 		// 	return false;
@@ -1232,7 +1384,6 @@ static int get_omf166_data_info(rz_bin_omf_obj *obj) {
 		// ut32 xxx = (obj->sections[ct_obj]->name_idx - 0x0c70) / 15;
 		OMF_segment *os = obj->sections[ct_obj];
 		// os->data ? printf("os->data\n") : printf("!os->data\n");
-
 
 		// OMF_segment *os = obj->sections[((OMF_data *)((OMF_record *)tmp)->content)->seg_idx - 1];
 		rz_return_val_if_fail(os, false);
@@ -1249,19 +1400,19 @@ static int get_omf166_data_info(rz_bin_omf_obj *obj) {
 		os->data = rec_seg->data;
 		// os->data = ((OMF_record *)tmp)->content;
 		// ut32 xxx = (obj->sections[ct_obj]->name_idx - 0x0c70) / 15;
-		// printf("get_omf166_data_info: 0x%04x 0x%04x {} data->size: %10lld, \
 
 #if RZ_BUILD_DEBUG
-		printf("get_omf166_data_info: 0x%04x data->size: %10lld {0x%08llx}, data->paddr: 0x%08llx, data->vaddr: 0x%08llx, data->perm: %2d `%s` `%s`\n",
+		printf("get_omf166_data_info: 0x%04x data->size: %10lld {0x%08llx}, data->paddr: 0x%08llx, data->vaddr: 0x%08llx, data->perm: %2d `%10s` [0x%04x] [0x%08x] `%s`\n",
 			obj->sections[ct_obj]->name_idx,
 			os->data->size,
 			os->data->size,
 			os->data->paddr,
 			os->vaddr,
-			os->data->perm,
-			perm_names[os->data->perm],
-			obj->names[ct_obj]
-		);
+			(os->type == 0x2) ? RZ_PERM_RX : RZ_PERM_R, // os->data->perm,
+			perm_names[(os->type == 0x2) ? RZ_PERM_RX : RZ_PERM_R],
+			os->data->seg_idx,
+			os->data->offset,
+			obj->names[ct_obj]);
 #endif
 		// printf("data->perm: %s\n", perm_names[os->data->perm]);
 		ct_obj++;
@@ -1283,33 +1434,28 @@ static int get_omf_infos(rz_bin_omf_obj *obj) {
 	}
 	// get all sections (segdef record)
 	obj->nb_section = count_omf166_record_type(obj, OMF166_SECDEF);
-	RZ_LOG_WARN("========= obj->nb_section count: %d\n", obj->nb_section);
-	// obj->nb_section = count_omf_record_type(obj, OMF_SEGDEF);
 	if (obj->nb_section > 0) {
 		if (!(obj->sections = RZ_NEWS0(OMF_segment *, obj->nb_section))) {
 			return false;
 		}
 		get_omf166_section_info(obj);
 	}
+
 	obj->nb_pedata = count_omf166_record_type(obj, OMF166_PEDATA);
-	RZ_LOG_WARN("========= obj->nb_pedata count: %d\n", obj->nb_pedata);
-	// obj->nb_section = count_omf_record_type(obj, OMF_SEGDEF);
 	if (obj->nb_pedata > 0) {
 		if (!(obj->pedata = RZ_NEWS0(OMF_pedata *, obj->nb_pedata))) {
 			return false;
 		}
 		get_omf166_pedata_info(obj);
 	}
+
 	// get all data (ledata record)
 	get_omf166_data_info(obj);
-	// get all symbols (pubdef + lpubdef)
-	obj->nb_symbol = count_omf166_multi_record_type(obj, OMF166_PUBDEF);
-#if 0
-	obj->nb_symbol =+ count_omf166_multi_record_type(obj, OMF166_GLBDEF);
-	obj->nb_symbol =+ count_omf166_multi_record_type(obj, OMF166_LOCSYM);
-#endif
 
-	RZ_LOG_WARN("========= obj->nb_symbol count: %d\n", obj->nb_symbol);
+	obj->nb_symbol = count_omf166_multi_record_type(obj, OMF166_PUBDEF);
+	obj->nb_symbol += count_omf166_multi_record_type(obj, OMF166_GLBDEF);
+	obj->nb_symbol += count_omf166_multi_record_type(obj, OMF166_LOCSYM);
+
 	if (obj->nb_symbol > 0) {
 		if (!(obj->symbols = RZ_NEWS0(OMF_symbol *, obj->nb_symbol))) {
 			return false;
@@ -1440,68 +1586,64 @@ bool rz_bin_omf166_get_entry(rz_bin_omf_obj *obj, RzBinAddr *addr) {
 
 	ut32 ct_sym = 0;
 	// OMF_data *data;
-	ut32 offset = 0;
+	// ut32 offset = 0;
 
-	// const char *start_symbol_name = "?C_STARTUP";
-	const char *start_symbol_name = "main";
-	printf("obj->nb_symbol %d\n", obj->nb_symbol);
-
+	const char *start_symbol_name = "main"; // Or may be "?C_STARTUP"
 	while (ct_sym < obj->nb_symbol) {
-		printf("`%s` `%s` %d %d\n", start_symbol_name, obj->symbols[ct_sym]->name,
-			strcmp(obj->symbols[ct_sym]->name, start_symbol_name),
-			!strcmp(obj->symbols[ct_sym]->name, start_symbol_name));
+		rz_return_val_if_fail(obj->symbols[ct_sym], NULL);
 		if (!strcmp(obj->symbols[ct_sym]->name, start_symbol_name)) {
-		// if (!strcmp(obj->symbols[ct_sym]->name, "_start")) {
-			// if (obj->symbols[ct_sym]->seg_idx - 1 > obj->nb_section) {
-			if (obj->symbols[ct_sym]->seg_idx > obj->nb_section) {
-				printf("Invalid segment index for symbol 0x%04x %s\n", obj->symbols[ct_sym]->seg_idx, start_symbol_name);
+			if (obj->symbols[ct_sym]->index > obj->nb_section) {
+				printf("Invalid segment index for symbol 0x%04x [0x%08x] %s\n",
+					obj->symbols[ct_sym]->seg_idx, obj->symbols[ct_sym]->offset, start_symbol_name);
 				return false;
 			}
-			addr->vaddr = 0x10;
-			// addr->vaddr = obj->sections[obj->symbols[ct_sym]->seg_idx - 1]->vaddr + obj->symbols[ct_sym]->offset + OMF166_BASE_ADDR;
-			// data = obj->sections[obj->symbols[ct_sym]->seg_idx - 1]->data;
-			// while (data) {
-			// 	offset += data->size;
-			// 	if (obj->symbols[ct_sym]->offset < offset) {
-			// 		addr->paddr = (obj->symbols[ct_sym]->offset - data->offset) + data->paddr;
+			addr->vaddr = obj->symbols[ct_sym]->offset;
+			return true;
+			/*
+			addr->vaddr = obj->sections[obj->symbols[ct_sym]->seg_idx - 1]->vaddr + obj->symbols[ct_sym]->offset + OMF166_BASE_ADDR;
+			data = obj->sections[obj->symbols[ct_sym]->seg_idx - 1]->data;
+			while (data) {
+				offset += data->size;
+				if (obj->symbols[ct_sym]->offset < offset) {
+					addr->paddr = (obj->symbols[ct_sym]->offset - data->offset) + data->paddr;
 					return true;
-			// 	}
-			// 	data = data->next;
-			// }
+				}
+				data = data->next;
+			}
+			*/
 		}
 		ct_sym++;
 	}
 	return false;
 }
 
-const char *rz_bin_omf166_get_module_information(rz_bin_omf_obj *obj) {
-	rz_return_val_if_fail(obj && obj->records, NULL);
+// const char *rz_bin_omf166_get_module_information(rz_bin_omf_obj *obj) {
+// 	rz_return_val_if_fail(obj && obj->records, NULL);
 
-	OMF_record_handler *tmp = obj->records;
-	while ((tmp = get_next_omf166_record_type(tmp, OMF166_MODINF))) {
-		OMF_data *pt = ((OMF_data *)((OMF_record *)tmp)->content);
+// 	OMF_record_handler *tmp = obj->records;
+// 	while ((tmp = get_next_omf166_record_type(tmp, OMF166_MODINF))) {
 
-		// 	bool DOUBLE_USED = byte >> 7; ///< The module contains double precision float operations. This bit is intended for the linker for automatic selection of libraries.
-		// 	bool FLOAT_USED = (byte & 0x40) >> 6; ///< The module contains single precision float operations. This bit is intended for the linker for automatic selection of libraries.
-		// 	bool MOD167 = (byte & 0x20) >> 5;   ///< If bit is set, then the module is intended to be executed on an 80C167 CPU, otherwise the module is for a 80C166 CPU.
-		// 	bool MEMORY_MODEL = (byte & 0x1C) >> 2; ///< The three bit model specifier gives the memory model choosen on translation:
-		// 											///< 1: Tiny
-		// 											///< 2: Small
-		// 											///< 3: Compact
-		// 											///< 4: Medium
-		// 											///< 5: Large
-		// 	bool CASE = (byte & 0x02) >> 1; ///< If bit is set, then names are to be considered case sensitive. This info is intended for the linker when combining object modules.
-		// 	bool SEGMENTED = (byte & 0x01); ///< If bit is set, then the segmented cpu mode was choosen for the module.
+// 		// 	bool DOUBLE_USED = byte >> 7; ///< The module contains double precision float operations. This bit is intended for the linker for automatic selection of libraries.
+// 		// 	bool FLOAT_USED = (byte & 0x40) >> 6; ///< The module contains single precision float operations. This bit is intended for the linker for automatic selection of libraries.
+// 		// 	bool MOD167 = (byte & 0x20) >> 5;   ///< If bit is set, then the module is intended to be executed on an 80C167 CPU, otherwise the module is for a 80C166 CPU.
+// 		// 	bool MEMORY_MODEL = (byte & 0x1C) >> 2; ///< The three bit model specifier gives the memory model choosen on translation:
+// 		// 											///< 1: Tiny
+// 		// 											///< 2: Small
+// 		// 											///< 3: Compact
+// 		// 											///< 4: Medium
+// 		// 											///< 5: Large
+// 		// 	bool CASE = (byte & 0x02) >> 1; ///< If bit is set, then names are to be considered case sensitive. This info is intended for the linker when combining object modules.
+// 		// 	bool SEGMENTED = (byte & 0x01); ///< If bit is set, then the segmented cpu mode was choosen for the module.
 
-		((OMF_record *)tmp)->content = NULL;
-		tmp = tmp->next;
-	}
-	return rz_str_dup("OMF166 (Non-Relocatable Object Module Format)");
-}
+// 		((OMF_record *)tmp)->content = NULL;
+// 		tmp = tmp->next;
+// 	}
+// 	return rz_str_dup("OMF166 (Non-Relocatable Object Module Format)");
+// }
 
 ut64 rz_bin_omf166_get_paddr_sym(rz_bin_omf_obj *obj, OMF_symbol *sym) {
 	printf("rz_bin_omf166_get_paddr_sym offset: [0x%08x] seg_idx: 0x%04x name: `%s`\n",
-				sym->offset, sym->seg_idx, sym->name);
+		sym->offset, sym->seg_idx, sym->name);
 	ut64 offset = 0;
 	if (!obj->sections) {
 		return 0LL;
@@ -1530,7 +1672,9 @@ ut64 rz_bin_omf166_get_vaddr_sym(rz_bin_omf_obj *obj, OMF_symbol *sym) {
 	}
 	// ut32 xxx = (sym->seg_idx - 0x0c70) / 15;
 	// if (xxx >= obj->nb_section) {
+#ifdef X_DEBUG
 	printf("rz_bin_omf166_get_vaddr_sym: sym->seg_idx: 0x%04x offset: 0x%08x `%s`\n", sym->seg_idx, sym->offset, sym->name);
+#endif
 	// if (sym->seg_idx >= obj->nb_section) {
 	// 	RZ_LOG_ERROR("%d: Invalid segment index for symbol (0x%04x %d) `%s` \n", __LINE__, sym->seg_idx, sym->seg_idx, sym->name);
 	// 	// RZ_LOG_ERROR("%d: Invalid segment index for symbol %s (0x%04x %d)(0x%04x %d)\n", __LINE__, sym->name, sym->seg_idx, sym->seg_idx, xxx, xxx);

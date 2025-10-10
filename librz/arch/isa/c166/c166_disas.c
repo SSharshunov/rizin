@@ -601,7 +601,7 @@ static ut8 c166_instr_mov_nm(C166_Inst *instr) {
 static ut8 c166_instr_jmp_rel(C166_Inst *instr) {
 	const ut8 c = (instr->id >> 4) & 0xF;
 	ut8 rr = get_operand(instr, 1);
-	OPERANDS("%s, 0x%04x", conds[c], instr->addr + C166_BYTESIZE_2 + (2 * ((st8)rr)));
+	OPERANDS("%s, 0x%08x", conds[c], instr->addr + C166_BYTESIZE_2 + (2 * ((st8)rr)));
 	return C166_BYTESIZE_2;
 }
 
@@ -736,7 +736,7 @@ static ut8 c166_instr_reg_data8(C166_Inst *instr, bool byte) {
 static ut8 c166_instr_seg_caddr(C166_Inst *instr) {
 	ut8 seg = get_operand(instr, 1);
 	ut16 caddr = rz_read_at_le16(&instr->d, 2);
-	OPERANDS("0x%02x, 0x%04x", seg, instr->addr + caddr);
+	OPERANDS("0x%02x, 0x%04x", seg, caddr);
 	return C166_BYTESIZE_4;
 }
 
@@ -752,7 +752,7 @@ static ut8 c166_instr_bitaddr_rel(C166_Inst *instr) {
 	ut8 qq = get_operand(instr, 1);
 	ut8 rr = get_operand(instr, 2);
 	const ut8 q = (get_operand(instr, 3) >> 4) & 0xF;
-	OPERANDS("%s.%i, 0x%04x",
+	OPERANDS("%s.%i, 0x%08x",
 		c166_fmt_bitoff(&instr->ext, SBUF_16, qq), q,
 		instr->addr + C166_BYTESIZE_4 + (2 * ((st8)rr)));
 	return C166_BYTESIZE_4;
@@ -824,7 +824,8 @@ static ut8 c166_instr_irang2(C166State *state, C166_Inst *instr) {
 	} else if (sub_op == 0b10) {
 		c166_activate_ext(state, instr->addr, (C166ExtState){ .esfr = true, .mode = C166_EXT_MODE_NONE, .value = (op & 3), .i = 0 });
 		INSTR("%s", "extr");
-	} else INSTR("%s", "invalid");
+	} else
+		INSTR("%s", "invalid");
 	OPERANDS("#%x", irang2);
 	return C166_BYTESIZE_2;
 }
@@ -1235,8 +1236,7 @@ static ut8 c166_instr_extended(C166_Inst *instr) {
 		INSTR("%s%s", rrr ? rrr : "", instruction_name); ///< `- USRx` repeat control label
 		OPERANDS("%s, %s",
 			idx_formatter(SBUF_16, nm), // or maybe extID
-			qqq_formatter(SBUF_16, opt2, m)
-		);
+			qqq_formatter(SBUF_16, opt2, m));
 		goto end;
 	}
 
@@ -1257,7 +1257,6 @@ static ut8 c166_instr_extended(C166_Inst *instr) {
 		// printf("[ 0x%04x ] opcode: 0x%02x%02x%02x%02x\n", instr->addr, opcode, nm, extID, opt2);
 		goto end;
 	}
-
 
 	if ((opcode == 0x83) && (extID == 0xAA)) {
 		OPERANDS("[R%i]", m); // CoASHR [RWm*]
@@ -1310,17 +1309,13 @@ static ut8 c166_instr_extended(C166_Inst *instr) {
 	} else if ((opcode == 0xA3) && (extID == 0x8A)) {
 		OPERANDS("R%i", n);
 		goto end;
-	} else
-
-	if ((opcode == 0x83) && (extID == 0x9A)) {
+	} else if ((opcode == 0x83) && (extID == 0x9A)) {
 		OPERANDS("[R%i]", m); // ????? CoSHR [RWm*]
 		goto end;
 	} else if ((opcode == 0xA3) && (extID == 0x9A)) {
 		OPERANDS("R%i", n); // CoSHR RWn
 		goto end;
-	} else
-
-	if ((opcode == 0x93) && ((extID & 0x0F) == 0x00)) {
+	} else if ((opcode == 0x93) && ((extID & 0x0F) == 0x00)) {
 		// CoXXX_oIDXi_oRWm(); 93 Xm F0 rrr0:0qqq
 		// ut16 idx = IDX(nm);
 		// if (n > 1) goto err;
@@ -1368,9 +1363,7 @@ static ut8 c166_instr_extended(C166_Inst *instr) {
 			m); // CoXXX [IDXi*], [RWm*], rnd
 		// OPERANDS("[0x%04x], [R%i], rnd", idx_addr(n), m); // CoXXX [IDXi*], [RWm*], rnd
 		goto end;
-	} else
-
-	if ((opcode == 0x83) && ((extID & 0x0F) == 0x00)) {
+	} else if ((opcode == 0x83) && ((extID & 0x0F) == 0x00)) {
 		// CoXXX_RWn_oRWm();
 
 		OPERANDS("R%i, [R%i]", n, m); // CoXXX RWn, [RWm*]
@@ -1400,9 +1393,7 @@ static ut8 c166_instr_extended(C166_Inst *instr) {
 		// CoXXX_RWn_RWm_rnd();
 		OPERANDS("R%i, R%i, rnd", n, m); // CoXXX RWn, [RWm*], rnd
 		goto end;
-	} else
-
-	if ((opcode == 0xA3) && ((extID & 0x0F) == 0x00)) {
+	} else if ((opcode == 0xA3) && ((extID & 0x0F) == 0x00)) {
 		// CoXXX_RWn_RWm();
 
 		OPERANDS("R%i, R%i", n, m); // CoXXX RWn, RWm

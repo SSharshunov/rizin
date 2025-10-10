@@ -112,7 +112,8 @@ static void c166_set_jump_target_from_caddr(RzAnalysisOp *op, ut16 target) {
 static void c166_set_jump_target_seg_caddr(RzAnalysisOp *op, ut8 seg, ut16 target) {
 	// seg is the starting address of a 64K memory segment
 	// (0, 0x10000, 0x20000, 0x30000, ...).
-	op->jump = (((ut32)seg) << 16) | (target & 0xFFFE);
+	op->jump = (((ut32)seg) << 16) | target;
+	// op->jump = (((ut32)seg) << 16) | (target & 0xFFFE);
 }
 
 static RzAnalysisValue *c166_new_reg_value(const RzAnalysis *analysis, ut8 reg, bool byte) {
@@ -309,7 +310,8 @@ static void c166_op_scxt(RzAnalysis *analysis, RzAnalysisOp *op, const ut8 *buf)
 // IP = op2
 // JMPS seg, caddr - FA SS MM MM
 static void c166_op_jmps_seg_caddr(RzAnalysisOp *op, const ut8 *buf) {
-	op->type = RZ_ANALYSIS_OP_TYPE_JMP;
+	// op->type = RZ_ANALYSIS_OP_TYPE_JMP; // ?
+	op->type = RZ_ANALYSIS_OP_TYPE_CJMP;
 	const ut8 seg = buf[1];
 	const ut16 caddr = rz_read_at_le16(buf, 2);
 	c166_set_jump_target_seg_caddr(op, seg, caddr);
@@ -925,7 +927,7 @@ static int c166_op(RzAnalysis *analysis, RzAnalysisOp *op, ut64 addr, const ut8 
 		op->type = RZ_ANALYSIS_OP_TYPE_ILL;
 		op->nopcode = 1;
 		op->cycles = 1;
-		op->size = 1;
+		op->size = 2;
 		op->eob = true;
 		op->mnemonic = rz_str_newf("%s %x", FMT_BYTE, buf[0]);
 		return op->size;
