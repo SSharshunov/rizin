@@ -96,16 +96,19 @@ static RZ_OWN RzPVector /*<RzAsmTokenPattern *>*/ *get_token_patterns() {
 		return NULL;
 	}
 
-	TOKEN(META, "(\\[|\\]|-)");
-	TOKEN(META, "(cc_.+),");
-	// TOKEN(META, "(\\+[rc]?)");
-	// TOKEN(NUMBER, "(0x[[:digit:]abcdef]+)");
-	// TOKEN(NUMBER, "([0]x[[:digit:]abcdef]+)");
-	TOKEN(NUMBER, "([#]0x[[:digit:]abcdef]+)");
-	TOKEN(REGISTER, "(r[0-9]{1,2}|DPP[0-3]|TFR|SP|PSW|MD[LHC]|r[hl][0-9]{1,2})");
+	TOKEN(META, "([\\[\\]\\-#])");
+	TOKEN(META, "(cc_\\w+)");
+	// Hexadecimal numbers
+	TOKEN(NUMBER, "(0x[0-9a-f]+)");
+	// Match normal registers which start with small r, optional h or l
+	// and a number.
+	// Or match special register names which are always upper case
+	// and possibly have numbers in it.
+	TOKEN(REGISTER, "\\b(r[hl]?[0-9]{1,2}|[A-Z]+[A-Z0-9]*)");
 	TOKEN(MNEMONIC, "^([a-zA-Z_]+)");
-	TOKEN(SEPARATOR, "([[:blank:]]+)|([,.;\\(\\)\\{\\}:])");
-	TOKEN(NUMBER, "([[:digit:]]+)");
+	TOKEN(SEPARATOR, "([\\s.,:+]+)");
+	// Decimal numbers
+	TOKEN(NUMBER, "(\\d+)");
 
 	return pvec;
 }
