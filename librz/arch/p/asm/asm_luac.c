@@ -18,6 +18,9 @@ int rz_luac_disasm(RzAsm *a, RzAsmOp *opstruct, const ut8 *buf, int len) {
 	} else if (strcmp(a->cpu, "5.3") == 0) {
 		oplist = get_lua53_opnames();
 		r = lua53_disasm(opstruct, buf, len, oplist);
+	} else if (strcmp(a->cpu, "5.2") == 0) {
+		oplist = get_lua52_opnames();
+		r = lua52_disasm(opstruct, buf, len, oplist);
 	} else {
 		RZ_LOG_ERROR("disassembler: lua: version %s is not supported\n", a->cpu);
 		return -1;
@@ -38,7 +41,11 @@ int rz_luac_asm(RzAsm *a, RzAsmOp *opstruct, const char *str) {
 		return -1;
 	}
 
-	if (strcmp(a->cpu, "5.3") == 0) {
+	if (strcmp(a->cpu, "5.2") == 0) {
+		if (!lua52_assembly(str, str_len, &instruction)) {
+			return -1;
+		}
+	} else if (strcmp(a->cpu, "5.3") == 0) {
 		if (!lua53_assembly(str, str_len, &instruction)) {
 			return -1;
 		}

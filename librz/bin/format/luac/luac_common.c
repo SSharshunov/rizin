@@ -5,6 +5,25 @@
 
 #include "luac_common.h"
 
+ut8 luac_hdrsize(ut8 minor) {
+	ut8 regular = strlen(LUAC_MAGIC) + 2 /* version */ + strlen(LUAC_DATA);
+	switch (minor) {
+	case 0x1:
+		return regular + 8; // 0x14;
+	case 0x2:
+		return regular + 6;
+	case 0x3:
+		return regular + 22;
+	case 0x4:
+		return regular + 20; // 0x20;
+	case 0x5:
+		return regular; // 0x0c;
+	default:
+		rz_warn_if_reached();
+		return -1;
+	}
+}
+
 LuaDbgUpvalueEntry *lua_new_dbg_upvalue_entry() {
 	LuaDbgUpvalueEntry *entry = RZ_NEW0(LuaDbgUpvalueEntry);
 	return entry;

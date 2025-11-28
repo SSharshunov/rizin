@@ -122,9 +122,7 @@ LuacBinInfo *luac_build_info(LuaProto *proto) {
 	}
 
 	LuacBinInfo *ret = RZ_NEW0(LuacBinInfo);
-	if (!ret) {
-		return NULL;
-	}
+	rz_return_val_if_fail(ret, NULL);
 
 	ret->entry_vec = rz_pvector_new((RzPVectorFree)free_rz_addr);
 	ret->symbol_list = rz_list_newf((RzListFree)rz_bin_symbol_free);
@@ -141,8 +139,7 @@ LuacBinInfo *luac_build_info(LuaProto *proto) {
 	_luac_build_info(proto, ret);
 
 	// add entry of main
-	ut64 main_entry_offset;
-	main_entry_offset = proto->code_offset + proto->code_skipped;
+	ut64 main_entry_offset = proto->code_offset + proto->code_skipped;
 	luac_add_entry(ret->entry_vec, main_entry_offset, RZ_BIN_ENTRY_TYPE_PROGRAM);
 
 	return ret;
@@ -228,15 +225,11 @@ static char *get_upvalue_symbol_name(char *proto_name, LuaUpvalueEntry *entry, c
 
 void _luac_build_info(LuaProto *proto, LuacBinInfo *info) {
 	/* process proto header info */
-	char *section_name;
 	char *symbol_name;
 	char *proto_name;
 	char **upvalue_names = NULL;
 	RzListIter *iter;
 	int i = 0; // iter
-
-	ut64 current_offset;
-	ut64 current_size;
 
 	// 0. check if stripped (proto name is lost)
 	if (proto->name_size == 0 || proto->proto_name == NULL) {
@@ -247,9 +240,9 @@ void _luac_build_info(LuaProto *proto, LuacBinInfo *info) {
 	}
 
 	// 1.1 set section name as function_name.header
-	current_offset = proto->offset;
-	current_size = proto->size;
-	section_name = rz_str_newf("%s.header", proto_name);
+	ut64 current_offset = proto->offset;
+	ut64 current_size = proto->size;
+	char *section_name = rz_str_newf("%s.header", proto_name);
 	luac_add_section(info->section_vec, section_name, current_offset, current_size, false);
 	RZ_FREE(section_name);
 

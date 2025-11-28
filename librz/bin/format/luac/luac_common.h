@@ -10,6 +10,71 @@
 #include <rz_lib.h>
 #include <rz_list.h>
 
+/* Macros for bin_luac.c */
+/* Macros/Typedefs used in luac */
+typedef double LUA_NUMBER;
+typedef ut64 LUA_INTEGER;
+typedef ut32 LUA_INT;
+
+/* Macro Functions */
+/* type casts (a macro highlights casts in the code) */
+#define luac_cast(t, exp) ((t)(exp))
+#define luac_cast_num(i)  luac_cast(double, (i))
+#define luac_cast_int(i)  luac_cast(int, (i))
+
+
+/* Header Part */
+// #define LUAC_52_FORMAT_OFFSET           0x05
+// #define LUAC_52_LUAC_DATA_OFFSET        0x06
+#define LUAC_52_INT_SIZE_OFFSET         0x07 // 0x0C
+#define LUAC_52_SIZET_SIZE_OFFSET       0x09 // 0x0D
+#define LUAC_52_INSTRUCTION_SIZE_OFFSET 0x08 // 0x0E
+#define LUAC_52_INTEGER_SIZE_OFFSET     0x0F
+#define LUAC_52_NUMBER_SIZE_OFFSET      0x0A // 0x10
+#define LUAC_52_INTEGER_VALID_OFFSET    0x11 /* from 0x11 - 0x18 : 8 bytes */
+#define LUAC_52_NUMBER_VALID_OFFSET     0x19 /* from 0x19 - 0x20 : 8 bytes */
+#define LUAC_52_UPVALUES_NUMBER_OFFSET  0x21
+
+
+/* Header Part */
+// #define LUAC_53_FORMAT_OFFSET           0x05
+// #define LUAC_53_LUAC_DATA_OFFSET        0x06
+#define LUAC_53_INT_SIZE_OFFSET         0x0C
+#define LUAC_53_SIZET_SIZE_OFFSET       0x0D
+#define LUAC_53_INSTRUCTION_SIZE_OFFSET 0x0E
+#define LUAC_53_INTEGER_SIZE_OFFSET     0x0F
+#define LUAC_53_NUMBER_SIZE_OFFSET      0x10
+#define LUAC_53_INTEGER_VALID_OFFSET    0x11 /* from 0x11 - 0x18 : 8 bytes */
+#define LUAC_53_NUMBER_VALID_OFFSET     0x19 /* from 0x19 - 0x20 : 8 bytes */
+#define LUAC_53_UPVALUES_NUMBER_OFFSET  0x21
+
+/* luac 5.4 spec */
+/* Header Information */
+#define LUAC_FORMAT_OFFSET           0x05
+#define LUAC_DATA_OFFSET        0x06
+#define LUAC_54_INSTRUCTION_SIZE_OFFSET 0x0C
+#define LUAC_54_INTEGER_SIZE_OFFSET     0x0D
+#define LUAC_54_NUMBER_SIZE_OFFSET      0x0E
+#define LUAC_54_INTEGER_VALID_OFFSET    0x0F
+#define LUAC_54_NUMBER_VALID_OFFSET     0x17
+#define LUAC_54_UPVALUES_NUMBER_OFFSET  0x1F
+
+#define LUAC_54_SIGNATURE_SIZE        4
+#define LUAC_54_VERSION_SIZE          1
+#define LUAC_54_FORMAT_SIZE           1
+#define LUAC_54_LUAC_DATA_SIZE        6
+#define LUAC_54_INSTRUCTION_SIZE_SIZE 1
+#define LUAC_54_INTEGER_SIZE_SIZE     1
+#define LUAC_54_NUMBER_SIZE_SIZE      1
+#define LUAC_54_INTEGER_VALID_SIZE    8
+#define LUAC_54_NUMBER_VALID_SIZE     8
+#define LUAC_54_UPVALUES_NUMBER_SIZE  1
+
+#define LUAC_FORMAT            0 /* this is the official format */
+#define LUAC_DATA              "\x19\x93\r\n\x1a\n"
+#define LUAC_INT_VALIDATION    luac_cast_int(0x5678)
+#define LUAC_NUMBER_VALIDATION luac_cast_num(370.5)
+
 typedef ut32 LUA_INSTRUCTION;
 
 /* Macros About Luac Format */
@@ -18,7 +83,10 @@ typedef ut32 LUA_INSTRUCTION;
 #define LUAC_VERSION_OFFSET 0x04
 #define LUAC_VERSION_SIZE   1
 
-#define LUAC_MAGIC "\x1b\x4c\x75\x61"
+#define LUAC_MAGIC "\x1b\x4c\x75\x61" ///< "\033Lua"
+
+/* Body */
+#define LUAC_FILENAME_OFFSET(minor) (minor == 4) ? 0x20 : 0x22
 
 /* Lua Constant Tag */
 #define makevariant(t, v) ((t) | ((v) << 4))
@@ -27,6 +95,11 @@ typedef ut32 LUA_INSTRUCTION;
 #define LUA_TBOOLEAN 1
 #define LUA_TNUMBER  3
 #define LUA_TSTRING  4
+
+/* Macros of tag */
+// conflict with 5.4
+#define LUA_TNUMFLT (3 | (0 << 4)) /* float numbers */
+#define LUA_TNUMINT (3 | (1 << 4)) /* integer numbers */
 
 #define LUA_VNIL    makevariant(LUA_TNIL, 0)
 #define LUA_VFALSE  makevariant(LUA_TBOOLEAN, 0)
@@ -159,6 +232,7 @@ typedef struct lua_dbg_upvalue_entry {
 typedef struct luac_bin_info {
 	st32 major; ///< major version
 	st32 minor; ///< minor version
+	LuaProto *proto;
 	RzPVector /*<RzBinSection *>*/ *section_vec; ///< list of sections
 	RzList /*<RzBinSymbol *>*/ *symbol_list; ///< list of symbols
 	RzPVector /*<RzBinAddr *>*/ *entry_vec; ///< list of entries
@@ -198,7 +272,7 @@ void _luac_build_info(LuaProto *proto, LuacBinInfo *info);
 
 /* ========================================================
  * Export version specified Api to bin_luac.c
- * Implemented in 'bin/format/luac/v[version]/bin_[version]
+ * Implemented in bin/format/luac/v[version]/bin_[version]
  * ======================================================== */
 RzBinInfo *lua_parse_header_54(RzBinFile *bf, st32 major, st32 minor);
 LuaProto *lua_parse_body_54(RzBuffer *buffer, ut64 offset, ut64 data_size);
@@ -206,12 +280,30 @@ LuaProto *lua_parse_body_54(RzBuffer *buffer, ut64 offset, ut64 data_size);
 RzBinInfo *lua_parse_header_53(RzBinFile *bf, st32 major, st32 minor);
 LuaProto *lua_parse_body_53(RzBuffer *buffer, ut64 offset, ut64 data_size);
 
+RzBinInfo *lua_parse_header_52(RzBinFile *bf, st32 major, st32 minor);
+LuaProto *lua_parse_body_52(RzBuffer *buffer, ut64 offset, ut64 data_size);
+
+
+ut8 luac_hdrsize(ut8 minor);
+// static
+void lua_load_block(RzBuffer *buffer, void *dest, size_t size, ut64 offset, ut64 data_size);
+// static
+ut64 lua_load_integer(RzBuffer *buffer, ut64 offset);
+// static
+double lua_load_number(RzBuffer *buffer, ut64 offset);
+// static ut32 lua_load_int(RzBuffer *buffer, ut64 offset);
+// static
+ut64 lua_parse_name(LuaProto *proto, RzBuffer *buffer, ut64 offset, ut64 data_size, st32 minor);
+LuaProto *lua_parse_body(RzBuffer *buffer, ut64 base_offset, ut64 data_size, st32 minor);
+RzBinInfo *lua_parse_header(const RzBinFile *bf, st32 major, st32 minor);
+
 #define lua_check_error_offset(offset) \
 	if ((offset) == 0) { \
 		return 0; \
 	}
 #define lua_check_error_offset_proto(offset, proto) \
 	if ((offset) == 0) { \
+		printf("lua_check_error_offset_proto offset: 0x%llx (line: %d)\n", offset, __LINE__); \
 		lua_free_proto_entry((proto)); \
 		return NULL; \
 	}
