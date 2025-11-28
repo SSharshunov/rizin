@@ -3,12 +3,9 @@
 // SPDX-FileCopyrightText: 2021 Heersin <teablearcher@gmail.com>
 // SPDX-FileCopyrightText: 2025-2026 Sergey Sharshunov <s.sharshunov@gmail.com>
 
-#ifndef BUILD_ARCH_53_H
-#define BUILD_ARCH_53_H
+#ifndef BUILD_ARCH_52_H
+#define BUILD_ARCH_52_H
 
-#include <rz_types.h>
-#include <rz_asm.h>
-#include <stddef.h>
 #include "../lua_arch.h"
 
 /*===========================================================================
@@ -27,6 +24,16 @@
   represented by 2*max), which is half the maximum for the corresponding
   unsigned argument.
 ===========================================================================*/
+
+/**
+ * R(x) - register
+ * Kst(x) - constant (in constant table)
+ * RK(x) == if ISK(x) then Kst(INDEXK(x)) else R(x)
+ */
+
+/**
+ * grep "ORDER OP" if you change these enums
+ **/
 
 typedef enum {
 	/*----------------------------------------------------------------------
@@ -53,17 +60,10 @@ typedef enum {
 	OP_ADD, /*       A B C   R(A) := RK(B) + RK(C)                           */
 	OP_SUB, /*       A B C   R(A) := RK(B) - RK(C)                           */
 	OP_MUL, /*       A B C   R(A) := RK(B) * RK(C)                           */
+	OP_DIV, /*       A B C   R(A) := RK(B) / RK(C)                           */
 	OP_MOD, /*       A B C   R(A) := RK(B) % RK(C)                           */
 	OP_POW, /*       A B C   R(A) := RK(B) ^ RK(C)                           */
-	OP_DIV, /*       A B C   R(A) := RK(B) / RK(C)                           */
-	OP_IDIV, /*      A B C   R(A) := RK(B) // RK(C)                          */
-	OP_BAND, /*      A B C   R(A) := RK(B) & RK(C)                           */
-	OP_BOR, /*       A B C   R(A) := RK(B) | RK(C)                           */
-	OP_BXOR, /*      A B C   R(A) := RK(B) ~ RK(C)                           */
-	OP_SHL, /*       A B C   R(A) := RK(B) << RK(C)                          */
-	OP_SHR, /*       A B C   R(A) := RK(B) >> RK(C)                          */
 	OP_UNM, /*       A B     R(A) := -R(B)                                   */
-	OP_BNOT, /*      A B     R(A) := ~R(B)                                   */
 	OP_NOT, /*       A B     R(A) := not R(B)                                */
 	OP_LEN, /*       A B     R(A) := length of R(B)                          */
 
@@ -95,22 +95,22 @@ typedef enum {
 	OP_VARARG, /*    A B     R(A), R(A+1), ..., R(A+B-2) = vararg            */
 
 	OP_EXTRAARG /*   Ax      extra (larger) argument for previous opcode     */
-} LuaOpCode53;
+} LuaOpCode52;
 
 #define LUA_NUM_OPCODES ((int)(OP_EXTRAARG) + 1)
 
 /*===========================================================================
   Notes:
-  (*) In OP_CALL, if (B == 0) then B = top. If (C == 0), then 'top' is
+  (*) In OP_CALL, if (B == 0) then B = top. If (C == 0), then `top' is
   set to last_result+1, so next open instruction (OP_CALL, OP_RETURN,
-  OP_SETLIST) may use 'top'.
+  OP_SETLIST) may use `top'.
 
   (*) In OP_VARARG, if (B == 0) then use actual number of varargs and
   set top (like in OP_CALL with C == 0).
 
-  (*) In OP_RETURN, if (B == 0) then return up to 'top'.
+  (*) In OP_RETURN, if (B == 0) then return up to `top'.
 
-  (*) In OP_SETLIST, if (B == 0) then B = 'top'; if (C == 0) then next
+  (*) In OP_SETLIST, if (B == 0) then B = `top'; if (C == 0) then next
   'instruction' is EXTRAARG(real C).
 
   (*) In OP_LOADKX, the next 'instruction' is always EXTRAARG.
@@ -118,19 +118,8 @@ typedef enum {
   (*) For comparisons, A specifies what condition the test should accept
   (true or false).
 
-  (*) All 'skips' (pc++) assume that next instruction is a jump.
+  (*) All `skips' (pc++) assume that next instruction is a jump.
 
 ===========================================================================*/
 
-/*
-** masks for instruction properties. The format is:
-** bits 0-1: op mode
-** bits 2-3: C arg mode
-** bits 4-5: B arg mode
-** bit 6: instruction set register A
-** bit 7: operator is a test (next instruction must be a jump)
-*/
-
-extern const ut8 luaP_opmodes53[LUA_NUM_OPCODES];
-
-#endif // BUILD_ARCH_53_H
+#endif // BUILD_ARCH_52_H

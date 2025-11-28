@@ -2,12 +2,12 @@
 // SPDX-FileCopyrightText: 2021 Heersin <teablearcher@gmail.com>
 // SPDX-FileCopyrightText: 2025-2026 Sergey Sharshunov <s.sharshunov@gmail.com>
 
-#include "arch_54.h"
+#include "arch_55.h"
 
-LuaOpNameList get_lua54_opnames(void) {
+LuaOpNameList get_lua55_opnames(void) {
 	LuaOpNameList list = RZ_NEWS(char *, LUA_NUM_OPCODES + 1);
 	if (list == NULL) {
-		RZ_LOG_ERROR("Cannot allocate lua54 opcode list.\n");
+		RZ_LOG_ERROR("Cannot allocate lua55 opcode list.\n");
 		return NULL;
 	}
 
@@ -44,8 +44,8 @@ LuaOpNameList get_lua54_opnames(void) {
 	list[OP_BANDK] = "bandk",
 	list[OP_BORK] = "bork",
 	list[OP_BXORK] = "bxork",
-	list[OP_SHRI] = "shri",
 	list[OP_SHLI] = "shli",
+	list[OP_SHRI] = "shri",
 	list[OP_ADD] = "add",
 	list[OP_SUB] = "sub",
 	list[OP_MUL] = "mul",
@@ -93,6 +93,8 @@ LuaOpNameList get_lua54_opnames(void) {
 	list[OP_SETLIST] = "setlist",
 	list[OP_CLOSURE] = "closure",
 	list[OP_VARARG] = "vararg",
+	list[OP_GETVARG] = "getvarg",
+	list[OP_ERRNNIL] = "errnnil",
 	list[OP_VARARGPREP] = "varargprep",
 	list[OP_EXTRAARG] = "extraarg",
 	list[LUA_NUM_OPCODES] = NULL;
@@ -100,7 +102,7 @@ LuaOpNameList get_lua54_opnames(void) {
 	return list;
 }
 
-ut8 get_lua54_opcode_by_name(const char *name, int limit) {
+ut8 get_lua55_opcode_by_name(const char *name, int limit) {
 	lua_strcase("move") return OP_MOVE;
 	lua_strcase("loadi") return OP_LOADI;
 	lua_strcase("loadf") return OP_LOADF;
@@ -204,6 +206,8 @@ ut8 get_lua54_opcode_by_name(const char *name, int limit) {
 	lua_strcase("closure") return OP_CLOSURE;
 
 	lua_strcase("vararg") return OP_VARARG;
+	lua_strcase("getvarg") return OP_GETVARG;
+	lua_strcase("errnnil") return OP_ERRNNIL;
 
 	lua_strcase("varargprep") return OP_VARARGPREP;
 

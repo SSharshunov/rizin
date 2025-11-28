@@ -2,7 +2,7 @@
 // SPDX-FileCopyrightText: 2021 Heersin <teablearcher@gmail.com>
 // SPDX-FileCopyrightText: 2025-2026 Sergey Sharshunov <s.sharshunov@gmail.com>
 
-#include "arch_54.h"
+#include "arch_55.h"
 
 static LuaInstruction encode_instruction(ut8 opcode, const char *arg_start, ut16 flag, ut8 arg_num) {
 	LuaInstruction instruction = 0;
@@ -25,7 +25,7 @@ static LuaInstruction encode_instruction(ut8 opcode, const char *arg_start, ut16
 		arg_start += delta_offset;
 	}
 
-	SET_OPCODE54(instruction, opcode);
+	SET_OPCODE55(instruction, opcode);
 	if (has_param_flag(flag, PARAM_A)) {
 		SETARG_A4(instruction, args[cur_cnt++]);
 		if (cur_cnt >= arg_num) {
@@ -87,10 +87,11 @@ static LuaInstruction encode_instruction(ut8 opcode, const char *arg_start, ut16
 		}
 	}
 	rz_return_val_if_fail(cur_cnt == arg_num, -1);
+
 	return instruction;
 }
 
-bool lua54_assembly(const char *input, st32 input_size, LuaInstruction *instruction_p) {
+bool lua55_assembly(const char *input, st32 input_size, LuaInstruction *instruction_p) {
 	/* Find the opcode */
 	const char *opcode_start = input; ///< point to the header
 	const char *opcode_end = strchr(input, ' '); ///< point to the first white space
@@ -99,7 +100,7 @@ bool lua54_assembly(const char *input, st32 input_size, LuaInstruction *instruct
 	}
 
 	const int opcode_len = opcode_end - opcode_start;
-	const ut8 opcode = get_lua54_opcode_by_name(opcode_start, opcode_len);
+	const ut8 opcode = get_lua55_opcode_by_name(opcode_start, opcode_len);
 
 	/* Find the arguments */
 	const char *arg_start = rz_str_trim_head_ro(opcode_end);
@@ -233,7 +234,7 @@ bool lua54_assembly(const char *input, st32 input_size, LuaInstruction *instruct
 		break;
 	// no arg
 	case OP_RETURN0:
-		SET_OPCODE54(instruction, OP_RETURN0);
+		SET_OPCODE55(instruction, OP_RETURN0);
 		break;
 	// A Bx
 	case OP_LOADK:

@@ -3,9 +3,9 @@
 // SPDX-FileCopyrightText: 2021 Heersin <teablearcher@gmail.com>
 // SPDX-FileCopyrightText: 2025-2026 Sergey Sharshunov <s.sharshunov@gmail.com>
 
-#include "arch_53.h"
+#include "arch_52.h"
 
-int lua53_anal_op(RzAnalysis *anal, RzAnalysisOp *op, ut64 addr, const ut8 *data, int len) {
+int lua52_anal_op(RzAnalysis *anal, RzAnalysisOp *op, ut64 addr, const ut8 *data, int len) {
 	if (!op) {
 		return 0;
 	}
@@ -19,12 +19,12 @@ int lua53_anal_op(RzAnalysis *anal, RzAnalysisOp *op, ut64 addr, const ut8 *data
 	op->type = RZ_ANALYSIS_OP_TYPE_UNK;
 	op->eob = false;
 
-	if (GET_OPCODE53(instruction) > OP_EXTRAARG) {
+	if (GET_OPCODE52(instruction) > OP_EXTRAARG) {
 		return op->size;
 	}
 	// op->mnemonic = rz_str_dup ();
 
-	switch (GET_OPCODE53(instruction)) {
+	switch (GET_OPCODE52(instruction)) {
 	case OP_MOVE: /*      A B     R(A) := R(B)                                    */
 		op->type = RZ_ANALYSIS_OP_TYPE_MOV;
 		break;
@@ -34,7 +34,7 @@ int lua53_anal_op(RzAnalysis *anal, RzAnalysisOp *op, ut64 addr, const ut8 *data
 	case OP_LOADKX: /*    A       R(A) := Kst(extra arg)                          */
 		op->type = RZ_ANALYSIS_OP_TYPE_LOAD;
 		extra_arg = lua_build_instruction(data + 4);
-		if (GET_OPCODE53(extra_arg) == OP_EXTRAARG) {
+		if (GET_OPCODE52(extra_arg) == OP_EXTRAARG) {
 			op->size = 8;
 		}
 		break;
@@ -52,7 +52,6 @@ int lua53_anal_op(RzAnalysis *anal, RzAnalysisOp *op, ut64 addr, const ut8 *data
 		break;
 	case OP_GETTABLE: /*  A B C   R(A) := R(B)[RK(C)]                             */
 		break;
-
 	case OP_SETTABUP: /*  A B C   UpValue[A][RK(B)] := RK(C)                      */
 	case OP_SETUPVAL: /*  A B     UpValue[B] := R(A)                              */
 		op->type = RZ_ANALYSIS_OP_TYPE_STORE;
@@ -79,28 +78,9 @@ int lua53_anal_op(RzAnalysis *anal, RzAnalysisOp *op, ut64 addr, const ut8 *data
 	case OP_POW: /*       A B C   R(A) := RK(B) ^ RK(C)                           */
 		break;
 	case OP_DIV: /*       A B C   R(A) := RK(B) / RK(C)                           */
-	case OP_IDIV: /*      A B C   R(A) := RK(B) // RK(C)                          */
 		op->type = RZ_ANALYSIS_OP_TYPE_DIV;
 		break;
-	case OP_BAND: /*      A B C   R(A) := RK(B) & RK(C)                           */
-		op->type = RZ_ANALYSIS_OP_TYPE_AND;
-		break;
-	case OP_BOR: /*       A B C   R(A) := RK(B) | RK(C)                           */
-		op->type = RZ_ANALYSIS_OP_TYPE_OR;
-		break;
-	case OP_BXOR: /*      A B C   R(A) := RK(B) ~ RK(C)                           */
-		op->type = RZ_ANALYSIS_OP_TYPE_XOR;
-		break;
-	case OP_SHL: /*       A B C   R(A) := RK(B) << RK(C)                          */
-		op->type = RZ_ANALYSIS_OP_TYPE_SHL;
-		break;
-	case OP_SHR: /*       A B C   R(A) := RK(B) >> RK(C)                          */
-		op->type = RZ_ANALYSIS_OP_TYPE_SHR;
-		break;
 	case OP_UNM: /*       A B     R(A) := -R(B)                                   */
-		break;
-	case OP_BNOT: /*      A B     R(A) := ~R(B)                                   */
-		op->type = RZ_ANALYSIS_OP_TYPE_CPL;
 		break;
 	case OP_NOT: /*       A B     R(A) := not R(B)                                */
 		op->type = RZ_ANALYSIS_OP_TYPE_NOT;
@@ -110,7 +90,7 @@ int lua53_anal_op(RzAnalysis *anal, RzAnalysisOp *op, ut64 addr, const ut8 *data
 		break;
 	case OP_JMP: /*       A sBx   pc+=sBx; if (A) close all upvalues >= R(A - 1)  */
 		op->type = RZ_ANALYSIS_OP_TYPE_CJMP;
-		op->jump = op->addr + (st32)(4 * GETARG_sBx1(instruction));
+		op->jump = op->addr + (st32)(4 * GETARG_sBx0(instruction));
 		op->fail = op->addr + 4;
 		break;
 	case OP_EQ: /*        A B C   if ((RK(B) == RK(C)) ~= A) then pc++            */
@@ -144,12 +124,12 @@ int lua53_anal_op(RzAnalysis *anal, RzAnalysisOp *op, ut64 addr, const ut8 *data
 		break;
 	case OP_FORLOOP: /*   A sBx   R(A)+=R(A+2); if R(A) <?= R(A+1) then { pc+=sBx; R(A+3)=R(A) }*/
 		op->type = RZ_ANALYSIS_OP_TYPE_CJMP;
-		op->jump = op->addr + 4 + 4 * (GETARG_sBx1(instruction));
+		op->jump = op->addr + 4 + 4 * (GETARG_sBx0(instruction));
 		op->fail = op->addr + 4;
 		break;
 	case OP_FORPREP: /*   A sBx   R(A)-=R(A+2); pc+=sBx                           */
 		op->type = RZ_ANALYSIS_OP_TYPE_JMP;
-		op->jump = op->addr + 4 + 4 * (GETARG_sBx1(instruction));
+		op->jump = op->addr + 4 + 4 * (GETARG_sBx0(instruction));
 		op->fail = op->addr + 4;
 		break;
 	case OP_TFORCALL: /*  A C     R(A+3), ... ,R(A+2+C) := R(A)(R(A+1), R(A+2));  */
@@ -157,7 +137,7 @@ int lua53_anal_op(RzAnalysis *anal, RzAnalysisOp *op, ut64 addr, const ut8 *data
 		break;
 	case OP_TFORLOOP: /*  A sBx   if R(A+1) ~= nil then { R(A)=R(A+1); pc += sBx }*/
 		op->type = RZ_ANALYSIS_OP_TYPE_CJMP;
-		op->jump = op->addr + 4 + 4 * (GETARG_sBx1(instruction));
+		op->jump = op->addr + 4 + 4 * (GETARG_sBx0(instruction));
 		op->fail = op->addr + 4;
 		break;
 	case OP_SETLIST: /*   A B C   R(A)[(C-1)*FPF+i] := R(A+i), 1 <= i <= B        */

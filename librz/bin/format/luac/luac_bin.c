@@ -1,9 +1,12 @@
 // SPDX-License-Identifier: LGPL-3.0-only
 // SPDX-FileCopyrightText: 2021 Heersin <teablearcher@gmail.com>
+// SPDX-FileCopyrightText: 2025-2026 Sergey Sharshunov <s.sharshunov@gmail.com>
 
 #include "luac_common.h"
 
 void luac_add_section(RzPVector /*<RzBinSection *>*/ *section_vec, char *name, ut64 offset, ut32 size, bool is_func) {
+	if (size == 0)
+		return;
 	RzBinSection *bin_sec = RZ_NEW0(RzBinSection);
 	if (!bin_sec || !name) {
 		free(bin_sec);
@@ -115,16 +118,14 @@ void luac_build_info_free(LuacBinInfo *bin_info) {
 	free(bin_info);
 }
 
-LuacBinInfo *luac_build_info(LuaProto *proto) {
+LuacBinInfo *luac_build_info(RZ_NONNULL LuaProto *proto) {
 	if (!proto) {
 		RZ_LOG_ERROR("Invalid luac file\n");
 		return NULL;
 	}
 
 	LuacBinInfo *ret = RZ_NEW0(LuacBinInfo);
-	if (!ret) {
-		return NULL;
-	}
+	rz_return_val_if_fail(ret, NULL);
 
 	ret->entry_vec = rz_pvector_new((RzPVectorFree)free_rz_addr);
 	ret->symbol_list = rz_list_newf((RzListFree)rz_bin_symbol_free);
@@ -141,8 +142,7 @@ LuacBinInfo *luac_build_info(LuaProto *proto) {
 	_luac_build_info(proto, ret);
 
 	// add entry of main
-	ut64 main_entry_offset;
-	main_entry_offset = proto->code_offset + proto->code_skipped;
+	ut64 main_entry_offset = proto->code_offset + proto->code_skipped;
 	luac_add_entry(ret->entry_vec, main_entry_offset, RZ_BIN_ENTRY_TYPE_PROGRAM);
 
 	return ret;
@@ -168,10 +168,11 @@ static const char *get_tag_string(ut8 tag) {
 
 /* Heap allocated string */
 static char *get_constant_symbol_name(char *proto_name, LuaConstEntry *entry) {
-	rz_return_val_if_fail(entry || proto_name, NULL);
+	rz_return_val_if_fail(entry && proto_name, NULL);
+	// rz_return_val_if_fail(entry || proto_name, NULL);
 	ut8 tag = entry->tag;
 	char *ret;
-	int integer_value;
+	st64 integer_value;
 	double float_value;
 
 	switch (tag) {
@@ -186,8 +187,7 @@ static char *get_constant_symbol_name(char *proto_name, LuaConstEntry *entry) {
 		break;
 	case LUA_VSHRSTR:
 	case LUA_VLNGSTR:
-		rz_return_val_if_fail(entry->data, NULL);
-		ret = rz_str_newf("%s_const_%s", proto_name, (char *)entry->data);
+		ret = rz_str_newf("%s_const_%s", proto_name, entry->data_len ? (char *)entry->data : "NULL");
 		break;
 	case LUA_VNUMFLT:
 		rz_return_val_if_fail(entry->data, NULL);
@@ -199,11 +199,11 @@ static char *get_constant_symbol_name(char *proto_name, LuaConstEntry *entry) {
 		break;
 	case LUA_VNUMINT:
 		rz_return_val_if_fail(entry->data, NULL);
-		if (entry->data_len < sizeof(st32)) {
+		if (entry->data_len < sizeof(st64)) {
 			return NULL;
 		}
-		integer_value = (st32)rz_read_le32(entry->data);
-		ret = rz_str_newf("%s_const_%d", proto_name, integer_value);
+		integer_value = (st64)rz_read_le64(entry->data);
+		ret = rz_str_newf("%s_const_%lld", proto_name, integer_value);
 		break;
 	default:
 		ret = rz_str_newf("%s_const_0x%llx", proto_name, entry->offset);
@@ -228,15 +228,11 @@ static char *get_upvalue_symbol_name(char *proto_name, LuaUpvalueEntry *entry, c
 
 void _luac_build_info(LuaProto *proto, LuacBinInfo *info) {
 	/* process proto header info */
-	char *section_name;
 	char *symbol_name;
 	char *proto_name;
 	char **upvalue_names = NULL;
 	RzListIter *iter;
 	int i = 0; // iter
-
-	ut64 current_offset;
-	ut64 current_size;
 
 	// 0. check if stripped (proto name is lost)
 	if (proto->name_size == 0 || proto->proto_name == NULL) {
@@ -247,14 +243,14 @@ void _luac_build_info(LuaProto *proto, LuacBinInfo *info) {
 	}
 
 	// 1.1 set section name as function_name.header
-	current_offset = proto->offset;
-	current_size = proto->size;
-	section_name = rz_str_newf("%s.header", proto_name);
+	ut64 current_offset = proto->offset;
+	ut64 current_size = proto->size;
+	char *section_name = rz_str_newf("%s.header", proto_name);
 	luac_add_section(info->section_vec, section_name, current_offset, current_size, false);
 	RZ_FREE(section_name);
 
 	// 1.2 set section name as function_name.code
-	current_offset = proto->code_offset;
+	current_offset = proto->code_offset + proto->code_skipped;
 	current_size = proto->code_size;
 	section_name = rz_str_newf("%s.code", proto_name);
 	luac_add_section(info->section_vec, section_name, current_offset, current_size, true);

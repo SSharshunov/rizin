@@ -2,16 +2,16 @@
 // SPDX-FileCopyrightText: 2021 Heersin <teablearcher@gmail.com>
 // SPDX-FileCopyrightText: 2025-2026 Sergey Sharshunov <s.sharshunov@gmail.com>
 
-#include "arch_54.h"
+#include "arch_55.h"
 
-int lua54_disasm(RzAsmOp *op, const ut8 *buf, int len, LuaOpNameList opnames) {
+int lua55_disasm(RzAsmOp *op, const ut8 *buf, int len, LuaOpNameList opnames) {
 	if (len < 4) {
-		RZ_LOG_DEBUG("Cannot disassemble lua54 opcode (truncated).\n");
+		RZ_LOG_DEBUG("Cannot disassemble lua55 opcode (truncated).\n");
 		return 0;
 	}
 
 	LuaInstruction instruction = lua_build_instruction(buf);
-	LuaOpCode54 opcode = GET_OPCODE54(instruction);
+	LuaOpCode55 opcode = GET_OPCODE55(instruction);
 
 	/* Pre-fetch arguments */
 	int a = GETARG_A4(instruction);

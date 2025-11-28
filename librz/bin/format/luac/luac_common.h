@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: LGPL-3.0-only
 // SPDX-FileCopyrightText: 2021 Heersin <teablearcher@gmail.com>
+// SPDX-FileCopyrightText: 2025-2026 Sergey Sharshunov <s.sharshunov@gmail.com>
 
 // put common definition of luac
 
@@ -10,15 +11,36 @@
 #include <rz_lib.h>
 #include <rz_list.h>
 
+/* Macros for bin_luac.c */
+/* Macros/Typedefs used in luac */
+typedef double LUA_NUMBER;
+typedef ut64 LUA_INTEGER;
+typedef ut32 LUA_INT;
+
+#define PF_VAHID 1 /* function has hidden vararg arguments */
+#define PF_VATAB 2 /* function has vararg table */
+#define PF_FIXED 4 /* prototype has parts in fixed memory */
+
+/* a vararg function either has hidden args. or a vararg table */
+#define isvararg(flag) (flag & (PF_VAHID | PF_VATAB))
+
+/* Macro Functions */
+/* type casts (a macro highlights casts in the code) */
+#define luac_cast(t, exp) ((t)(exp))
+#define luac_cast_num(i)  luac_cast(double, (i))
+#define luac_cast_int(i)  luac_cast(int, (i))
+
+#define LUAC_MAGIC              "\x1b\x4c\x75\x61" ///< "\033Lua"
+#define LUAC_MAGIC_SIZE         4
+#define LUAC_FORMAT             0 /* this is the official format */
+#define LUAC_DATA               "\x19\x93\r\n\x1a\n"
+#define LUAC_INT_VALIDATION     luac_cast_int(0x5678)
+#define LUAC5_INT_VALIDATION    luac_cast_int(0x12345678)
+#define LUAC0_NUMBER_VALIDATION luac_cast_num(3.14159265358979323846E7)
+#define LUAC_NUMBER_VALIDATION  luac_cast_num(370.5)
+#define LUAC5_NUMBER_VALIDATION luac_cast_num(-370.5)
+
 typedef ut32 LUA_INSTRUCTION;
-
-/* Macros About Luac Format */
-#define LUAC_MAGIC_OFFSET   0x00
-#define LUAC_MAGIC_SIZE     4
-#define LUAC_VERSION_OFFSET 0x04
-#define LUAC_VERSION_SIZE   1
-
-#define LUAC_MAGIC "\x1b\x4c\x75\x61"
 
 /* Lua Constant Tag */
 #define makevariant(t, v) ((t) | ((v) << 4))
@@ -28,6 +50,7 @@ typedef ut32 LUA_INSTRUCTION;
 #define LUA_TNUMBER  3
 #define LUA_TSTRING  4
 
+/* Macros of tag */
 #define LUA_VNIL    makevariant(LUA_TNIL, 0)
 #define LUA_VFALSE  makevariant(LUA_TBOOLEAN, 0)
 #define LUA_VTRUE   makevariant(LUA_TBOOLEAN, 1)
@@ -50,6 +73,7 @@ typedef struct lua_proto_ex {
 	ut64 line_defined; ///< line number of function start
 	ut64 lastline_defined; ///< line number of function end
 
+	ut8 nups; ///< 5.0 version
 	ut8 num_params; ///< number of parameters of this proto
 	ut8 is_vararg; ///< is variable arg?
 	ut8 max_stack_size; ///< max stack size
@@ -68,6 +92,7 @@ typedef struct lua_proto_ex {
 	RzList /*<LuaUpvalueEntry *>*/ *upvalue_entries; ///< A list to store upvalue entries
 	ut64 upvalue_offset; ///< upvalue section offset
 	ut64 upvalue_size; ///< upvalue section size
+	ut64 size_upvalues; ///< upvalue size (v5.5)
 
 	/* store protos defined in this proto */
 	RzList /*<LuaProto *>*/ *proto_entries; ///< A list to store sub proto entries
@@ -85,6 +110,25 @@ typedef struct lua_proto_ex {
 } LuaProtoHeavy;
 
 typedef LuaProtoHeavy LuaProto;
+
+/**
+ * \struct lua_header_info
+ * \brief Store header information of luac file
+ */
+typedef struct lua_header_info {
+	st32 major; ///< major version
+	st32 minor; ///< minor version
+	ut8 format; ///< official or unofficial compiler used
+	ut8 endianness; ///< endianness on luac 5.1 and 5.2
+	st32 int_size; ///< size of int used, exclude 5.4
+	ut8 size_t_size; ///< size of size_t used, < 5.4
+	st32 instruction_size; ///< size of instruction used
+	st32 integer_size; ///< size of lua integer used
+	st32 number_size; ///< size of lua number used
+	ut8 is_number_integral; ///< is lua_Number integral? (< 5.3)
+	size_t psize; ///< physical size of header in bytes
+	char *src_file_name;
+} LuaHeaderInfo;
 
 /**
  * \struct lua_constant_entry
@@ -153,17 +197,17 @@ typedef struct lua_dbg_upvalue_entry {
 } LuaDbgUpvalueEntry;
 
 /**
- * \struct lua_bin_info
+ * \struct luac_bin_info
  * \brief A context info structure for luac plugin.
  */
 typedef struct luac_bin_info {
-	st32 major; ///< major version
-	st32 minor; ///< minor version
+	LuaProto *proto;
 	RzPVector /*<RzBinSection *>*/ *section_vec; ///< list of sections
 	RzList /*<RzBinSymbol *>*/ *symbol_list; ///< list of symbols
 	RzPVector /*<RzBinAddr *>*/ *entry_vec; ///< list of entries
 	RzList /*<RzBinString *>*/ *string_list; ///< list of strings
 	RzBinInfo *general_info; ///< general binary info from luac header
+	LuaHeaderInfo *header;
 } LuacBinInfo;
 
 /* ========================================================
@@ -192,19 +236,17 @@ void luac_add_symbol(RzList /*<RzBinSymbol *>*/ *symbol_list, char *name, ut64 o
 void luac_add_entry(RzPVector /*<RzBinAddr *>*/ *entry_vec, ut64 offset, int entry_type);
 void luac_add_string(RzList /*<RzBinString *>*/ *string_list, char *string, ut64 offset, ut64 size);
 
-LuacBinInfo *luac_build_info(LuaProto *proto);
+LuacBinInfo *luac_build_info(RZ_NONNULL LuaProto *proto);
 void luac_build_info_free(LuacBinInfo *bin_info);
 void _luac_build_info(LuaProto *proto, LuacBinInfo *info);
 
 /* ========================================================
  * Export version specified Api to bin_luac.c
- * Implemented in 'bin/format/luac/v[version]/bin_[version]
+ * Implemented in bin/format/luac/v[version]/bin_[version]
  * ======================================================== */
-RzBinInfo *lua_parse_header_54(RzBinFile *bf, st32 major, st32 minor);
-LuaProto *lua_parse_body_54(RzBuffer *buffer, ut64 offset, ut64 data_size);
-
-RzBinInfo *lua_parse_header_53(RzBinFile *bf, st32 major, st32 minor);
-LuaProto *lua_parse_body_53(RzBuffer *buffer, ut64 offset, ut64 data_size);
+LuaProto *lua_parse_body(RzBuffer *buffer, LuaHeaderInfo *header, ut64 base_offset, ut64 data_size);
+RzBinInfo *lua_parse_bin_info(const RzBinFile *bf, const LuaHeaderInfo *header);
+size_t parse_header(const RzBinFile *bf, LuaHeaderInfo *header);
 
 #define lua_check_error_offset(offset) \
 	if ((offset) == 0) { \

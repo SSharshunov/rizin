@@ -2,9 +2,9 @@
 // SPDX-FileCopyrightText: 2021 Heersin <teablearcher@gmail.com>
 // SPDX-FileCopyrightText: 2025-2026 Sergey Sharshunov <s.sharshunov@gmail.com>
 
-#include "arch_54.h"
+#include "arch_55.h"
 
-int lua54_anal_op(RzAnalysis *analysis, RzAnalysisOp *op, ut64 addr, const ut8 *data, int len) {
+int lua55_anal_op(RzAnalysis *analysis, RzAnalysisOp *op, ut64 addr, const ut8 *data, int len) {
 	if (!op || len < 4) {
 		return 0;
 	}
@@ -15,11 +15,11 @@ int lua54_anal_op(RzAnalysis *analysis, RzAnalysisOp *op, ut64 addr, const ut8 *
 	op->size = 4;
 	op->addr = addr;
 
-	if (GET_OPCODE54(instruction) > OP_EXTRAARG) {
+	if (GET_OPCODE55(instruction) > OP_EXTRAARG) {
 		return op->size;
 	}
 
-	switch (GET_OPCODE54(instruction)) {
+	switch (GET_OPCODE55(instruction)) {
 	case OP_MOVE: /*	A B	R[A] := R[B]					*/
 		op->type = RZ_ANALYSIS_OP_TYPE_MOV;
 		break;
@@ -78,6 +78,7 @@ int lua54_anal_op(RzAnalysis *analysis, RzAnalysisOp *op, ut64 addr, const ut8 *
 		break;
 	case OP_POW: /*	A B C	R[A] := R[B] ^ R[C]				*/
 	case OP_POWK: /*	A B C	R[A] := R[B] ^ K[C]				*/
+	case OP_GETVARG: /* A B C    R[A] := R[B][R[C]], R[B] is vararg parameter    */
 		break;
 	case OP_DIVK: /*	A B C	R[A] := R[B] / K[C]				*/
 	case OP_IDIVK: /*	A B C	R[A] := R[B] // K[C]				*/
@@ -191,6 +192,7 @@ int lua54_anal_op(RzAnalysis *analysis, RzAnalysisOp *op, ut64 addr, const ut8 *
 	case OP_SETLIST: /*	A B C k	R[A][C+i] := R[A+i], 1 <= i <= B		*/
 		op->type = RZ_ANALYSIS_OP_TYPE_STORE;
 		break;
+	case OP_ERRNNIL: /*   A Bx    raise error if R[A] ~= nil (K[Bx - 1] is global name)*/
 	case OP_CLOSURE: /*	A Bx	R[A] := closure(KPROTO[Bx])			*/
 	case OP_VARARG: /*	A C	R[A], R[A+1], ..., R[A+C-2] = vararg		*/
 	case OP_VARARGPREP: /*A	(adjust vararg parameters)			*/

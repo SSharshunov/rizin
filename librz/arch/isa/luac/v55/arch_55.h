@@ -5,8 +5,6 @@
 #ifndef BUILD_ARCH_54_H
 #define BUILD_ARCH_54_H
 
-#include <rz_types.h>
-#include <rz_asm.h>
 #include "../lua_arch.h"
 
 /*===========================================================================
@@ -36,7 +34,7 @@ typedef enum {
 	OP_LOADF, /*	A sBx	R[A] := (lua_Number)sBx				*/
 	OP_LOADK, /*	A Bx	R[A] := K[Bx]					*/
 	OP_LOADKX, /*	A	R[A] := K[extra arg]				*/
-	OP_LOADFALSE, /*	A	R[A] := false				*/
+	OP_LOADFALSE, /*	A	R[A] := false					*/
 	OP_LFALSESKIP, /*A	R[A] := false; pc++				*/
 	OP_LOADTRUE, /*	A	R[A] := true					*/
 	OP_LOADNIL, /*	A B	R[A], R[A+1], ..., R[A+B] := nil		*/
@@ -71,8 +69,8 @@ typedef enum {
 	OP_BORK, /*	A B C	R[A] := R[B] | K[C]:integer			*/
 	OP_BXORK, /*	A B C	R[A] := R[B] ~ K[C]:integer			*/
 
-	OP_SHRI, /*	A B sC	R[A] := R[B] >> sC				*/
 	OP_SHLI, /*	A B sC	R[A] := sC << R[B]				*/
+	OP_SHRI, /*	A B sC	R[A] := R[B] >> sC				*/
 
 	OP_ADD, /*	A B C	R[A] := R[B] + R[C]				*/
 	OP_SUB, /*	A B C	R[A] := R[B] - R[C]				*/
@@ -137,11 +135,14 @@ typedef enum {
 
 	OP_VARARG, /*	A C	R[A], R[A+1], ..., R[A+C-2] = vararg		*/
 
+	OP_GETVARG, /* A B C    R[A] := R[B][R[C]], R[B] is vararg parameter    */
+
+	OP_ERRNNIL, /*   A Bx    raise error if R[A] ~= nil (K[Bx - 1] is global name)*/
+
 	OP_VARARGPREP, /*A	(adjust vararg parameters)			*/
 
 	OP_EXTRAARG /*	Ax	extra (larger) argument for previous opcode	*/
-} LuaOpCode54;
-
+} LuaOpCode55;
 #define LUA_NUM_OPCODES ((int)(OP_EXTRAARG) + 1)
 
 #endif // BUILD_ARCH_54_H
