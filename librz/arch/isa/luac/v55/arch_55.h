@@ -35,6 +35,37 @@ typedef enum {
 	isJ
 } LuaOpMode;
 
+/* Offset and size of opcode arguments */
+#define LUAOP_A_SIZE  8
+#define LUAOP_B_SIZE  8
+#define LUAOP_C_SIZE  8
+#define LUAOP_Bx_SIZE (LUAOP_C_SIZE + LUAOP_B_SIZE + 1)
+#define LUAOP_Ax_SIZE (LUAOP_Bx_SIZE + LUAOP_A_SIZE)
+#define LUAOP_sJ_SIZE (LUAOP_Bx_SIZE + LUAOP_A_SIZE)
+#define LUAOP_OP_SIZE 7
+
+#define LUAOP_OP_OFFSET 0
+#define LUAOP_A_OFFSET  (LUAOP_OP_OFFSET + LUAOP_OP_SIZE)
+#define LUAOP_k_OFFSET  (LUAOP_A_OFFSET + LUAOP_A_SIZE)
+#define LUAOP_B_OFFSET  (LUAOP_k_OFFSET + 1)
+#define LUAOP_C_OFFSET  (LUAOP_B_OFFSET + LUAOP_B_SIZE)
+#define LUAOP_Bx_OFFSET LUAOP_k_OFFSET
+#define LUAOP_Ax_OFFSET LUAOP_A_OFFSET
+#define LUAOP_sJ_OFFSET LUAOP_A_OFFSET
+
+/* max value of these args */
+#define LUAOP_MAXARG_Bx ((1 << LUAOP_Bx_SIZE) - 1)
+#define LUAOP_MAXARG_Ax ((1 << LUAOP_Ax_SIZE) - 1)
+#define LUAOP_MAXARG_sJ ((1 << LUAOP_sJ_SIZE) - 1)
+#define LUAOP_MAXARG_A  ((1 << LUAOP_A_SIZE) - 1)
+#define LUAOP_MAXARG_B  ((1 << LUAOP_B_SIZE) - 1)
+#define LUAOP_MAXARG_C  ((1 << LUAOP_C_SIZE) - 1)
+
+/* fix value of signed args */
+#define LUAOP_FIX_sBx (LUAOP_MAXARG_Bx >> 1)
+#define LUAOP_FIX_sJ  (LUAOP_MAXARG_sJ >> 1)
+#define LUAOP_FIX_sC  (LUAOP_MAXARG_C >> 1)
+
 typedef enum {
 	/*----------------------------------------------------------------------
   name		args	description
@@ -44,7 +75,7 @@ typedef enum {
 	OP_LOADF, /*	A sBx	R[A] := (lua_Number)sBx				*/
 	OP_LOADK, /*	A Bx	R[A] := K[Bx]					*/
 	OP_LOADKX, /*	A	R[A] := K[extra arg]				*/
-	OP_LOADFALSE, /*	A	R[A] := false				*/
+	OP_LOADFALSE, /*	A	R[A] := false					*/
 	OP_LFALSESKIP, /*A	R[A] := false; pc++				*/
 	OP_LOADTRUE, /*	A	R[A] := true					*/
 	OP_LOADNIL, /*	A B	R[A], R[A+1], ..., R[A+B] := nil		*/
@@ -149,39 +180,7 @@ typedef enum {
 
 	OP_EXTRAARG /*	Ax	extra (larger) argument for previous opcode	*/
 } LuaOpCode;
-
 #define LUA_NUM_OPCODES ((int)(OP_EXTRAARG) + 1)
-
-/* Offset and size of opcode arguments */
-#define LUAOP_A_SIZE  8
-#define LUAOP_B_SIZE  8
-#define LUAOP_C_SIZE  8
-#define LUAOP_Bx_SIZE (LUAOP_C_SIZE + LUAOP_B_SIZE + 1)
-#define LUAOP_Ax_SIZE (LUAOP_Bx_SIZE + LUAOP_A_SIZE)
-#define LUAOP_sJ_SIZE (LUAOP_Bx_SIZE + LUAOP_A_SIZE)
-#define LUAOP_OP_SIZE 7
-
-#define LUAOP_OP_OFFSET 0
-#define LUAOP_A_OFFSET  (LUAOP_OP_OFFSET + LUAOP_OP_SIZE)
-#define LUAOP_k_OFFSET  (LUAOP_A_OFFSET + LUAOP_A_SIZE)
-#define LUAOP_B_OFFSET  (LUAOP_k_OFFSET + 1)
-#define LUAOP_C_OFFSET  (LUAOP_B_OFFSET + LUAOP_B_SIZE)
-#define LUAOP_Bx_OFFSET LUAOP_k_OFFSET
-#define LUAOP_Ax_OFFSET LUAOP_A_OFFSET
-#define LUAOP_sJ_OFFSET LUAOP_A_OFFSET
-
-/* max value of these args */
-#define LUAOP_MAXARG_Bx ((1 << LUAOP_Bx_SIZE) - 1)
-#define LUAOP_MAXARG_Ax ((1 << LUAOP_Ax_SIZE) - 1)
-#define LUAOP_MAXARG_sJ ((1 << LUAOP_sJ_SIZE) - 1)
-#define LUAOP_MAXARG_A  ((1 << LUAOP_A_SIZE) - 1)
-#define LUAOP_MAXARG_B  ((1 << LUAOP_B_SIZE) - 1)
-#define LUAOP_MAXARG_C  ((1 << LUAOP_C_SIZE) - 1)
-
-/* fix value of signed args */
-#define LUAOP_FIX_sBx (LUAOP_MAXARG_Bx >> 1)
-#define LUAOP_FIX_sJ  (LUAOP_MAXARG_sJ >> 1)
-#define LUAOP_FIX_sC  (LUAOP_MAXARG_C >> 1)
 
 /* ===========================================
  * Operation Method Macros
@@ -230,6 +229,20 @@ typedef enum {
 #define SETARG_sB(i, v) SETARG_B((i), int2sC(v))
 
 #define SETARG_k(i, v) LUA_SETARG(i, v, LUAOP_k_OFFSET, 1)
+
+/* parameter flags */
+#define PARAM_A   1
+#define PARAM_B   2
+#define PARAM_C   4
+#define PARAM_Ax  8
+#define PARAM_Bx  16
+#define PARAM_sBx 32
+#define PARAM_sJ  64
+#define PARAM_sC  128
+#define PARAM_sB  256
+#define PARAM_k   512
+
+#define has_param_flag(flag, bit) ((flag) & (bit)) ? true : false
 
 #define ISK(isk)    ((isk) ? "#CONST" : "#R")
 #define ISFLIP(isk) ((isk) ? "#FLIP" : "")

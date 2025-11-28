@@ -3,14 +3,16 @@
 // SPDX-FileCopyrightText: 2021 Heersin <teablearcher@gmail.com>
 // SPDX-FileCopyrightText: 2025-2026 Sergey Sharshunov <s.sharshunov@gmail.com>
 
-#include "arch_53.h"
+#include "arch_52.h"
 
-int lua53_disasm(RzAsmOp *op, const ut8 *buf, int len, LuaOpNameList opnames) {
+int lua52_disasm(RzAsmOp *op, const ut8 *buf, int len, LuaOpNameList opnames) {
 	if (len < 4) {
-		RZ_LOG_DEBUG("Cannot disassemble lua53 opcode (truncated).\n");
+		RZ_LOG_DEBUG("Cannot disassemble lua52 opcode (truncated).\n");
 		return 0;
 	}
-	ut32 instruction = lua_build_instruction(buf);
+
+	ut32 instruction = rz_read_at_le32(buf, 0);
+
 	LuaOpCode opcode = GET_OPCODE(instruction);
 
 	/* Pre fetch some args */
@@ -28,8 +30,14 @@ int lua53_disasm(RzAsmOp *op, const ut8 *buf, int len, LuaOpNameList opnames) {
 	int special_c = 0xFF - c;
 	int special_b = 0xFF - b;
 
-	char *asm_string;
+	op->size = 4;
 
+	if (opcode > LUA_NUM_OPCODES) {
+		rz_strbuf_append(&op->buf_asm, "invalid");
+		return op->size;
+	}
+
+	char *asm_string;
 	switch (getOpMode(opcode)) {
 	case iABC:
 		if (getBMode(opcode) != OpArgN) {
@@ -58,7 +66,6 @@ int lua53_disasm(RzAsmOp *op, const ut8 *buf, int len, LuaOpNameList opnames) {
 	case OP_MOVE: /*      A B     R(A) := R(B)                                    */
 	case OP_SETUPVAL: /*  A B     UpValue[B] := R(A)                              */
 	case OP_UNM: /*       A B     R(A) := -R(B)                                   */
-	case OP_BNOT: /*      A B     R(A) := ~R(B)                                   */
 	case OP_NOT: /*       A B     R(A) := not R(B)                                */
 	case OP_LEN: /*       A B     R(A) := length of R(B)                          */
 	case OP_LOADNIL: /*   A B     R(A), R(A+1), ..., R(A+B) := nil                */
@@ -72,6 +79,8 @@ int lua53_disasm(RzAsmOp *op, const ut8 *buf, int len, LuaOpNameList opnames) {
 		asm_string = luaop_new_str_2arg(opnames[opcode], a, c);
 		break;
 	case OP_LOADK: /*     A Bx    R(A) := Kst(Bx)                                 */
+		asm_string = luaop_new_str_2arg(opnames[opcode], a, bx);
+		break;
 	case OP_CLOSURE: /*   A Bx    R(A) := closure(KPROTO[Bx])                     */
 		asm_string = luaop_new_str_2arg(opnames[opcode], a, bx);
 		break;
@@ -101,12 +110,6 @@ int lua53_disasm(RzAsmOp *op, const ut8 *buf, int len, LuaOpNameList opnames) {
 	case OP_MOD: /*       A B C   R(A) := RK(B) % RK(C)                           */
 	case OP_POW: /*       A B C   R(A) := RK(B) ^ RK(C)                           */
 	case OP_DIV: /*       A B C   R(A) := RK(B) / RK(C)                           */
-	case OP_IDIV: /*      A B C   R(A) := RK(B) // RK(C)                          */
-	case OP_BAND: /*      A B C   R(A) := RK(B) & RK(C)                           */
-	case OP_BOR: /*       A B C   R(A) := RK(B) | RK(C)                           */
-	case OP_BXOR: /*      A B C   R(A) := RK(B) ~ RK(C)                           */
-	case OP_SHL: /*       A B C   R(A) := RK(B) << RK(C)                          */
-	case OP_SHR: /*       A B C   R(A) := RK(B) >> RK(C)                          */
 	case OP_EQ: /*        A B C   if ((RK(B) == RK(C)) ~= A) then pc++            */
 	case OP_LT: /*        A B C   if ((RK(B) <  RK(C)) ~= A) then pc++            */
 	case OP_LE: /*        A B C   if ((RK(B) <= RK(C)) ~= A) then pc++            */
@@ -147,7 +150,6 @@ int lua53_disasm(RzAsmOp *op, const ut8 *buf, int len, LuaOpNameList opnames) {
 	}
 
 	rz_strbuf_append(&op->buf_asm, asm_string);
-	op->size = 4;
 	RZ_FREE(asm_string);
-	return 4;
+	return op->size;
 }

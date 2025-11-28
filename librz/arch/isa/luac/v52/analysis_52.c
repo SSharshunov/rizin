@@ -3,9 +3,9 @@
 // SPDX-FileCopyrightText: 2021 Heersin <teablearcher@gmail.com>
 // SPDX-FileCopyrightText: 2025-2026 Sergey Sharshunov <s.sharshunov@gmail.com>
 
-#include "arch_53.h"
+#include "arch_52.h"
 
-int lua53_anal_op(RzAnalysis *anal, RzAnalysisOp *op, ut64 addr, const ut8 *data, int len) {
+int lua52_anal_op(RzAnalysis *anal, RzAnalysisOp *op, ut64 addr, const ut8 *data, int len) {
 	if (!op) {
 		return 0;
 	}
@@ -79,28 +79,9 @@ int lua53_anal_op(RzAnalysis *anal, RzAnalysisOp *op, ut64 addr, const ut8 *data
 	case OP_POW: /*       A B C   R(A) := RK(B) ^ RK(C)                           */
 		break;
 	case OP_DIV: /*       A B C   R(A) := RK(B) / RK(C)                           */
-	case OP_IDIV: /*      A B C   R(A) := RK(B) // RK(C)                          */
 		op->type = RZ_ANALYSIS_OP_TYPE_DIV;
 		break;
-	case OP_BAND: /*      A B C   R(A) := RK(B) & RK(C)                           */
-		op->type = RZ_ANALYSIS_OP_TYPE_AND;
-		break;
-	case OP_BOR: /*       A B C   R(A) := RK(B) | RK(C)                           */
-		op->type = RZ_ANALYSIS_OP_TYPE_OR;
-		break;
-	case OP_BXOR: /*      A B C   R(A) := RK(B) ~ RK(C)                           */
-		op->type = RZ_ANALYSIS_OP_TYPE_XOR;
-		break;
-	case OP_SHL: /*       A B C   R(A) := RK(B) << RK(C)                          */
-		op->type = RZ_ANALYSIS_OP_TYPE_SHL;
-		break;
-	case OP_SHR: /*       A B C   R(A) := RK(B) >> RK(C)                          */
-		op->type = RZ_ANALYSIS_OP_TYPE_SHR;
-		break;
 	case OP_UNM: /*       A B     R(A) := -R(B)                                   */
-		break;
-	case OP_BNOT: /*      A B     R(A) := ~R(B)                                   */
-		op->type = RZ_ANALYSIS_OP_TYPE_CPL;
 		break;
 	case OP_NOT: /*       A B     R(A) := not R(B)                                */
 		op->type = RZ_ANALYSIS_OP_TYPE_NOT;

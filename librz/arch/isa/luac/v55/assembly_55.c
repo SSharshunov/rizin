@@ -2,27 +2,30 @@
 // SPDX-FileCopyrightText: 2021 Heersin <teablearcher@gmail.com>
 // SPDX-FileCopyrightText: 2025-2026 Sergey Sharshunov <s.sharshunov@gmail.com>
 
-#include "arch_54.h"
+#include "arch_55.h"
 
 static LuaInstruction encode_instruction(ut8 opcode, const char *arg_start, ut16 flag, ut8 arg_num) {
 	LuaInstruction instruction = 0;
 	int args[4];
 	char buffer[64]; // buffer for digits
 	int cur_cnt = 0;
+	int delta_offset;
+
+	if (arg_num > sizeof(args)) {
+		return -1;
+	}
 
 	for (int i = 0; i < arg_num; ++i) {
-		const int delta_offset = lua_load_next_arg_start(arg_start, buffer);
-		char *ptr = strchr(buffer, 'k');
-		if (ptr != NULL) {
-			*ptr = '\0';
-			args[i] = lua_convert_str_to_num(buffer);
-			args[arg_num] = 1;
-			arg_num++;
-			flag |= PARAM_k;
-			break;
+		delta_offset = lua_load_next_arg_start(arg_start, buffer);
+		if (delta_offset == 0) {
+			return -1;
 		}
-		args[i] = lua_convert_str_to_num(buffer);
-		arg_start += delta_offset;
+		if (lua_is_valid_num_value_string(buffer)) {
+			args[i] = lua_convert_str_to_num(buffer);
+			arg_start += delta_offset;
+		} else {
+			return -1;
+		}
 	}
 
 	LUA_SET_OPCODE(instruction, opcode);
@@ -87,24 +90,32 @@ static LuaInstruction encode_instruction(ut8 opcode, const char *arg_start, ut16
 		}
 	}
 	rz_return_val_if_fail(cur_cnt == arg_num, -1);
+
 	return instruction;
 }
 
-bool lua54_assembly(const char *input, st32 input_size, LuaInstruction *instruction_p) {
+bool lua55_assembly(const char *input, st32 input_size, LuaInstruction *instruction_p) {
+	const char *opcode_start; // point to the header
+	const char *opcode_end; // point to the first white space
+	int opcode_len;
+
+	const char *arg_start;
+
+	ut8 opcode;
+	LuaInstruction instruction = 0x00;
+
 	/* Find the opcode */
-	const char *opcode_start = input; ///< point to the header
-	const char *opcode_end = strchr(input, ' '); ///< point to the first white space
+	opcode_start = input;
+	opcode_end = strchr(input, ' ');
 	if (opcode_end == NULL) {
 		opcode_end = input + input_size;
 	}
 
-	const int opcode_len = opcode_end - opcode_start;
-	const ut8 opcode = get_lua54_opcode_by_name(opcode_start, opcode_len);
+	opcode_len = opcode_end - opcode_start;
+	opcode = get_lua54_opcode_by_name(opcode_start, opcode_len);
 
 	/* Find the arguments */
-	const char *arg_start = rz_str_trim_head_ro(opcode_end);
-
-	LuaInstruction instruction = 0x00;
+	arg_start = rz_str_trim_head_ro(opcode_end);
 
 	/* Encode opcode and args */
 	switch (opcode) {
@@ -141,18 +152,14 @@ bool lua54_assembly(const char *input, st32 input_size, LuaInstruction *instruct
 	// iABC k instruction
 	case OP_TAILCALL:
 	case OP_RETURN:
+	case OP_NEWTABLE:
+	case OP_SETLIST:
+	case OP_MMBINK:
 	case OP_SETTABUP:
 	case OP_SETTABLE:
 	case OP_SETI:
 	case OP_SETFIELD:
 	case OP_SELF:
-		instruction = encode_instruction(opcode, arg_start,
-			PARAM_A | PARAM_B | PARAM_C,
-			3);
-		break;
-	case OP_NEWTABLE:
-	case OP_SETLIST:
-	case OP_MMBINK:
 		instruction = encode_instruction(opcode, arg_start,
 			PARAM_A | PARAM_B | PARAM_C | PARAM_k,
 			4);
@@ -228,8 +235,8 @@ bool lua54_assembly(const char *input, st32 input_size, LuaInstruction *instruct
 	// A with k
 	case OP_TEST:
 		instruction = encode_instruction(opcode, arg_start,
-			PARAM_A,
-			1);
+			PARAM_A | PARAM_k,
+			2);
 		break;
 	// no arg
 	case OP_RETURN0:

@@ -3,9 +3,9 @@
 // SPDX-FileCopyrightText: 2021 Heersin <teablearcher@gmail.com>
 // SPDX-FileCopyrightText: 2025-2026 Sergey Sharshunov <s.sharshunov@gmail.com>
 
-#include "arch_53.h"
+#include "arch_52.h"
 
-static LuaInstruction encode_instruction(ut8 opcode, const char *arg_start, ut16 flag, ut8 arg_num) {
+static LuaInstruction encode_instruction(const ut8 opcode, const char *arg_start, const ut16 flag, const ut8 arg_num) {
 	LuaInstruction instruction = 0;
 	int args[3];
 	char buffer[64]; // buffer for digits
@@ -70,32 +70,26 @@ static LuaInstruction encode_instruction(ut8 opcode, const char *arg_start, ut16
 		SETARG_Bx(instruction, args[cur_cnt++]);
 	}
 	rz_return_val_if_fail(cur_cnt == arg_num, -1);
-
 	return instruction;
 }
 
-bool lua53_assembly(const char *input, st32 input_size, LuaInstruction *instruction_p) {
-	const char *opcode_start; // point to the header
-	const char *opcode_end; // point to the first white space
-	int opcode_len;
-
-	const char *arg_start;
-
-	ut8 opcode;
+bool lua52_assembly(const char *input, st32 input_size, LuaInstruction *instruction_p) {
 	LuaInstruction instruction = 0x00;
 
 	/* Find the opcode */
-	opcode_start = input;
-	opcode_end = strchr(input, ' ');
+	// point to the header
+	const char *opcode_start = input;
+	// point to the first white space
+	const char *opcode_end = strchr(input, ' ');
 	if (opcode_end == NULL) {
 		opcode_end = input + input_size;
 	}
 
-	opcode_len = opcode_end - opcode_start;
-	opcode = get_lua53_opcode_by_name(opcode_start, opcode_len);
+	int opcode_len = opcode_end - opcode_start;
+	ut8 opcode = get_lua52_opcode_by_name(opcode_start, opcode_len);
 
 	/* Find the arguments */
-	arg_start = rz_str_trim_head_ro(opcode_end);
+	const char *arg_start = rz_str_trim_head_ro(opcode_end);
 
 	/* Encode opcode and args */
 	switch (opcode) {
@@ -105,7 +99,6 @@ bool lua53_assembly(const char *input, st32 input_size, LuaInstruction *instruct
 	case OP_MOVE:
 	case OP_SETUPVAL:
 	case OP_UNM:
-	case OP_BNOT:
 	case OP_NOT:
 	case OP_LEN:
 	case OP_LOADNIL:
@@ -140,12 +133,6 @@ bool lua53_assembly(const char *input, st32 input_size, LuaInstruction *instruct
 	case OP_MOD:
 	case OP_POW:
 	case OP_DIV:
-	case OP_IDIV:
-	case OP_BAND:
-	case OP_BOR:
-	case OP_BXOR:
-	case OP_SHL:
-	case OP_SHR:
 	case OP_EQ:
 	case OP_LT:
 	case OP_LE:

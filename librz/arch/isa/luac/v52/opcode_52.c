@@ -3,9 +3,9 @@
 // SPDX-FileCopyrightText: 2021 Heersin <teablearcher@gmail.com>
 // SPDX-FileCopyrightText: 2025-2026 Sergey Sharshunov <s.sharshunov@gmail.com>
 
-#include "arch_53.h"
+#include "arch_52.h"
 
-const ut8 luaP_opmodes53[LUA_NUM_OPCODES] = {
+const ut8 luaP_opmodes52[LUA_NUM_OPCODES] = {
 	/*       T  A    B       C     mode                opcode       */
 	opmode(0, 1, OpArgR, OpArgN, iABC), /* OP_MOVE */
 	opmode(0, 1, OpArgK, OpArgN, iABx), /* OP_LOADK */
@@ -23,17 +23,10 @@ const ut8 luaP_opmodes53[LUA_NUM_OPCODES] = {
 	opmode(0, 1, OpArgK, OpArgK, iABC), /* OP_ADD */
 	opmode(0, 1, OpArgK, OpArgK, iABC), /* OP_SUB */
 	opmode(0, 1, OpArgK, OpArgK, iABC), /* OP_MUL */
+	opmode(0, 1, OpArgK, OpArgK, iABC), /* OP_DIV */
 	opmode(0, 1, OpArgK, OpArgK, iABC), /* OP_MOD */
 	opmode(0, 1, OpArgK, OpArgK, iABC), /* OP_POW */
-	opmode(0, 1, OpArgK, OpArgK, iABC), /* OP_DIV */
-	opmode(0, 1, OpArgK, OpArgK, iABC), /* OP_IDIV */
-	opmode(0, 1, OpArgK, OpArgK, iABC), /* OP_BAND */
-	opmode(0, 1, OpArgK, OpArgK, iABC), /* OP_BOR */
-	opmode(0, 1, OpArgK, OpArgK, iABC), /* OP_BXOR */
-	opmode(0, 1, OpArgK, OpArgK, iABC), /* OP_SHL */
-	opmode(0, 1, OpArgK, OpArgK, iABC), /* OP_SHR */
 	opmode(0, 1, OpArgR, OpArgN, iABC), /* OP_UNM */
-	opmode(0, 1, OpArgR, OpArgN, iABC), /* OP_BNOT */
 	opmode(0, 1, OpArgR, OpArgN, iABC), /* OP_NOT */
 	opmode(0, 1, OpArgR, OpArgN, iABC), /* OP_LEN */
 	opmode(0, 1, OpArgR, OpArgR, iABC), /* OP_CONCAT */
@@ -60,10 +53,10 @@ const ut8 luaP_opmodes53[LUA_NUM_OPCODES] = {
 	((limit) <= sizeof(case_str) - 1) && \
 	rz_str_ncasecmp((name), (case_str), sizeof(case_str) - 1) == 0)
 
-LuaOpNameList get_lua53_opnames(void) {
+LuaOpNameList get_lua52_opnames(void) {
 	const LuaOpNameList list = RZ_NEWS(char *, LUA_NUM_OPCODES + 1);
 	if (list == NULL) {
-		RZ_LOG_ERROR("Cannot allocate lua53 opcode list.\n");
+		RZ_LOG_ERROR("Cannot allocate lua52 opcode list.\n");
 		return NULL;
 	}
 
@@ -84,17 +77,10 @@ LuaOpNameList get_lua53_opnames(void) {
 	list[OP_ADD] = "add";
 	list[OP_SUB] = "sub";
 	list[OP_MUL] = "mul";
+	list[OP_DIV] = "div";
 	list[OP_MOD] = "mod";
 	list[OP_POW] = "pow";
-	list[OP_DIV] = "div";
-	list[OP_IDIV] = "idiv";
-	list[OP_BAND] = "band";
-	list[OP_BOR] = "bor";
-	list[OP_BXOR] = "bxor";
-	list[OP_SHL] = "shl";
-	list[OP_SHR] = "shr";
 	list[OP_UNM] = "unm";
-	list[OP_BNOT] = "bnot";
 	list[OP_NOT] = "not";
 	list[OP_LEN] = "len";
 	list[OP_CONCAT] = "concat";
@@ -119,7 +105,7 @@ LuaOpNameList get_lua53_opnames(void) {
 	return list;
 }
 
-ut8 get_lua53_opcode_by_name(const char *name, int limit) {
+ut8 get_lua52_opcode_by_name(const char *name, int limit) {
 	lua_strcase("move") return OP_MOVE;
 	lua_strcase("loadk") return OP_LOADK;
 	lua_strcase("loadkx") return OP_LOADKX;
@@ -137,21 +123,15 @@ ut8 get_lua53_opcode_by_name(const char *name, int limit) {
 	lua_strcase("add") return OP_ADD;
 	lua_strcase("sub") return OP_SUB;
 	lua_strcase("mul") return OP_MUL;
+	lua_strcase("div") return OP_DIV;
 	lua_strcase("mod") return OP_MOD;
 	lua_strcase("pow") return OP_POW;
-	lua_strcase("div") return OP_DIV;
-	lua_strcase("idiv") return OP_IDIV;
-	lua_strcase("band") return OP_BAND;
-	lua_strcase("bor") return OP_BOR;
-	lua_strcase("bxor") return OP_BXOR;
-	lua_strcase("shl") return OP_SHL;
-	lua_strcase("shr") return OP_SHR;
 	lua_strcase("unm") return OP_UNM;
-	lua_strcase("bnot") return OP_BNOT;
 	lua_strcase("not") return OP_NOT;
-
 	lua_strcase("len") return OP_LEN;
+
 	lua_strcase("concat") return OP_CONCAT;
+
 	lua_strcase("jmp") return OP_JMP;
 	lua_strcase("eq") return OP_EQ;
 	lua_strcase("lt") return OP_LT;

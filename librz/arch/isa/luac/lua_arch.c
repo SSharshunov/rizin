@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: LGPL-3.0-only
 // SPDX-FileCopyrightText: 2021 Heersin <teablearcher@gmail.com>
+// SPDX-FileCopyrightText: 2025-2026 Sergey Sharshunov <s.sharshunov@gmail.com>
 
 #include "lua_arch.h"
 
@@ -29,70 +30,36 @@ bool free_lua_opnames(LuaOpNameList list) {
 
 /* formatted strings for asm_buf */
 char *luaop_new_str_3arg(char *opname, int a, int b, int c) {
-	char *asm_string;
-
-	asm_string = rz_str_newf(
-		"%s %d %d %d",
-		opname,
-		a, b, c);
-
-	return asm_string;
+	return rz_str_newf("%s %d %d %d", opname, a, b, c);
 }
 
 char *luaop_new_str_2arg(char *opname, int a, int b) {
-	char *asm_string;
-
-	asm_string = rz_str_newf(
-		"%s %d %d",
-		opname,
-		a, b);
-
-	return asm_string;
+	return rz_str_newf("%s %d %d", opname, a, b);
 }
 
 char *luaop_new_str_1arg(char *opname, int a) {
-	char *asm_string;
-
-	asm_string = rz_str_newf(
-		"%s %d",
-		opname,
-		a);
-
-	return asm_string;
+	return rz_str_newf("%s %d", opname, a);
 }
 
 /* For the k flag */
 char *luaop_new_str_3arg_ex(char *opname, int a, int b, int c, int isk) {
-	char *asm_string;
-
-	asm_string = rz_str_newf(
-		"%s %d %d %d %d",
-		opname,
-		a, b, c, isk);
-
-	return asm_string;
+	return rz_str_newf("%s %d %d %d%s", opname, a, b, c, isk ? "k" : "");
 }
 
 char *luaop_new_str_2arg_ex(char *opname, int a, int b, int isk) {
-	char *asm_string;
+	return rz_str_newf("%s %d %d%s", opname, a, b, isk ? "k" : "");
+}
 
-	asm_string = rz_str_newf(
-		"%s %d %d %d",
-		opname,
-		a, b, isk);
+char *luaop_new_str_2arg_ex_ki(char *opname, int a, int b, int isk) {
+	return rz_str_newf("%s %d %d %d", opname, a, b, isk);
+}
 
-	return asm_string;
+char *luaop_new_str_2arg_ex_kc(char *opname, int a, int b, int isk) {
+	return rz_str_newf("%s %d %d%s", opname, a, b, isk ? "k" : "");
 }
 
 char *luaop_new_str_1arg_ex(char *opname, int a, int isk) {
-	char *asm_string;
-
-	asm_string = rz_str_newf(
-		"%s %d %d",
-		opname,
-		a, isk);
-
-	return asm_string;
+	return rz_str_newf("%s %d%s", opname, a, isk ? "k" : "");
 }
 
 int lua_load_next_arg_start(const char *raw_string, char *recv_buf) {

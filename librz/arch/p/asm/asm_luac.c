@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: LGPL-3.0-only
 // SPDX-FileCopyrightText: 2021 Heersin <teablearcher@gmail.com>
+// SPDX-FileCopyrightText: 2025-2026 Sergey Sharshunov <s.sharshunov@gmail.com>
 
 #include <luac/lua_arch.h>
 
@@ -12,12 +13,21 @@ int rz_luac_disasm(RzAsm *a, RzAsmOp *opstruct, const ut8 *buf, int len) {
 		return -1;
 	}
 
-	if (strcmp(a->cpu, "5.4") == 0) {
+	if (strcmp(a->cpu, "5.5") == 0) {
+		oplist = get_lua55_opnames();
+		r = lua55_disasm(opstruct, buf, len, oplist);
+	} else if (strcmp(a->cpu, "5.4") == 0) {
 		oplist = get_lua54_opnames();
 		r = lua54_disasm(opstruct, buf, len, oplist);
 	} else if (strcmp(a->cpu, "5.3") == 0) {
 		oplist = get_lua53_opnames();
 		r = lua53_disasm(opstruct, buf, len, oplist);
+	} else if (strcmp(a->cpu, "5.2") == 0) {
+		oplist = get_lua52_opnames();
+		r = lua52_disasm(opstruct, buf, len, oplist);
+	} else if (strcmp(a->cpu, "5.1") == 0) {
+		oplist = get_lua51_opnames();
+		r = lua51_disasm(opstruct, buf, len, oplist);
 	} else {
 		RZ_LOG_ERROR("disassembler: lua: version %s is not supported\n", a->cpu);
 		return -1;
@@ -38,12 +48,24 @@ int rz_luac_asm(RzAsm *a, RzAsmOp *opstruct, const char *str) {
 		return -1;
 	}
 
-	if (strcmp(a->cpu, "5.3") == 0) {
+	if (strcmp(a->cpu, "5.1") == 0) {
+		if (!lua51_assembly(str, str_len, &instruction)) {
+			return -1;
+		}
+	} else if (strcmp(a->cpu, "5.2") == 0) {
+		if (!lua52_assembly(str, str_len, &instruction)) {
+			return -1;
+		}
+	} else if (strcmp(a->cpu, "5.3") == 0) {
 		if (!lua53_assembly(str, str_len, &instruction)) {
 			return -1;
 		}
 	} else if (strcmp(a->cpu, "5.4") == 0) {
 		if (!lua54_assembly(str, str_len, &instruction)) {
+			return -1;
+		}
+	} else if (strcmp(a->cpu, "5.5") == 0) {
+		if (!lua55_assembly(str, str_len, &instruction)) {
 			return -1;
 		}
 	} else {

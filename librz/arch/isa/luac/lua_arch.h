@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: LGPL-3.0-only
 // SPDX-FileCopyrightText: 2021 Heersin <teablearcher@gmail.com>
+// SPDX-FileCopyrightText: 2025-2026 Sergey Sharshunov <s.sharshunov@gmail.com>
 
 #ifndef BUILD_LUA_ARCH_H
 #define BUILD_LUA_ARCH_H
@@ -23,6 +24,21 @@
 #define LUA_CLOSURE_MARK  "#CLOSURE"
 #define LUA_KX_MARK       " CONST[#Ex]"
 
+/* parameter flags */
+#define PARAM_A   1
+#define PARAM_B   2
+#define PARAM_C   4
+#define PARAM_Ax  8
+#define PARAM_Bx  16
+#define PARAM_sBx 32
+
+#define PARAM_sJ 64
+#define PARAM_sC 128
+#define PARAM_sB 256
+#define PARAM_k  512
+
+#define has_param_flag(flag, bit) ((flag) & (bit)) ? true : false
+
 /* Opcode Instruction Type */
 typedef ut32 LuaInstruction;
 
@@ -42,9 +58,18 @@ char *luaop_new_str_2arg(char *opname, int a, int b);
 char *luaop_new_str_1arg(char *opname, int a);
 char *luaop_new_str_3arg_ex(char *opname, int a, int b, int c, int isk);
 char *luaop_new_str_2arg_ex(char *opname, int a, int b, int isk);
+char *luaop_new_str_2arg_ex_ki(char *opname, int a, int b, int isk);
+char *luaop_new_str_2arg_ex_kc(char *opname, int a, int b, int isk);
 char *luaop_new_str_1arg_ex(char *opname, int a, int isk);
 /* Free Opname List */
 bool free_lua_opnames(LuaOpNameList list);
+
+/* Lua 5.5 specified */
+int lua55_disasm(RzAsmOp *op, const ut8 *buf, int len, LuaOpNameList oplist);
+int lua55_anal_op(RzAnalysis *analysis, RzAnalysisOp *op, ut64 addr, const ut8 *data, int len);
+bool lua55_assembly(const char *input, st32 input_size, LuaInstruction *instruction);
+LuaOpNameList get_lua55_opnames(void);
+ut8 get_lua55_opcode_by_name(const char *name, int len);
 
 /* Lua 5.4 specified */
 int lua54_disasm(RzAsmOp *op, const ut8 *buf, int len, LuaOpNameList oplist);
@@ -59,5 +84,19 @@ int lua53_anal_op(RzAnalysis *analysis, RzAnalysisOp *op, ut64 addr, const ut8 *
 bool lua53_assembly(const char *input, st32 input_size, LuaInstruction *instruction);
 LuaOpNameList get_lua53_opnames(void);
 ut8 get_lua53_opcode_by_name(const char *name, int len);
+
+/* Lua 5.2 specified */
+int lua52_disasm(RzAsmOp *op, const ut8 *buf, int len, LuaOpNameList oplist);
+int lua52_anal_op(RzAnalysis *analysis, RzAnalysisOp *op, ut64 addr, const ut8 *data, int len);
+bool lua52_assembly(const char *input, st32 input_size, LuaInstruction *instruction);
+LuaOpNameList get_lua52_opnames(void);
+ut8 get_lua52_opcode_by_name(const char *name, int len);
+
+/* Lua 5.1 specified */
+int lua51_disasm(RzAsmOp *op, const ut8 *buf, int len, LuaOpNameList oplist);
+int lua51_anal_op(RzAnalysis *analysis, RzAnalysisOp *op, ut64 addr, const ut8 *data, int len);
+bool lua51_assembly(const char *input, st32 input_size, LuaInstruction *instruction);
+LuaOpNameList get_lua51_opnames(void);
+ut8 get_lua51_opcode_by_name(const char *name, int len);
 
 #endif // BUILD_LUA_ARCH_H

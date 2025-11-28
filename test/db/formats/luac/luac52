@@ -1,0 +1,113 @@
+NAME=LUAC: info
+FILE=bins/luac/class52.luac
+CMDS=<<EOF
+i~guid,machine
+EOF
+EXPECT=<<EOF
+guid     N/A
+machine  Lua 5.2 VM
+EOF
+RUN
+
+NAME=LUAC: sections
+FILE=bins/luac/class52.luac
+CMDS=<<EOF
+iS~none
+EOF
+EXPECT=<<EOF
+EOF
+RUN
+
+NAME=LUAC: symbols
+FILE=bins/luac/class52.luac
+CMDS=<<EOF
+is~UPV
+EOF
+EXPECT=<<EOF
+  0 0x0000027e 0x0000027e NONE UPVALUE         3     @class.lua_upvalue__ENV
+  0 0x00000153 0x00000153 NONE UPVALUE         3     @class.lua_upvalue__ENV
+EOF
+RUN
+
+NAME=LUAC: entry
+FILE=bins/luac/class52.luac
+CMDS=<<EOF
+ie~program
+EOF
+EXPECT=<<EOF
+0x00000021 0x00000021 ---------- ---------- program
+EOF
+RUN
+
+NAME=LUAC: big file
+FILE=bins/luac/class52.luac
+CMDS=<<EOF
+iS~header
+EOF
+EXPECT=<<EOF
+0x00000012 0x2ef 0x00000012 0x2ef   0x0 -r-- class.lua.header              
+0x000000e0 0x104 0x000000e0 0x104   0x0 -r-- class.lua.header_0xe0         
+0x000001e3  0x98 0x000001e3  0x98   0x0 -r-- class.lua.header_0x1e3        
+EOF
+RUN
+
+NAME=LUAC: big file string symbol loading
+FILE=bins/luac/class52.luac
+CMDS=<<EOF
+is~withdraw
+EOF
+EXPECT=<<EOF
+  0 0x000000ab 0x000000ab NONE CONST_STRING    8     @class.lua_const_withdraw
+EOF
+RUN
+
+NAME=LUAC: big file num symbol loading
+FILE=bins/luac/class52.luac
+CMDS=<<EOF
+is~1000,100
+EOF
+EXPECT=<<EOF
+  0 0x000000ca 0x000000ca NONE CONST_NUM       8     @class.lua_const_1000
+  0 0x000000d3 0x000000d3 NONE CONST_NUM       8     @class.lua_const_100
+EOF
+RUN
+
+NAME=LUAC: big file symbols
+FILE=bins/luac/class52.luac
+CMDS=<<EOF
+is~setmetatable
+EOF
+EXPECT=<<EOF
+  0 0x00000113 0x00000113 NONE CONST_STRING   12     @class.lua_const_setmetatable
+EOF
+RUN
+
+NAME=LUAC: disasm crash
+FILE=bins/luac/class52.luac
+CMDS=<<EOF
+pd 10 >/dev/null
+EOF
+EXPECT=
+RUN
+
+NAME=LUAC: broken file
+FILE=bins/luac/random52.luac
+CMDS=<<EOF
+EOF
+EXPECT=
+REGEXP_FILTER_ERR=<<EOF
+ERROR: Truncated Code at [.+]
+EOF
+EXPECT_ERR=<<EOF
+EOF
+RUN
+
+NAME=LUAC: iz strings
+FILE=bins/luac/class52.luac
+CMDS=<<EOF
+iz~balance?
+EOF
+EXPECT=<<EOF
+3
+EOF
+RUN

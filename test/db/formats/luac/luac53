@@ -4,7 +4,7 @@ CMDS=<<EOF
 i~guid,machine
 EOF
 EXPECT=<<EOF
-guid     @/home/heersin/blackhole/lua53_src/none.lua
+guid     /home/heersin/blackhole/lua53_src/none.lua
 machine  Lua 5.3 VM
 EOF
 RUN
@@ -16,8 +16,7 @@ iS~none
 EOF
 EXPECT=<<EOF
 0x00000022 0x63 0x00000022  0x63   0x0 -r-- home_heersin_blackhole_lua53_src_none.lua.header        
-0x00000059  0x4 0x00000059   0x4   0x0 -r-x home_heersin_blackhole_lua53_src_none.lua.code          
-0x00000061  0x5 0x00000061   0x5   0x0 -r-- home_heersin_blackhole_lua53_src_none.lua.const         
+0x0000005d  0x4 0x0000005d   0x4   0x0 -r-x home_heersin_blackhole_lua53_src_none.lua.code          
 0x00000065  0x7 0x00000065   0x7   0x0 -r-- home_heersin_blackhole_lua53_src_none.lua.upvalues      
 0x0000006b  0x4 0x0000006b   0x4   0x0 -r-- home_heersin_blackhole_lua53_src_none.lua.protos        
 0x0000006f 0x16 0x0000006f  0x16   0x0 -r-- home_heersin_blackhole_lua53_src_none.lua.debug         
@@ -114,10 +113,10 @@ CMDS=<<EOF
 EOF
 EXPECT=
 REGEXP_FILTER_ERR=<<EOF
-ERROR:.+
+ERROR: file truncated, offset: .+
+ERROR: Invalid luac file
 EOF
 EXPECT_ERR=<<EOF
-ERROR: Invalid luac file
 EOF
 RUN
 
@@ -130,3 +129,4 @@ EXPECT=<<EOF
 7
 EOF
 RUN
+

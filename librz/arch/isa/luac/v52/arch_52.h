@@ -3,8 +3,8 @@
 // SPDX-FileCopyrightText: 2021 Heersin <teablearcher@gmail.com>
 // SPDX-FileCopyrightText: 2025-2026 Sergey Sharshunov <s.sharshunov@gmail.com>
 
-#ifndef BUILD_ARCH_53_H
-#define BUILD_ARCH_53_H
+#ifndef BUILD_ARCH_52_H
+#define BUILD_ARCH_52_H
 
 #include <rz_types.h>
 #include <rz_asm.h>
@@ -49,7 +49,6 @@ typedef enum {
 #define POS_B  (POS_C + SIZE_C)
 #define POS_Bx POS_C
 #define POS_Ax POS_A
-
 /*
 ** Macros to operate RK indices
 */
@@ -67,6 +66,21 @@ typedef enum {
 
 /* code a constant index as a RK value */
 #define RKASK(x) ((x) | BITRK)
+
+/**
+ * invalid register that fits in 8 bits
+ **/
+#define NO_REG MAXARG_A
+
+/**
+ * R(x) - register
+ * Kst(x) - constant (in constant table)
+ * RK(x) == if ISK(x) then Kst(INDEXK(x)) else R(x)
+ */
+
+/**
+ * grep "ORDER OP" if you change these enums
+ **/
 
 typedef enum {
 	/*----------------------------------------------------------------------
@@ -93,17 +107,10 @@ typedef enum {
 	OP_ADD, /*       A B C   R(A) := RK(B) + RK(C)                           */
 	OP_SUB, /*       A B C   R(A) := RK(B) - RK(C)                           */
 	OP_MUL, /*       A B C   R(A) := RK(B) * RK(C)                           */
+	OP_DIV, /*       A B C   R(A) := RK(B) / RK(C)                           */
 	OP_MOD, /*       A B C   R(A) := RK(B) % RK(C)                           */
 	OP_POW, /*       A B C   R(A) := RK(B) ^ RK(C)                           */
-	OP_DIV, /*       A B C   R(A) := RK(B) / RK(C)                           */
-	OP_IDIV, /*      A B C   R(A) := RK(B) // RK(C)                          */
-	OP_BAND, /*      A B C   R(A) := RK(B) & RK(C)                           */
-	OP_BOR, /*       A B C   R(A) := RK(B) | RK(C)                           */
-	OP_BXOR, /*      A B C   R(A) := RK(B) ~ RK(C)                           */
-	OP_SHL, /*       A B C   R(A) := RK(B) << RK(C)                          */
-	OP_SHR, /*       A B C   R(A) := RK(B) >> RK(C)                          */
 	OP_UNM, /*       A B     R(A) := -R(B)                                   */
-	OP_BNOT, /*      A B     R(A) := ~R(B)                                   */
 	OP_NOT, /*       A B     R(A) := not R(B)                                */
 	OP_LEN, /*       A B     R(A) := length of R(B)                          */
 
@@ -141,16 +148,16 @@ typedef enum {
 
 /*===========================================================================
   Notes:
-  (*) In OP_CALL, if (B == 0) then B = top. If (C == 0), then 'top' is
+  (*) In OP_CALL, if (B == 0) then B = top. If (C == 0), then `top' is
   set to last_result+1, so next open instruction (OP_CALL, OP_RETURN,
-  OP_SETLIST) may use 'top'.
+  OP_SETLIST) may use `top'.
 
   (*) In OP_VARARG, if (B == 0) then use actual number of varargs and
   set top (like in OP_CALL with C == 0).
 
-  (*) In OP_RETURN, if (B == 0) then return up to 'top'.
+  (*) In OP_RETURN, if (B == 0) then return up to `top'.
 
-  (*) In OP_SETLIST, if (B == 0) then B = 'top'; if (C == 0) then next
+  (*) In OP_SETLIST, if (B == 0) then B = `top'; if (C == 0) then next
   'instruction' is EXTRAARG(real C).
 
   (*) In OP_LOADKX, the next 'instruction' is always EXTRAARG.
@@ -158,7 +165,7 @@ typedef enum {
   (*) For comparisons, A specifies what condition the test should accept
   (true or false).
 
-  (*) All 'skips' (pc++) assume that next instruction is a jump.
+  (*) All `skips' (pc++) assume that next instruction is a jump.
 
 ===========================================================================*/
 
@@ -178,15 +185,15 @@ enum OpArgMask {
 	OpArgK /* argument is a constant or register/constant */
 };
 
-extern const ut8 luaP_opmodes53[LUA_NUM_OPCODES];
+extern const ut8 luaP_opmodes52[LUA_NUM_OPCODES];
 
 #define opmode(t, a, b, c, m) (((t) << 7) | ((a) << 6) | ((b) << 4) | ((c) << 2) | (m))
 
-#define getOpMode(m) (cast(LuaOpMode, luaP_opmodes53[m] & 3))
-#define getBMode(m)  (cast(enum OpArgMask, (luaP_opmodes53[m] >> 4) & 3))
-#define getCMode(m)  (cast(enum OpArgMask, (luaP_opmodes53[m] >> 2) & 3))
-#define testAMode(m) (luaP_opmodes53[m] & (1 << 6))
-#define testTMode(m) (luaP_opmodes53[m] & (1 << 7))
+#define getOpMode(m) (cast(LuaOpMode, luaP_opmodes52[m] & 3))
+#define getBMode(m)  (cast(enum OpArgMask, (luaP_opmodes52[m] >> 4) & 3))
+#define getCMode(m)  (cast(enum OpArgMask, (luaP_opmodes52[m] >> 2) & 3))
+#define testAMode(m) (luaP_opmodes52[m] & (1 << 6))
+#define testTMode(m) (luaP_opmodes52[m] & (1 << 7))
 
 #define MYK(x) (-1 - (x))
 
@@ -257,4 +264,4 @@ extern const ut8 luaP_opmodes53[LUA_NUM_OPCODES];
 
 #define CREATE_Ax(o, a) ((cast(ut32) << POS_OP) | (cast(ut32, a) << POS_Ax))
 
-#endif // BUILD_ARCH_53_H
+#endif // BUILD_ARCH_52_H

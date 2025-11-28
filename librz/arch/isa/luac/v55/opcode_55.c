@@ -2,15 +2,15 @@
 // SPDX-FileCopyrightText: 2021 Heersin <teablearcher@gmail.com>
 // SPDX-FileCopyrightText: 2025-2026 Sergey Sharshunov <s.sharshunov@gmail.com>
 
-#include "arch_54.h"
+#include "arch_55.h"
 #define lua_strcase(case_str) if ( \
 	((limit) <= sizeof(case_str) - 1) && \
 	rz_str_ncasecmp((name), (case_str), sizeof(case_str) - 1) == 0)
 
-LuaOpNameList get_lua54_opnames(void) {
+LuaOpNameList get_lua55_opnames(void) {
 	LuaOpNameList list = RZ_NEWS(char *, LUA_NUM_OPCODES + 1);
 	if (list == NULL) {
-		RZ_LOG_ERROR("Cannot allocate lua54 opcode list.\n");
+		RZ_LOG_ERROR("Cannot allocate lua55 opcode list.\n");
 		return NULL;
 	}
 
@@ -103,7 +103,7 @@ LuaOpNameList get_lua54_opnames(void) {
 	return list;
 }
 
-ut8 get_lua54_opcode_by_name(const char *name, int limit) {
+ut8 get_lua55_opcode_by_name(const char *name, int limit) {
 	lua_strcase("move") return OP_MOVE;
 	lua_strcase("loadi") return OP_LOADI;
 	lua_strcase("loadf") return OP_LOADF;
