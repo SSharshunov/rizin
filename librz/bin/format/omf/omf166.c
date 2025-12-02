@@ -238,18 +238,11 @@ static ut16 omf166_get_idx(const ut8 *buf, int buf_size) {
 	if (buf_size < 2) {
 		return 0;
 	}
-#if 0
-	if (*buf & 0x80) {
-		return (ut16)((*buf & 0x7f) * 0x100 + buf[1]);
-	}
-	return *buf;
-#else
 	ut16 ret = rz_read_le8(buf);
 	if (ret & 0x80) {
 		return (ut16)(ret & 0x7f) * 0x100 + rz_read_at_le8(buf, 1);
 	}
 	return ret;
-#endif
 }
 
 static bool load_omf166_lnames(rz_bin_omf166_obj *obj, OMF_record *record, const ut8 *buf, ut64 buf_size, ut64 global_ct) {
@@ -306,6 +299,8 @@ static int load_omf166_global_sym_record(rz_bin_omf166_obj *obj, OMF_record *rec
 	ut16 ct = 3;
 	ut32 base = 0;
 
+	rz_return_val_if_fail(record->size > 3, false);
+
 	if (record->type == OMF166_DEBSYM) {
 		if ((buf[ct] == 0x02)) {
 			ct++;
@@ -321,6 +316,11 @@ static int load_omf166_global_sym_record(rz_bin_omf166_obj *obj, OMF_record *rec
 	} else {
 		base = rz_read_le32(buf + ct);
 		ct += 4;
+	}
+
+	if (record->size <= ct) {
+		RZ_LOG_ERROR("Invalid sym record (bad size)\n");
+		return false;
 	}
 
 	while (record->size > ct) {

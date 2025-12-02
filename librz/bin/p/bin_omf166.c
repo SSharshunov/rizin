@@ -302,17 +302,21 @@ static char *get_memory_model(ut8 modinfo) {
 	}
 }
 
-static RzBinInfo *info(RzBinFile *bf) {
-	rz_return_val_if_fail(bf && bf->o && bf->o->bin_obj, NULL);
-
+static RzStructuredData *omf166_structure(RzBinFile *bf) {
+	rz_return_val_if_fail(bf && bf->rbin && bf->o && bf->o->bin_obj, NULL);
 	rz_bin_omf166_obj *obj = (rz_bin_omf166_obj *)bf->o->bin_obj;
 
-	RzBinInfo *ret;
-	if (!(ret = RZ_NEW0(RzBinInfo))) {
+	RzStructuredData *info = rz_structured_data_new_map();
+	if (!info) {
 		return NULL;
 	}
 
-#ifdef RZ_BUILD_DEBUG
+	RzStructuredData *modinfo = rz_structured_data_map_add_map(info, "omf166-modinfo");
+	if (!modinfo) {
+		rz_structured_data_free(info);
+		return NULL;
+	}
+
 	RZ_LOG_DEBUG("OMF166_MODINF: 0x%02x\n", obj->modinfo);
 	/*
 	  7   6   5   4   3   2   1   0
@@ -326,29 +330,35 @@ static RzBinInfo *info(RzBinFile *bf) {
 	  |   +----------------------------> FLOAT-USED
 	  +--------------------------------> DOUB
 	*/
-	bool DOUBLE_USED = obj->modinfo >> 7; ///< The module contains double precision float operations. This bit is intended for the linker for automatic selection of libraries.
-	bool FLOAT_USED = (obj->modinfo & 0x40) >> 6; ///< The module contains single precision float operations. This bit is intended for the linker for automatic selection of libraries.
-	bool MOD167 = (obj->modinfo & 0x20) >> 5; ///< If bit is set, then the module is intended to be executed on an 80C167 CPU, otherwise the module is for a 80C166 CPU.
-	bool CASE = (obj->modinfo & 0x02) >> 1; ///< If bit is set, then names are to be considered case sensitive. This info is intended for the linker when combining object modules.
-	bool SEGMENTED = (obj->modinfo & 0x01); ///< If bit is set, then the segmented cpu mode was choosen for the module.
 
-	if (DOUBLE_USED)
-		RZ_LOG_DEBUG("The module contains double precision float operations. This bit is intended for the linker for automatic selection of libraries.\n");
-	if (FLOAT_USED)
-		RZ_LOG_DEBUG("The module contains single precision float operations. This bit is intended for the linker for automatic selection of libraries.\n");
-	if (MOD167)
-		RZ_LOG_DEBUG("If bit is set, then the module is intended to be executed on an 80C167 CPU, otherwise the module is for a 80C166 CPU.\n");
-	if (CASE)
-		RZ_LOG_DEBUG("If bit is set, then names are to be considered case sensitive. This info is intended for the linker when combining object modules.\n");
-	if (SEGMENTED)
-		RZ_LOG_DEBUG("If bit is set, then the segmented cpu mode was choosen for the module.\n");
-#endif
+	///< The module contains double precision float operations. This bit is intended for the linker for automatic selection of libraries.
+	rz_structured_data_map_add_boolean(modinfo, "DoubleUsed", obj->modinfo >> 7);
+	///< The module contains single precision float operations. This bit is intended for the linker for automatic selection of libraries.
+	rz_structured_data_map_add_boolean(modinfo, "FloatUsed", (obj->modinfo & 0x40) >> 6);
+	///< If bit is set, then the module is intended to be executed on an 80C167 CPU, otherwise the module is for a 80C166 CPU.
+	rz_structured_data_map_add_boolean(modinfo, "MOD167", (obj->modinfo & 0x20) >> 5);
+	///< If bit is set, then names are to be considered case sensitive. This info is intended for the linker when combining object modules.
+	rz_structured_data_map_add_boolean(modinfo, "CaseSensitive", (obj->modinfo & 0x02) >> 1);
+	///< If bit is set, then the segmented cpu mode was choosen for the module.
+	rz_structured_data_map_add_boolean(modinfo, "Segmented", (obj->modinfo & 0x01));
+	rz_structured_data_map_add_string(modinfo, "MemoryModel", get_memory_model(obj->modinfo));
+	return info;
+}
+
+static RzBinInfo *info(RzBinFile *bf) {
+	rz_return_val_if_fail(bf && bf->o && bf->o->bin_obj, NULL);
+
+	rz_bin_omf166_obj *obj = (rz_bin_omf166_obj *)bf->o->bin_obj;
+
+	RzBinInfo *ret;
+	if (!(ret = RZ_NEW0(RzBinInfo))) {
+		return NULL;
+	}
 
 	ret->type = get_memory_model(obj->modinfo);
 	ret->file = rz_str_dup(bf->file);
 	ret->bclass = rz_str_dup("OMF (Object Module Format)");
 	ret->rclass = rz_str_dup("OMF166");
-
 	ret->compiler = rz_str_dup("keil");
 	ret->os = rz_str_dup("c166");
 	ret->machine = rz_str_dup("c166");
@@ -415,6 +425,7 @@ RzBinPlugin rz_bin_plugin_omf166 = {
 	.sections = &sections,
 	.binsym = &binsym,
 	.symbols = &symbols,
+	.bin_structure = &omf166_structure,
 	.info = &info,
 	.strings = &strings,
 	.get_vaddr = &get_vaddr,

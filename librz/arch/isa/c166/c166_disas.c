@@ -9,6 +9,9 @@
  *
  * Core disassembler implementation for the C166 microcontroller architecture.
  * Converts machine code bytes into human-readable assembly language strings.
+ *
+ * \see [Datasheet](https://www.infineon.com/row/public/documents/10/44/infineon-c166-ism-v2.0-2001-03.pdf)
+ * \see [Mirror](https://www.mouser.com/ds/2/196/c166sv2um-1109557.pdf?srsltid=AfmBOoow6DlS3_Y12ar_KnE1e2l6FXmmj3aVeSPU22kDOfaTFNqSgzmx)
  */
 
 #include <rz_types.h>
@@ -1103,7 +1106,6 @@ static const char *CoREG(ut8 bits) {
 	}
 	default:
 		RZ_LOG_INFO("Unknown bits: 0x%02x.\n", bits);
-		// rz_warn_if_reached();
 		return NULL;
 	}
 }

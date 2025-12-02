@@ -46,9 +46,9 @@
 #define FMT5      "[%s+], [%s]"
 #define FMT6      "[%s], [%s+]"
 #define FMT7      "%s %s"
-#define FMT8  "%s, #0x%04x"
-#define FMT9  "%s, %s"
-#define FMT10 "%s, #%i"
+#define FMT8      "%s, #0x%04x"
+#define FMT9      "%s, %s"
+#define FMT10     "%s, #%i"
 
 // Core Special Function Registers (CSFR)
 #define BASE_GPR_ADDR    0xFE10 ///< Base address for calculate GPR phisical address (also REG_CP)
