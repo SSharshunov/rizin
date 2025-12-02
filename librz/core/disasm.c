@@ -900,6 +900,25 @@ static void ds_opstr_try_colorize(RzDisasmState *ds, bool print_color) {
 	ds->opstr = new_opstr;
 }
 
+static void mmio_replacement(RzPlatformTarget *arch_target, RzDisasmState *ds, ut64 mmio_addr) {
+	const char *resolved = rz_platform_profile_resolve_mmio(arch_target->profile, ds->analysis_op.mmio_address);
+	if (!resolved) {
+		// No name mapped for the mmio address
+		return;
+	}
+	char mmio_hex_addr[32];
+	rz_strf(mmio_hex_addr, "0x%" PFMT64x, mmio_addr);
+	if (!ds->asmop.asm_toks) {
+		// This architecture doesn't support tokens. So we patch the string the old way.
+		ds->opstr = rz_str_replace(ds->opstr, mmio_hex_addr, resolved, 0);
+		return;
+	}
+	rz_asm_token_string_replace_ut64(&ds->asmop.buf_asm, mmio_hex_addr, resolved, ds->asmop.asm_toks, mmio_addr, RZ_ASM_TOKEN_REGISTER);
+	// Use rz_asm_colorize_asm_str() as in the other places to regenerate ds->opstr.
+	// Mind to check for color being enabled or not.
+	// Set ds->opstr with the result.
+}
+
 static void ds_build_op_str(RzDisasmState *ds, bool print_color) {
 	RzCore *core = ds->core;
 
@@ -942,15 +961,7 @@ static void ds_build_op_str(RzDisasmState *ds, bool print_color) {
 	}
 
 	if (ds->analysis_op.mmio_address != UT64_MAX) {
-		char number[32];
-		rz_strf(number, "0x%" PFMT64x, ds->analysis_op.mmio_address);
-
-		RzPlatformTarget *arch_target = core->analysis->arch_target;
-
-		const char *resolved = rz_platform_profile_resolve_mmio(arch_target->profile, ds->analysis_op.mmio_address);
-		if (resolved) {
-			ds->opstr = rz_str_replace(ds->opstr, number, resolved, 0);
-		}
+		mmio_replacement(core->analysis->arch_target, ds, ds->analysis_op.mmio_address);
 	}
 
 	if (ds->analysis_op.ptr != UT64_MAX) {

@@ -1398,6 +1398,48 @@ RZ_API RZ_OWN RzAsmTokenString *rz_asm_token_string_clone(RZ_OWN RZ_NONNULL RzAs
 	return newt;
 }
 
+/**
+ * \brief Replaces all numbers with value \p num and text \p old_token_text
+ * with the given token type.
+ */
+RZ_API bool rz_asm_token_string_replace_ut64(
+	RZ_OUT RzStrBuf *buf_asm,
+	const char *old_token_text,
+	const char *new_token_text,
+	RZ_BORROW RzAsmTokenString *toks,
+	ut64 num,
+	RzAsmTokenType type) {
+	rz_return_val_if_fail(buf_asm && new_token_text && toks, false);
+	size_t new_tok_len = strlen(new_token_text);
+	ssize_t start_offset_change = 0;
+	void **it;
+	rz_pvector_foreach(toks->tokens, it) {
+		RzAsmToken *tok = *it;
+		if (tok->val.number != num || strlen(old_token_text) != tok->len) {
+			if (start_offset_change == 0) {
+				continue;
+			}
+			// Before this token another token was replaced.
+			// So we need to fix the start offset.
+			tok->start += start_offset_change;
+			continue;
+		}
+		RzAsmToken *repl_token = RZ_NEW0(RzAsmToken);
+		if (!repl_token) {
+			rz_warn_if_reached();
+			return false;
+		}
+		repl_token->start = tok->start + start_offset_change;
+		repl_token->len = new_tok_len;
+		repl_token->val.number = num;
+		start_offset_change = new_tok_len - tok->len;
+		// Replace token.
+		free(tok);
+		*it = repl_token;
+	}
+	return rz_strbuf_set(buf_asm, rz_str_replace(rz_strbuf_get(buf_asm), old_token_text, new_token_text, 0)) != NULL;
+}
+
 RZ_API void rz_asm_token_pattern_free(void *p) {
 	if (!p) {
 		return;

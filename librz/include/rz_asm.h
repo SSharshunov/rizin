@@ -232,6 +232,14 @@ RZ_API void rz_asm_parse_param_free(RZ_OWN RZ_NULLABLE RzAsmParseParam *p);
 RZ_DEPRECATE RZ_API RZ_OWN RzAsmTokenString *rz_asm_tokenize_asm_string(RZ_BORROW RzStrBuf *asm_str, RZ_NULLABLE const RzAsmParseParam *param);
 RZ_DEPRECATE RZ_API RZ_OWN RzStrBuf *rz_asm_colorize_asm_str(RZ_BORROW RzStrBuf *asm_str, RZ_BORROW RzPrint *p, RZ_NULLABLE const RzAsmParseParam *param, RZ_NULLABLE const RzAsmTokenString *toks);
 
+RZ_API bool rz_asm_token_string_replace_ut64(
+	RZ_OUT RzStrBuf *buf_asm,
+	const char *old_token_text,
+	const char *token_text,
+	RZ_BORROW RzAsmTokenString *toks,
+	ut64 num,
+	RzAsmTokenType type);
+
 #endif
 
 #ifdef __cplusplus
