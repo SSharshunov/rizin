@@ -1,0 +1,162 @@
+NAME=c166: checking bitness writing (asm.bits)
+FILE=malloc://32
+CMDS=<<EOF
+e asm.arch=c166
+e asm.bits
+EOF
+EXPECT=<<EOF
+16
+EOF
+RUN
+
+NAME=c166 instruction length
+FILE=malloc://32
+CMDS=<<EOF
+e asm.arch=c166
+e asm.bits=16
+wx 0012 @ 0
+wx 3B @ 2
+wx 6034 @ 3
+ao 3~size
+EOF
+EXPECT=<<EOF
+size: 2
+size: 2
+size: 4
+EOF
+RUN
+
+NAME=c166 instruction length
+FILE=malloc://32
+CMDS=<<EOF
+e asm.arch=c166
+e asm.bits=16
+wx 0012 @ 0
+wx 3B00 @ 2
+wx 6034 @ 4
+ao 3~size
+EOF
+EXPECT=<<EOF
+size: 2
+size: 2
+size: 2
+EOF
+RUN
+
+NAME=c166 instruction length 6035
+FILE=malloc://6
+CMDS=<<EOF
+e asm.arch=c166
+e asm.bits=16
+wx 6035 @ 0
+wx 0012 @ 2
+wx 0012 @ 4
+ao 3~size
+EOF
+EXPECT=<<EOF
+size: 2
+size: 2
+size: 2
+EOF
+RUN
+
+NAME=c166 instruction length 2056
+FILE=malloc://6
+CMDS=<<EOF
+e asm.arch=c166
+e asm.bits=16
+wx 2056 @ 0
+wx 0012 @ 2
+wx 3B @ 4
+ao 3~size
+EOF
+EXPECT=<<EOF
+size: 2
+size: 2
+size: 2
+EOF
+RUN
+
+NAME=c166 instruction length 0156
+FILE=malloc://6
+CMDS=<<EOF
+e asm.arch=c166
+e asm.bits=16
+wx 0156 @ 0
+wx 0012 @ 2
+wx 0012 @ 4
+ao 3~size
+EOF
+EXPECT=<<EOF
+size: 2
+size: 2
+size: 2
+EOF
+RUN
+
+NAME=c166 instruction length 12
+FILE=malloc://24
+CMDS=<<EOF
+e asm.arch=c166
+e asm.bits=16
+e asm.bytes=true
+#e flirt.sigdb.load.system=true
+wx 0012603488560D080B7820560F2440122DFA081208340856 @ 0
+pdq 12
+ao 12~size
+EOF
+EXPECT=<<EOF
+0x00000000                 0012  add r1, r2
+0x00000002                 6034  and r3, r4
+0x00000004                 8856  mov [-r6], r5
+0x00000006                 0d08  jmpr cc_UC, 0x00000018
+0x00000008                 0b78  mul r7, r8
+0x0000000a                 2056  sub r5, r6
+0x0000000c                 0f24  bset 0xfd48.0
+0x0000000e                 4012  cmp r1, r2
+0x00000010                 2dfa  jmpr cc_Z/EQ, 0x00000006
+0x00000012                 0812  add r1, #2
+0x00000014                 0834  add r3, #4
+0x00000016                 0856  add r5, #6
+size: 2
+size: 2
+size: 2
+size: 2
+size: 2
+size: 2
+size: 2
+size: 2
+size: 2
+size: 2
+size: 2
+size: 2
+EOF
+RUN
+
+#NAME=C166 Hello world binary file
+#FILE=bins/c166/hello_world_hex167.bin
+#CMDS=<<EOF
+#e asm.arch=c166
+#pD 4
+#ia
+#flt
+#pd 1221 @ 0
+#EOF
+#EXPECT=<<EOF
+#        ,=< 0x00000000      jmps  0x00, 0x0004
+#EOF
+#RUN
+
+
+
+NAME=c166 instruction length 12
+FILE=malloc://4
+CMDS=<<EOF
+e asm.arch=c166
+wx 645d203d @ 0
+pD 4
+EOF
+EXPECT=<<EOF
+            0x00000000      and   0xfe00:0x3d20, S1RBUF
+EOF
+RUN
