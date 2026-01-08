@@ -16,12 +16,18 @@ typedef double LUA_NUMBER;
 typedef ut64 LUA_INTEGER;
 typedef ut32 LUA_INT;
 
+#define PF_VAHID 1 /* function has hidden vararg arguments */
+#define PF_VATAB 2 /* function has vararg table */
+#define PF_FIXED 4 /* prototype has parts in fixed memory */
+
+/* a vararg function either has hidden args. or a vararg table */
+#define isvararg(flag) (flag & (PF_VAHID | PF_VATAB))
+
 /* Macro Functions */
 /* type casts (a macro highlights casts in the code) */
 #define luac_cast(t, exp) ((t)(exp))
 #define luac_cast_num(i)  luac_cast(double, (i))
 #define luac_cast_int(i)  luac_cast(int, (i))
-
 
 /* Header Part */
 // #define LUAC_52_FORMAT_OFFSET           0x05
@@ -34,7 +40,6 @@ typedef ut32 LUA_INT;
 #define LUAC_52_INTEGER_VALID_OFFSET    0x11 /* from 0x11 - 0x18 : 8 bytes */
 #define LUAC_52_NUMBER_VALID_OFFSET     0x19 /* from 0x19 - 0x20 : 8 bytes */
 #define LUAC_52_UPVALUES_NUMBER_OFFSET  0x21
-
 
 /* Header Part */
 // #define LUAC_53_FORMAT_OFFSET           0x05
@@ -50,8 +55,8 @@ typedef ut32 LUA_INT;
 
 /* luac 5.4 spec */
 /* Header Information */
-#define LUAC_FORMAT_OFFSET           0x05
-#define LUAC_DATA_OFFSET        0x06
+#define LUAC_FORMAT_OFFSET              0x05
+#define LUAC_DATA_OFFSET                0x06
 #define LUAC_54_INSTRUCTION_SIZE_OFFSET 0x0C
 #define LUAC_54_INTEGER_SIZE_OFFSET     0x0D
 #define LUAC_54_NUMBER_SIZE_OFFSET      0x0E
@@ -283,7 +288,6 @@ LuaProto *lua_parse_body_53(RzBuffer *buffer, ut64 offset, ut64 data_size);
 RzBinInfo *lua_parse_header_52(RzBinFile *bf, st32 major, st32 minor);
 LuaProto *lua_parse_body_52(RzBuffer *buffer, ut64 offset, ut64 data_size);
 
-
 ut8 luac_hdrsize(ut8 minor);
 // static
 void lua_load_block(RzBuffer *buffer, void *dest, size_t size, ut64 offset, ut64 data_size);
@@ -292,8 +296,7 @@ ut64 lua_load_integer(RzBuffer *buffer, ut64 offset);
 // static
 double lua_load_number(RzBuffer *buffer, ut64 offset);
 // static ut32 lua_load_int(RzBuffer *buffer, ut64 offset);
-// static
-ut64 lua_parse_name(LuaProto *proto, RzBuffer *buffer, ut64 offset, ut64 data_size, st32 minor);
+// static ut64 lua_parse_name(LuaProto *proto, RzBuffer *buffer, ut64 offset, ut64 data_size, st32 minor);
 LuaProto *lua_parse_body(RzBuffer *buffer, ut64 base_offset, ut64 data_size, st32 minor);
 RzBinInfo *lua_parse_header(const RzBinFile *bf, st32 major, st32 minor);
 

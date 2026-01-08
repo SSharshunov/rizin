@@ -1,3 +1,71 @@
+NAME=LUAC: plugin load 5.1 version
+FILE=bins/luac/class51.luac
+CMDS=<<EOF
+e asm.arch=luac
+e asm.bytes=true
+iH
+EOF
+EXPECT=<<EOF
+luac-info:
+  version:
+    major: 5
+    minor: 1
+  compiler: "Official Lua Compiler"
+  header_size: 11
+  body_size: 690
+  file_size: 701
+  protos:
+    fcn.0000000c:
+      proto_name: "main.0000000c"
+      start_line: 0
+      last_line: 0
+      instructions: 21
+      num_params: 0
+      slots: 3
+      functions: 2
+      locals: 0
+      upvalues: 0
+      constants_count: 7
+      constants:
+        - "Account"
+        - "__index"
+        - "create"
+        - "withdraw"
+        - "acc"
+        - ""
+        - ""
+    fcn.000000ee:
+      proto_name: "fcn.000000ee"
+      start_line: 4
+      last_line: 9
+      instructions: 8
+      num_params: 2
+      slots: 6
+      functions: 0
+      locals: 3
+      upvalues: 0
+      constants_count: 3
+      constants:
+        - "setmetatable"
+        - "Account"
+        - "balance"
+    fcn.000001d4:
+      proto_name: "fcn.000001d4"
+      start_line: 11
+      last_line: 13
+      instructions: 4
+      num_params: 2
+      slots: 3
+      functions: 0
+      locals: 2
+      upvalues: 0
+      constants_count: 1
+      constants:
+        - "balance"
+
+EOF
+RUN
+
 NAME=LUAC: plugin load 5.2 version
 FILE=bins/luac/class52.luac
 CMDS=<<EOF
@@ -15,14 +83,15 @@ luac-info:
   body_size: 751
   file_size: 768
   protos:
-    class.lua:
-      proto_name: "class.lua"
+    fcn.00000012:
+      proto_name: "main.00000012"
       start_line: 0
       last_line: 0
       instructions: 21
       num_params: 0
       slots: 3
-      functions: 1
+      functions: 2
+      locals: 0
       upvalues: 1
       constants_count: 7
       constants:
@@ -33,6 +102,34 @@ luac-info:
         - "acc"
         - ""
         - ""
+    fcn.000000e0:
+      proto_name: "fcn.000000e0"
+      start_line: 4
+      last_line: 9
+      instructions: 8
+      num_params: 2
+      slots: 6
+      functions: 0
+      locals: 3
+      upvalues: 1
+      constants_count: 3
+      constants:
+        - "setmetatable"
+        - "Account"
+        - "balance"
+    fcn.000001e3:
+      proto_name: "fcn.000001e3"
+      start_line: 11
+      last_line: 13
+      instructions: 4
+      num_params: 2
+      slots: 3
+      functions: 0
+      locals: 2
+      upvalues: 0
+      constants_count: 1
+      constants:
+        - "balance"
 
 EOF
 RUN
@@ -50,19 +147,20 @@ luac-info:
     major: 5
     minor: 3
   compiler: "Official Lua Compiler"
-  source_file_name: "@class.lua"
+  source_file_name: "class.lua"
   header_size: 33
   body_size: 588
   file_size: 621
   protos:
-    class.lua:
-      proto_name: "class.lua"
+    fcn.00000022:
+      proto_name: "main.00000022"
       start_line: 0
       last_line: 0
       instructions: 21
       num_params: 0
       slots: 3
       functions: 2
+      locals: 0
       upvalues: 1
       constants_count: 8
       constants:
@@ -82,6 +180,7 @@ luac-info:
       num_params: 2
       slots: 6
       functions: 0
+      locals: 3
       upvalues: 1
       constants_count: 3
       constants:
@@ -96,6 +195,7 @@ luac-info:
       num_params: 2
       slots: 3
       functions: 0
+      locals: 2
       upvalues: 0
       constants_count: 1
       constants:
@@ -104,7 +204,7 @@ luac-info:
 EOF
 RUN
 
-NAME=LUAC: plugin load 5.3 version SimpleStats53
+NAME=LUAC: plugin load 5.3 version SimpleStats53 (wrong!!!)
 FILE=bins/luac/SimpleStats53.luac
 CMDS=<<EOF
 e asm.arch=luac
@@ -117,19 +217,20 @@ luac-info:
     major: 5
     minor: 3
   compiler: "Official Lua Compiler"
-  source_file_name: "@SimpleStats.lua"
+  source_file_name: "SimpleStats.lua"
   header_size: 33
   body_size: 2964
   file_size: 2997
   protos:
-    SimpleStats.lua:
-      proto_name: "SimpleStats.lua"
+    fcn.00000022:
+      proto_name: "main.00000022"
       start_line: 0
       last_line: 0
       instructions: 18
       num_params: 0
       slots: 2
-      functions: 2
+      functions: 5
+      locals: 0
       upvalues: 1
       constants_count: 7
       constants:
@@ -148,6 +249,7 @@ luac-info:
       num_params: 1
       slots: 10
       functions: 0
+      locals: 8
       upvalues: 1
       constants_count: 5
       constants:
@@ -164,6 +266,7 @@ luac-info:
       num_params: 1
       slots: 12
       functions: 0
+      locals: 19
       upvalues: 1
       constants_count: 6
       constants:
@@ -180,6 +283,7 @@ luac-info:
       num_params: 1
       slots: 10
       functions: 0
+      locals: 7
       upvalues: 1
       constants_count: 12
       constants:
@@ -203,6 +307,7 @@ luac-info:
       num_params: 1
       slots: 13
       functions: 0
+      locals: 11
       upvalues: 1
       constants_count: 9
       constants:
@@ -223,6 +328,7 @@ luac-info:
       num_params: 1
       slots: 11
       functions: 0
+      locals: 8
       upvalues: 1
       constants_count: 7
       constants:
@@ -250,19 +356,20 @@ luac-info:
     major: 5
     minor: 4
   compiler: "Official Lua Compiler"
-  source_file_name: "@class.lua"
+  source_file_name: "class.lua"
   header_size: 31
   body_size: 385
   file_size: 416
   protos:
-    class.lua:
-      proto_name: "class.lua"
+    fcn.00000020:
+      proto_name: "main.00000020"
       start_line: 0
       last_line: 0
       instructions: 23
       num_params: 0
       slots: 3
-      functions: 1
+      functions: 2
+      locals: 0
       upvalues: 1
       constants_count: 6
       constants:
@@ -280,6 +387,7 @@ luac-info:
       num_params: 2
       slots: 6
       functions: 0
+      locals: 3
       upvalues: 1
       constants_count: 3
       constants:
@@ -294,6 +402,7 @@ luac-info:
       num_params: 2
       slots: 3
       functions: 0
+      locals: 2
       upvalues: 0
       constants_count: 1
       constants:
@@ -314,30 +423,136 @@ luac-info:
   version:
     major: 5
     minor: 5
+  compiler: "Official Lua Compiler"
+  header_size: 40
+  body_size: 370
+  file_size: 410
   protos:
-    offset: 32
-    size: 385
-    proto_name: "@class.lua"
-    compiler: "Official Lua Compiler"
-    source_file_name: "@class.lua"
-    start_line: 0
-    last_line: 0
-    instructions: 23
-    num_params: 0
-    slots: 3
-    is_vararg: 1
-    upvalues: 1
-    constants_count: 6
-  constants:
-    - "Account"
-    - "__index"
-    - "create"
-    - "Account"
-    - "withdraw"
-    - "acc"
+    fcn.00000029:
+      proto_name: "main.00000029"
+      start_line: 0
+      last_line: 0
+      instructions: 23
+      num_params: 0
+      slots: 3
+      functions: 2
+      locals: 0
+      upvalues: 1
+      constants_count: 5
+      constants:
+        - "Account"
+        - "__index"
+        - "create"
+        - "withdraw"
+        - "acc"
+    fcn.000000c0:
+      proto_name: "fcn.000000c0"
+      start_line: 4
+      last_line: 9
+      instructions: 9
+      num_params: 2
+      slots: 6
+      functions: 0
+      locals: 3
+      upvalues: 1
+      constants_count: 3
+      constants:
+        - "setmetatable"
+        - "balance"
+    fcn.00000141:
+      proto_name: "fcn.00000141"
+      start_line: 11
+      last_line: 13
+      instructions: 5
+      num_params: 2
+      slots: 3
+      functions: 0
+      locals: 2
+      upvalues: 0
+      constants_count: 1
+      constants: []
 
 EOF
 RUN
+
+
+NAME=LUAC: plugin load long string check 5.1 version
+FILE=bins/luac/test_long_string51.luac
+CMDS=<<EOF
+e asm.arch=luac
+e asm.bytes=true
+iH~hello
+#i~guid,machine
+iH~?hello
+EOF
+EXPECT=<<EOF
+        - "Hello long string long_string_long_string_long_string_long_string_long_string_long_string_long_string_long_string_long_string_long_string_long_string_long_string_long_string_long_string_long_string_long_string_long_string_long_string_long_string_long_string_long_string_long_string_"
+1
+EOF
+RUN
+
+
+NAME=LUAC: plugin load long string check 5.2 version
+FILE=bins/luac/test_long_string52.luac
+CMDS=<<EOF
+e asm.arch=luac
+e asm.bytes=true
+iH~hello
+#i~guid,machine
+iH~?hello
+EOF
+EXPECT=<<EOF
+        - "Hello long string long_string_long_string_long_string_long_string_long_string_long_string_long_string_long_string_long_string_long_string_long_string_long_string_long_string_long_string_long_string_long_string_long_string_long_string_long_string_long_string_long_string_long_string_"
+1
+EOF
+RUN
+
+
+NAME=LUAC: plugin load long string check 5.3 version
+FILE=bins/luac/test_long_string53.luac
+CMDS=<<EOF
+e asm.arch=luac
+e asm.bytes=true
+iH~hello
+#i~guid,machine
+iH~?hello
+EOF
+EXPECT=<<EOF
+        - "Hello long string long_string_long_string_long_string_long_string_long_string_long_string_long_string_long_string_long_string_long_string_long_string_long_string_long_string_long_string_long_string_long_string_long_string_long_string_long_string_long_string_long_string_long_string_"
+1
+EOF
+RUN
+
+NAME=LUAC: plugin load 5.4 version
+FILE=bins/luac/test_long_string54.luac
+CMDS=<<EOF
+e asm.arch=luac
+e asm.bytes=true
+iH~hello
+#i~guid,machine
+iH~?hello
+EOF
+EXPECT=<<EOF
+        - "Hello long string long_string_long_string_long_string_long_string_long_string_long_string_long_string_long_string_long_string_long_string_long_string_long_string_long_string_long_string_long_string_long_string_long_string_long_string_long_string_long_string_long_string_long_string_"
+1
+EOF
+RUN
+
+# NAME=tbh jump table
+# FILE=malloc://16
+# CMDS=<<EOF
+# e asm.arch=luac
+# e asm.bytes=true
+# e cfg.wseek=true
+# wx 13010000
+# pd
+# EOF
+# EXPECT=<<EOF
+# 0x0000002e switch table (92 cases) at 0x32
+# EOF
+# RUN
+
+
 
 # NAME=LUAC: plugin load
 # FILE=bins/luac/class55.luac

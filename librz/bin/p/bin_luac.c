@@ -121,15 +121,53 @@ static void destroy(RzBinFile *bf) {
 }
 
 static RzStructuredData *get_structured_data_protos(RzStructuredData *parent, LuaProto *proto) {
-	const char *pn = proto->proto_name ? rz_str_dup((char*)proto->proto_name + 1) : rz_str_newf("fcn.%08llx", proto->offset);
-	RzStructuredData *sd = rz_structured_data_map_add_map(parent, pn);
+#ifdef RZ_DEBUG
+	const char *pnd = proto->proto_name ? rz_str_dup((char *)proto->proto_name + 1) : rz_str_newf("fcn.%08llx", proto->offset);
+	printf("\n%s <%s:%lld,%lld> (%lld instructions at 0x%p)\n",
+		(proto->line_defined == 0) ? "main" : "function",
+		pnd,
+		proto->line_defined,
+		proto->lastline_defined,
+		proto->code_size / 4,
+		&proto);
+	free((char *)pnd);
+
+	printf("%d%s param%s, %d slots, %d upvalues, %d locals, %d constants, %d functions\n",
+		proto->num_params,
+		isvararg(proto->is_vararg) ? "+" : "",
+		(proto->num_params > 1) ? "s" : "",
+		proto->max_stack_size,
+		proto->upvalue_entries->length,
+		proto->local_var_info_entries->length,
+		proto->const_entries->length,
+		proto->proto_entries->length);
+	printf("constants (%d)\n",
+		proto->const_entries->length);
+	RzListIter *it;
+	LuaConstEntry *val;
+	int i = 0;
+	(void)i;
+	rz_list_foreach (proto->const_entries, it, val) {
+		if (val)
+			printf("%d	%s\n", ++i, (char *)val->data);
+	}
+#endif
+
+	const char *key = rz_str_newf("fcn.%08llx", proto->offset);
+	RzStructuredData *sd = rz_structured_data_map_add_map(parent, key);
+	free((char *)key);
 	if (!sd) {
-		free((char *)pn);
+		// free((char *)key);
 		return NULL;
 	}
 
+	/* May be no need */
+
+	// const char *pn = proto->proto_name ? rz_str_dup((char*)proto->proto_name + 1) : rz_str_newf(proto->line_defined ? "fcn.%08llx" : "main.%08llx",  proto->offset);
+	const char *pn = rz_str_newf(proto->line_defined ? "fcn.%08llx" : "main.%08llx", proto->offset);
 	rz_structured_data_map_add_string(sd, "proto_name", pn);
 	free((char *)pn);
+	/**/
 
 	rz_structured_data_map_add_unsigned(sd, "start_line", proto->line_defined, false);
 	rz_structured_data_map_add_unsigned(sd, "last_line", proto->lastline_defined, false);
@@ -137,7 +175,8 @@ static RzStructuredData *get_structured_data_protos(RzStructuredData *parent, Lu
 
 	rz_structured_data_map_add_unsigned(sd, "num_params", proto->num_params, false);
 	rz_structured_data_map_add_unsigned(sd, "slots", proto->max_stack_size, false);
-	rz_structured_data_map_add_unsigned(sd, "functions", proto->is_vararg, false);
+	rz_structured_data_map_add_unsigned(sd, "functions", proto->proto_entries->length, false);
+	rz_structured_data_map_add_unsigned(sd, "locals", proto->local_var_info_entries->length, false);
 	rz_structured_data_map_add_unsigned(sd, "upvalues", proto->upvalue_entries->length, false);
 	rz_structured_data_map_add_unsigned(sd, "constants_count", proto->const_entries->length, false);
 

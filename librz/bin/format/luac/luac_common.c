@@ -9,7 +9,7 @@ ut8 luac_hdrsize(ut8 minor) {
 	ut8 regular = strlen(LUAC_MAGIC) + 2 /* version */ + strlen(LUAC_DATA);
 	switch (minor) {
 	case 0x1:
-		return regular + 8; // 0x14;
+		return strlen(LUAC_MAGIC) + 2 /* version */ + 6; // regular + 8; // 0x14;
 	case 0x2:
 		return regular + 6;
 	case 0x3:
@@ -17,7 +17,7 @@ ut8 luac_hdrsize(ut8 minor) {
 	case 0x4:
 		return regular + 20; // 0x20;
 	case 0x5:
-		return regular; // 0x0c;
+		return 0x29; // 0x0c;
 	default:
 		rz_warn_if_reached();
 		return -1;
