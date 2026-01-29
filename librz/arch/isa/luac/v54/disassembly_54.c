@@ -136,7 +136,7 @@ int lua54_disasm(RzAsmOp *op, const ut8 *buf, int len, LuaOpNameList opnames) {
 		break;
 
 	case OP_RETURN0: /*		return						*/
-		asm_string = rz_str_newf("return0");
+		asm_string = rz_str_dup(opnames[opcode]);
 		break;
 
 		/* iABx instructions */

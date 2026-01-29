@@ -47,8 +47,8 @@ LuaOpNameList get_lua55_opnames(void) {
 	list[OP_BANDK] = "bandk",
 	list[OP_BORK] = "bork",
 	list[OP_BXORK] = "bxork",
-	list[OP_SHRI] = "shri",
 	list[OP_SHLI] = "shli",
+	list[OP_SHRI] = "shri",
 	list[OP_ADD] = "add",
 	list[OP_SUB] = "sub",
 	list[OP_MUL] = "mul",
@@ -96,6 +96,8 @@ LuaOpNameList get_lua55_opnames(void) {
 	list[OP_SETLIST] = "setlist",
 	list[OP_CLOSURE] = "closure",
 	list[OP_VARARG] = "vararg",
+	list[OP_GETVARG] = "getvarg",
+	list[OP_ERRNNIL] = "errnnil",
 	list[OP_VARARGPREP] = "varargprep",
 	list[OP_EXTRAARG] = "extraarg",
 	list[LUA_NUM_OPCODES] = NULL;
@@ -207,6 +209,8 @@ ut8 get_lua55_opcode_by_name(const char *name, int limit) {
 	lua_strcase("closure") return OP_CLOSURE;
 
 	lua_strcase("vararg") return OP_VARARG;
+	lua_strcase("getvarg") return OP_GETVARG;
+	lua_strcase("errnnil") return OP_ERRNNIL;
 
 	lua_strcase("varargprep") return OP_VARARGPREP;
 

@@ -101,7 +101,7 @@ int lua55_disasm(RzAsmOp *op, const ut8 *buf, int len, LuaOpNameList opnames) {
 	case OP_LE: /*	        A B k	if ((R[A] <= R[B]) ~= k) then pc++		*/
 	case OP_TESTSET: /*	A B k	if (not R[B] == k) then pc++ else R[A] := R[B]	*/
 	case OP_EQK: /*	        A B k	if ((R[A] == K[B]) ~= k) then pc++		*/
-		asm_string = luaop_new_str_2arg_ex(opnames[opcode], a, b, isk);
+		asm_string = luaop_new_str_2arg_ex_ki(opnames[opcode], a, b, isk);
 		break;
 		/* iABC - A & sB with k instructions */
 	case OP_EQI: /*	        A sB k	if ((R[A] == sB) ~= k) then pc++		*/
@@ -109,7 +109,7 @@ int lua55_disasm(RzAsmOp *op, const ut8 *buf, int len, LuaOpNameList opnames) {
 	case OP_LEI: /*	        A sB k	if ((R[A] <= sB) ~= k) then pc++		*/
 	case OP_GTI: /*	        A sB k	if ((R[A] > sB) ~= k) then pc++			*/
 	case OP_GEI: /*	        A sB k	if ((R[A] >= sB) ~= k) then pc++		*/
-		asm_string = luaop_new_str_2arg_ex(opnames[opcode], a, sb, isk);
+		asm_string = luaop_new_str_2arg_ex_ki(opnames[opcode], a, sb, isk);
 		break;
 
 		/* iABC - A & C instructions */
@@ -136,7 +136,7 @@ int lua55_disasm(RzAsmOp *op, const ut8 *buf, int len, LuaOpNameList opnames) {
 		break;
 
 	case OP_RETURN0: /*		return						*/
-		asm_string = rz_str_newf("RETURN0");
+		asm_string = rz_str_dup(opnames[opcode]);
 		break;
 
 		/* iABx instructions */
