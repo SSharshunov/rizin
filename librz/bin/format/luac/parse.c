@@ -668,7 +668,7 @@ LuaProto *lua_parse_body(RzBuffer *buffer, LuaHeaderInfo *header, ut64 base_offs
 		RZ_LOG_ERROR("Truncated Header (line: %d)\n", __LINE__); \
 		return 0; \
 	}
-// static
+
 size_t parse_header(const RzBinFile *bf, LuaHeaderInfo *header) {
 	RzBuffer *buffer = bf->buf;
 	ut8 major_minor_version = 0x00;
@@ -822,7 +822,6 @@ size_t parse_header(const RzBinFile *bf, LuaHeaderInfo *header) {
 		(void)test_valid;
 		CHECK_SIZE;
 		/*
-		printf("integer: %llx\n", test_valid);
 		if (test_valid != LUAC5_INT_VALIDATION) {
 			RZ_LOG_ERROR("Integer format does not match with the expected integer\n");
 			return NULL;

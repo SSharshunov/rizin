@@ -11,6 +11,12 @@
 #include <stddef.h>
 #include "../lua_arch.h"
 
+/*
+** type for virtual-machine instructions
+** must be an unsigned with (at least) 4 bytes (see details in lopcodes.h)
+*/
+typedef unsigned long Instruction;
+
 /*===========================================================================
   We assume that instructions are unsigned numbers.
   All instructions have an opcode in the first 6 bits.
@@ -27,6 +33,7 @@
   unsigned argument.
 ===========================================================================*/
 
+/* basic instruction format */
 typedef enum {
 	iABC,
 	iABx,
@@ -34,12 +41,10 @@ typedef enum {
 } LuaOpMode;
 
 /* parameter flags */
-#define PARAM_A   1
-#define PARAM_B   2
-#define PARAM_C   4
-#define PARAM_Ax  8
-#define PARAM_Bx  16
-#define PARAM_sBx 32
+#define PARAM_A     1
+#define PARAM_B     2
+#define PARAM_C     4
+#define PARAM_iAsBx 8
 
 #define has_param_flag(flag, bit) ((flag) & (bit)) ? true : false
 
@@ -51,12 +56,12 @@ typedef enum {
 
 #define SIZE_OP 6
 
-#define POS_OP 0
-#define POS_A  (POS_OP + SIZE_OP)
-#define POS_C  (POS_A + SIZE_A)
+#define POS_C  SIZE_OP
 #define POS_B  (POS_C + SIZE_C)
 #define POS_Bx POS_C
-#define POS_Ax POS_A
+#define POS_A  (POS_B + SIZE_B)
+
+#define POS_OP 0
 
 /*
 ** Macros to operate RK indices
@@ -83,7 +88,7 @@ typedef enum {
 	------------------------------------------------------------------------*/
 	OP_MOVE, /*      A B     R(A) := R(B)                                    */
 	OP_LOADK, /*     A Bx    R(A) := Kst(Bx)                                 */
-	OP_LOADBOOL, /*  A B C   R(A) := (Bool)B; if (C) pc++                    */
+	OP_LOADBOOL, /*  A B C   R(A) := (Bool)B; if (C) PC++                    */
 	OP_LOADNIL, /*   A B     R(A) := ... := R(B) := nil                      */
 	OP_GETUPVAL, /*  A B     R(A) := UpValue[B]                              */
 
@@ -102,88 +107,66 @@ typedef enum {
 	OP_SUB, /*       A B C   R(A) := RK(B) - RK(C)                           */
 	OP_MUL, /*       A B C   R(A) := RK(B) * RK(C)                           */
 	OP_DIV, /*       A B C   R(A) := RK(B) / RK(C)                           */
-	OP_MOD, /*       A B C   R(A) := RK(B) % RK(C)                           */
 	OP_POW, /*       A B C   R(A) := RK(B) ^ RK(C)                           */
 	OP_UNM, /*       A B     R(A) := -R(B)                                   */
 	OP_NOT, /*       A B     R(A) := not R(B)                                */
-	OP_LEN, /*       A B     R(A) := length of R(B)                          */
 
 	OP_CONCAT, /*    A B C   R(A) := R(B).. ... ..R(C)                       */
 
-	OP_JMP, /*       sBx     pc+=sBx                                 */
+	OP_JMP, /*       sBx     PC += sBx                                       */
 
 	OP_EQ, /*        A B C   if ((RK(B) == RK(C)) ~= A) then pc++            */
 	OP_LT, /*        A B C   if ((RK(B) <  RK(C)) ~= A) then pc++            */
 	OP_LE, /*        A B C   if ((RK(B) <= RK(C)) ~= A) then pc++            */
 
-	OP_TEST, /*      A C     if not (R(A) <=> C) then pc++                   */
-	OP_TESTSET, /*   A B C   if (R(B) <=> C) then R(A) := R(B) else pc++     */
+	OP_TEST, /*      A B C   if (R(B) <=> C) then R(A) := R(B) else pc++     */
 
 	OP_CALL, /*      A B C   R(A), ... ,R(A+C-2) := R(A)(R(A+1), ... ,R(A+B-1)) */
 	OP_TAILCALL, /*  A B C   return R(A)(R(A+1), ... ,R(A+B-1))              */
 	OP_RETURN, /*    A B     return R(A), ... ,R(A+B-2)      (see note)      */
 
-	OP_FORLOOP, /*   A sBx   R(A)+=R(A+2);
-				if R(A) <?= R(A+1) then { pc+=sBx; R(A+3)=R(A) }*/
-	OP_FORPREP, /*   A sBx   R(A)-=R(A+2); pc+=sBx                           */
+	OP_FORLOOP, /*   A sBx   R(A)+=R(A+2); if R(A) <?= R(A+1) then PC+= sBx  */
 
-	OP_TFORLOOP, /*  A C     R(A+3), ... ,R(A+2+C) := R(A)(R(A+1), R(A+2));
-				if R(A+3) ~= nil then R(A+2)=R(A+3) else pc++   */
-	OP_SETLIST, /*   A B C   R(A)[(C-1)*FPF+i] := R(A+i), 1 <= i <= B        */
+	OP_TFORLOOP, /*  A C     R(A+2), ... ,R(A+2+C) := R(A)(R(A+1), R(A+2));
+					if R(A+2) ~= nil then pc++ */
+	OP_TFORPREP, /*  A sBx   if type(R(A)) == table then R(A+1):=R(A), R(A):=next;
+				PC += sBx                                       */
+	OP_SETLIST, /*   A Bx    R(A)[Bx-Bx%FPF+i] := R(A+i), 1 <= i <= Bx%FPF+1 */
+	OP_SETLISTO, /*  A Bx                                                    */
 
 	OP_CLOSE, /*     A       close all variables in the stack up to (>=) R(A)*/
 	OP_CLOSURE, /*   A Bx    R(A) := closure(KPROTO[Bx], R(A), ... ,R(A+n))  */
-
-	OP_VARARG /*     A B     R(A), R(A+1), ..., R(A+B-1) = vararg            */
 } LuaOpCode;
 
-#define LUA_NUM_OPCODES ((int)(OP_VARARG) + 1)
+#define LUA_NUM_OPCODES ((int)(OP_CLOSURE) + 1)
 
 /*===========================================================================
   Notes:
-  (*) In OP_CALL, if (B == 0) then B = top. C is the number of returns - 1,
+  (1) In OP_CALL, if (B == 0) then B = top. C is the number of returns - 1,
       and can be 0: OP_CALL then sets `top' to last_result+1, so
       next open instruction (OP_CALL, OP_RETURN, OP_SETLIST) may use `top'.
 
-  (*) In OP_VARARG, if (B == 0) then use actual number of varargs and
-      set top (like in OP_CALL with C == 0).
+  (2) In OP_RETURN, if (B == 0) then return up to `top'
 
-  (*) In OP_RETURN, if (B == 0) then return up to `top'
+  (3) For comparisons, B specifies what conditions the test should accept.
 
-  (*) In OP_SETLIST, if (B == 0) then B = `top';
-      if (C == 0) then next `instruction' is real C
-
-  (*) For comparisons, A specifies what condition the test should accept
-      (true or false).
-
-  (*) All `skips' (pc++) assume that next instruction is a jump
+  (4) All `skips' (pc++) assume that next instruction is a jump
 ===========================================================================*/
 
 /*
-** masks for instruction properties. The format is:
-** bits 0-1: op mode
-** bits 2-3: C arg mode
-** bits 4-5: B arg mode
-** bit 6: instruction set register A
-** bit 7: operator is a test
+** masks for instruction properties
 */
-
-enum OpArgMask {
-	OpArgN, /* argument is not used */
-	OpArgU, /* argument is used */
-	OpArgR, /* argument is a register or a jump offset */
-	OpArgK /* argument is a constant or register/constant */
+enum OpModeMask {
+	OpModeBreg = 2, /* B is a register */
+	OpModeBrk, /* B is a register/constant */
+	OpModeCrk, /* C is a register/constant */
+	OpModesetA, /* instruction set register A */
+	OpModeK, /* Bx is a constant */
+	OpModeT /* operator is a test */
 };
 
-extern const ut8 luaP_opmodes51[LUA_NUM_OPCODES];
-
-#define opmode(t, a, b, c, m) (((t) << 7) | ((a) << 6) | ((b) << 4) | ((c) << 2) | (m))
-
-#define getOpMode(m) (cast(LuaOpMode, luaP_opmodes51[m] & 3))
-#define getBMode(m)  (cast(enum OpArgMask, (luaP_opmodes51[m] >> 4) & 3))
-#define getCMode(m)  (cast(enum OpArgMask, (luaP_opmodes51[m] >> 2) & 3))
-#define testAMode(m) (luaP_opmodes51[m] & (1 << 6))
-#define testTMode(m) (luaP_opmodes51[m] & (1 << 7))
+#define getOpMode(m)     (cast(enum OpMode, luaP_opmodes50[m] & 3))
+#define testOpMode(m, b) (luaP_opmodes50[m] & (1 << (b)))
 
 #define MYK(x) (-1 - (x))
 

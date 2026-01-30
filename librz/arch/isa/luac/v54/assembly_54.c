@@ -16,7 +16,7 @@ static LuaInstruction encode_instruction(ut8 opcode, const char *arg_start, ut16
 		if (ptr != NULL) {
 			*ptr = '\0';
 			args[i] = lua_convert_str_to_num(buffer);
-			args[arg_num] = 1;
+			args[i + 1] = 1;
 			arg_num++;
 			flag |= PARAM_k;
 			break;

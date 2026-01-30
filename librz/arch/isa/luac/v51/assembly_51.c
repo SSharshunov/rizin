@@ -10,15 +10,10 @@ static LuaInstruction encode_instruction(ut8 opcode, const char *arg_start, ut16
 	int args[3];
 	char buffer[64]; // buffer for digits
 	int cur_cnt = 0;
-	int delta_offset;
 	int temp;
 
-	if (arg_num > sizeof(args)) {
-		return -1;
-	}
-
 	for (int i = 0; i < arg_num; ++i) {
-		delta_offset = lua_load_next_arg_start(arg_start, buffer);
+		const int delta_offset = lua_load_next_arg_start(arg_start, buffer);
 		if (delta_offset == 0) {
 			return -1;
 		}
@@ -28,6 +23,24 @@ static LuaInstruction encode_instruction(ut8 opcode, const char *arg_start, ut16
 		} else {
 			return -1;
 		}
+	}
+
+	switch (getOpMode(opcode)) {
+	case iABC:
+		if (getBMode(opcode) != OpArgN) {
+			args[1] = ISK(args[1]) ? (MYK(INDEXK(args[1]))) : args[1];
+		}
+		if (getCMode(opcode) != OpArgN) {
+			args[2] = ISK(args[2]) ? (MYK(INDEXK(args[2]))) : args[2];
+		}
+		break;
+	case iABx:
+		if (getBMode(opcode) == OpArgK) {
+			args[1] = MYK(args[1]);
+		}
+		break;
+	case iAsBx:
+		break;
 	}
 
 	SET_OPCODE(instruction, opcode);
@@ -65,8 +78,8 @@ bool lua51_assembly(const char *input, st32 input_size, LuaInstruction *instruct
 		opcode_end = input + input_size;
 	}
 
-	int opcode_len = opcode_end - opcode_start;
-	ut8 opcode = get_lua52_opcode_by_name(opcode_start, opcode_len);
+	const int opcode_len = opcode_end - opcode_start;
+	const ut8 opcode = get_lua51_opcode_by_name(opcode_start, opcode_len);
 
 	/* Find the arguments */
 	const char *arg_start = rz_str_trim_head_ro(opcode_end);
@@ -88,6 +101,8 @@ bool lua51_assembly(const char *input, st32 input_size, LuaInstruction *instruct
 		instruction = encode_instruction(opcode, arg_start, PARAM_A | PARAM_C, 2);
 		break;
 	case OP_LOADK:
+	case OP_GETGLOBAL:
+	case OP_SETGLOBAL:
 	case OP_CLOSURE:
 		instruction = encode_instruction(opcode, arg_start, PARAM_A | PARAM_Bx, 2);
 		break;
@@ -98,6 +113,7 @@ bool lua51_assembly(const char *input, st32 input_size, LuaInstruction *instruct
 	case OP_SETLIST:
 	case OP_LOADBOOL:
 	case OP_SELF:
+	case OP_SETTABLE:
 	case OP_ADD:
 	case OP_SUB:
 	case OP_MUL:

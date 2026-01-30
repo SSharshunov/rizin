@@ -3,11 +3,11 @@
 // SPDX-FileCopyrightText: 2021 Heersin <teablearcher@gmail.com>
 // SPDX-FileCopyrightText: 2025-2026 Sergey Sharshunov <s.sharshunov@gmail.com>
 
-#include "arch_51.h"
+#include "arch_50.h"
 
-int lua51_disasm(RzAsmOp *op, const ut8 *buf, int len, LuaOpNameList opnames) {
+int lua50_disasm(RzAsmOp *op, const ut8 *buf, int len, LuaOpNameList opnames) {
 	if (len < 4) {
-		RZ_LOG_DEBUG("Cannot disassemble lua51 opcode (truncated).\n");
+		RZ_LOG_DEBUG("Cannot disassemble lua52 opcode (truncated).\n");
 		return 0;
 	}
 	ut32 instruction = rz_read_at_le32(buf, 0);
@@ -29,59 +29,51 @@ int lua51_disasm(RzAsmOp *op, const ut8 *buf, int len, LuaOpNameList opnames) {
 
 	char *asm_string;
 
-	switch (getOpMode(opcode)) {
-	case iABC:
-		if (getBMode(opcode) != OpArgN) {
-			b = ISK(b) ? (MYK(INDEXK(b))) : b;
-		}
-		if (getCMode(opcode) != OpArgN) {
-			c = ISK(c) ? (MYK(INDEXK(c))) : c;
-		}
-		break;
-	case iABx:
-		if (getBMode(opcode) == OpArgK) {
-			bx = MYK(bx);
-		}
-		break;
-	case iAsBx:
-		break;
-	}
-
 	switch (opcode) {
-	case OP_MOVE: /*      A B     R(A) := R(B)                                    */
+	case OP_CLOSE: /*     A       close all variables in the stack up to (>=) R(A)*/
+		asm_string = luaop_new_str_1arg(opnames[opcode], a);
+		break;
+	case OP_JMP: /*       sBx     PC += sBx                                       */
+		asm_string = luaop_new_str_1arg(opnames[opcode], sbx);
+		break;
 	case OP_SETUPVAL: /*  A B     UpValue[B] := R(A)                              */
 	case OP_UNM: /*       A B     R(A) := -R(B)                                   */
 	case OP_NOT: /*       A B     R(A) := not R(B)                                */
-	case OP_LEN: /*       A B     R(A) := length of R(B)                          */
-	case OP_LOADNIL: /*   A B     R(A), R(A+1), ..., R(A+B) := nil                */
-	case OP_RETURN: /*    A B     return R(A), ... ,R(A+B-2)      (see note)      */
-	case OP_VARARG: /*    A B     R(A), R(A+1), ..., R(A+B-2) = vararg            */
+	case OP_LOADNIL: /*   A B     R(A) := ... := R(B) := nil                      */
 	case OP_GETUPVAL: /*  A B     R(A) := UpValue[B]                              */
 		asm_string = luaop_new_str_2arg(opnames[opcode], a, b);
 		break;
-	case OP_TEST: /*      A C     if not (R(A) <=> C) then pc++                   */
+	case OP_TFORLOOP: /*  A C     R(A+2), ... ,R(A+2+C) := R(A)(R(A+1), R(A+2));
+			if R(A+2) ~= nil then pc++                      */
 		asm_string = luaop_new_str_2arg(opnames[opcode], a, c);
 		break;
-	case OP_SETGLOBAL: /*    A Bx      Gbl[Kst(Bx)] := R(A)                          */
-	case OP_GETGLOBAL: /*    A Bx    R(A) := Gbl[Kst(Bx)]                          */
+	case OP_SETGLOBAL: /* A Bx    Gbl[Kst(Bx)] := R(A)                            */
+	case OP_GETGLOBAL: /* A Bx    R(A) := Gbl[Kst(Bx)]                            */
 	case OP_LOADK: /*     A Bx    R(A) := Kst(Bx)                                 */
-	case OP_CLOSURE: /*   A Bx    R(A) := closure(KPROTO[Bx])                     */
+		bx = ISK(b) ? (MYK(INDEXK(bx))) : bx;
 		asm_string = luaop_new_str_2arg(opnames[opcode], a, bx);
 		break;
+	case OP_SETLIST: /*   A Bx    R(A)[Bx-Bx%FPF+i] := R(A+i), 1 <= i <= Bx%FPF+1 */
+	case OP_SETLISTO: /*  A Bx                                                    */
+	case OP_CLOSURE: /*   A Bx    R(A) := closure(KPROTO[Bx], R(A), ... ,R(A+n))  */
+		asm_string = luaop_new_str_2arg(opnames[opcode], a, bx);
+		break;
+	case OP_RETURN: /*    A B     return R(A), ... ,R(A+B-2)      (see note)      */
+	case OP_MOVE: /*      A B     R(A) := R(B)                                    */
+	case OP_TEST: /*      A B C   if (R(B) <=> C) then R(A) := R(B) else pc++     */
 	case OP_CONCAT: /*    A B C   R(A) := R(B).. ... ..R(C)                       */
-	case OP_TESTSET: /*   A B C   if (R(B) <=> C) then R(A) := R(B) else pc++     */
 	case OP_CALL: /*      A B C   R(A), ... ,R(A+C-2) := R(A)(R(A+1), ... ,R(A+B-1)) */
 	case OP_NEWTABLE: /*  A B C   R(A) := {} (size = B,C)                         */
-	case OP_SETLIST: /*   A B C   R(A)[(C-1)*FPF+i] := R(A+i), 1 <= i <= B        */
 	case OP_LOADBOOL: /*  A B C   R(A) := (Bool)B; if (C) pc++                    */
 	case OP_SELF: /*      A B C   R(A+1) := R(B); R(A) := R(B)[RK(C)]             */
+	case OP_GETTABLE: /*  A B C   R(A) := R(B)[RK(C)]                             */
+	case OP_TAILCALL: /*  A B C   return R(A)(R(A+1), ... ,R(A+B-1))              */
 		asm_string = luaop_new_str_3arg(opnames[opcode], a, b, c);
 		break;
 	case OP_SETTABLE: /*  A B C   R(A)[RK(B)] := RK(C)                            */
 	case OP_ADD: /*       A B C   R(A) := RK(B) + RK(C)                           */
 	case OP_SUB: /*       A B C   R(A) := RK(B) - RK(C)                           */
 	case OP_MUL: /*       A B C   R(A) := RK(B) * RK(C)                           */
-	case OP_MOD: /*       A B C   R(A) := RK(B) % RK(C)                           */
 	case OP_POW: /*       A B C   R(A) := RK(B) ^ RK(C)                           */
 	case OP_DIV: /*       A B C   R(A) := RK(B) / RK(C)                           */
 	case OP_EQ: /*        A B C   if ((RK(B) == RK(C)) ~= A) then pc++            */
@@ -109,10 +101,9 @@ int lua51_disasm(RzAsmOp *op, const ut8 *buf, int len, LuaOpNameList opnames) {
 			}
 		}
 		break;
-	case OP_JMP: /*       A sBx   pc+=sBx; if (A) close all upvalues >= R(A - 1)  */
-	case OP_FORLOOP: /*   A sBx   R(A)+=R(A+2);if R(A) <?= R(A+1) then { pc+=sBx; R(A+3)=R(A) }*/
-	case OP_FORPREP: /*   A sBx   R(A)-=R(A+2); pc+=sBx                           */
-	case OP_TFORLOOP: /*  A sBx   if R(A+1) ~= nil then { R(A)=R(A+1); pc += sBx }*/
+	case OP_FORLOOP: /*   A sBx   R(A)+=R(A+2); if R(A) <?= R(A+1) then PC+= sBx  */
+	case OP_TFORPREP: /*  A sBx   if type(R(A)) == table then R(A+1):=R(A), R(A):=next;
+			PC += sBx                                       */
 		asm_string = luaop_new_str_2arg(opnames[opcode], a, sbx);
 		break;
 	default:

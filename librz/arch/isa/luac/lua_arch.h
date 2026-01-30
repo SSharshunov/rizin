@@ -99,4 +99,11 @@ bool lua51_assembly(const char *input, st32 input_size, LuaInstruction *instruct
 LuaOpNameList get_lua51_opnames(void);
 ut8 get_lua51_opcode_by_name(const char *name, int len);
 
+/* Lua 5.0 specified */
+int lua50_disasm(RzAsmOp *op, const ut8 *buf, int len, LuaOpNameList oplist);
+int lua50_anal_op(RzAnalysis *analysis, RzAnalysisOp *op, ut64 addr, const ut8 *data, int len);
+bool lua50_assembly(const char *input, st32 input_size, LuaInstruction *instruction);
+LuaOpNameList get_lua50_opnames(void);
+ut8 get_lua50_opcode_by_name(const char *name, int len);
+
 #endif // BUILD_LUA_ARCH_H
