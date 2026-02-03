@@ -10,7 +10,7 @@ static LuaInstruction encode_instruction(ut8 opcode, const char *arg_start, ut16
 	int args[3];
 	char buffer[64]; // buffer for digits
 	int cur_cnt = 0;
-	int temp;
+	int temp = 0;
 
 	for (int i = 0; i < arg_num; ++i) {
 		const int delta_offset = lua_load_next_arg_start(arg_start, buffer);
@@ -134,6 +134,7 @@ bool lua51_assembly(const char *input, st32 input_size, LuaInstruction *instruct
 		instruction = encode_instruction(opcode, arg_start, PARAM_A | PARAM_sBx, 2);
 		break;
 	default:
+		rz_warn_if_reached();
 		return false;
 	}
 

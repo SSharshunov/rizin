@@ -107,6 +107,7 @@ ut8 get_lua51_opcode_by_name(const char *name, int limit) {
 	lua_strcase("loadnil") return OP_LOADNIL;
 	lua_strcase("getupval") return OP_GETUPVAL;
 	lua_strcase("getglobal") return OP_GETGLOBAL;
+	lua_strcase("setglobal") return OP_SETGLOBAL;
 	lua_strcase("gettable") return OP_GETTABLE;
 	lua_strcase("setupval") return OP_SETUPVAL;
 	lua_strcase("settable") return OP_SETTABLE;

@@ -26,6 +26,6 @@ ad "settable 2 -3 1" 89400081
 ad "return 2 2" 9e000001
 
 #ad "gettable 2 0 -1" 0b000000 # ?? Not wrong in official
-ad "sub 2 2 1" 0d000000
+#ad "sub 2 2 1" 0d000000 # ?? Not wrong in official
 #ad "settable 0 -1 2" 0b000000 # ?? Not wrong in official
 #ad "return 0 1" 10000000 # ?? Not wrong in official

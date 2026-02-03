@@ -20,32 +20,7 @@ int lua51_disasm(RzAsmOp *op, const ut8 *buf, int len, LuaOpNameList opnames) {
 	int bx = GETARG_Bx(instruction);
 	int sbx = GETARG_sBx(instruction);
 
-	// simplify test flag
-	int is_special_B = b & 0x100;
-	int is_special_C = c & 0x100;
-
-	int special_c = 0xFF - c;
-	int special_b = 0xFF - b;
-
 	char *asm_string;
-
-	switch (getOpMode(opcode)) {
-	case iABC:
-		if (getBMode(opcode) != OpArgN) {
-			b = ISK(b) ? (MYK(INDEXK(b))) : b;
-		}
-		if (getCMode(opcode) != OpArgN) {
-			c = ISK(c) ? (MYK(INDEXK(c))) : c;
-		}
-		break;
-	case iABx:
-		if (getBMode(opcode) == OpArgK) {
-			bx = MYK(bx);
-		}
-		break;
-	case iAsBx:
-		break;
-	}
 
 	switch (opcode) {
 	case OP_MOVE: /*      A B     R(A) := R(B)                                    */
@@ -65,6 +40,9 @@ int lua51_disasm(RzAsmOp *op, const ut8 *buf, int len, LuaOpNameList opnames) {
 	case OP_SETGLOBAL: /*    A Bx      Gbl[Kst(Bx)] := R(A)                          */
 	case OP_GETGLOBAL: /*    A Bx    R(A) := Gbl[Kst(Bx)]                          */
 	case OP_LOADK: /*     A Bx    R(A) := Kst(Bx)                                 */
+		bx = MYK(bx);
+		asm_string = luaop_new_str_2arg(opnames[opcode], a, bx);
+		break;
 	case OP_CLOSURE: /*   A Bx    R(A) := closure(KPROTO[Bx])                     */
 		asm_string = luaop_new_str_2arg(opnames[opcode], a, bx);
 		break;
@@ -75,11 +53,12 @@ int lua51_disasm(RzAsmOp *op, const ut8 *buf, int len, LuaOpNameList opnames) {
 	case OP_SETLIST: /*   A B C   R(A)[(C-1)*FPF+i] := R(A+i), 1 <= i <= B        */
 	case OP_LOADBOOL: /*  A B C   R(A) := (Bool)B; if (C) pc++                    */
 	case OP_SELF: /*      A B C   R(A+1) := R(B); R(A) := R(B)[RK(C)]             */
+		c = ISK(c) ? (MYK(INDEXK(c))) : c;
 		asm_string = luaop_new_str_3arg(opnames[opcode], a, b, c);
 		break;
+	case OP_SUB: /*       A B C   R(A) := RK(B) - RK(C)                           */
 	case OP_SETTABLE: /*  A B C   R(A)[RK(B)] := RK(C)                            */
 	case OP_ADD: /*       A B C   R(A) := RK(B) + RK(C)                           */
-	case OP_SUB: /*       A B C   R(A) := RK(B) - RK(C)                           */
 	case OP_MUL: /*       A B C   R(A) := RK(B) * RK(C)                           */
 	case OP_MOD: /*       A B C   R(A) := RK(B) % RK(C)                           */
 	case OP_POW: /*       A B C   R(A) := RK(B) ^ RK(C)                           */
@@ -87,27 +66,9 @@ int lua51_disasm(RzAsmOp *op, const ut8 *buf, int len, LuaOpNameList opnames) {
 	case OP_EQ: /*        A B C   if ((RK(B) == RK(C)) ~= A) then pc++            */
 	case OP_LT: /*        A B C   if ((RK(B) <  RK(C)) ~= A) then pc++            */
 	case OP_LE: /*        A B C   if ((RK(B) <= RK(C)) ~= A) then pc++            */
-		if (is_special_B) {
-			if (is_special_C) {
-				asm_string = luaop_new_str_3arg(
-					opnames[opcode],
-					a, special_b, special_c);
-			} else {
-				asm_string = luaop_new_str_3arg(
-					opnames[opcode],
-					a, special_b, c);
-			}
-		} else {
-			if (is_special_C) {
-				asm_string = luaop_new_str_3arg(
-					opnames[opcode],
-					a, b, special_c);
-			} else {
-				asm_string = luaop_new_str_3arg(
-					opnames[opcode],
-					a, b, c);
-			}
-		}
+		b = ISK(b) ? (MYK(INDEXK(b))) : b;
+		c = ISK(c) ? (MYK(INDEXK(c))) : c;
+		asm_string = luaop_new_str_3arg(opnames[opcode], a, b, c);
 		break;
 	case OP_JMP: /*       A sBx   pc+=sBx; if (A) close all upvalues >= R(A - 1)  */
 	case OP_FORLOOP: /*   A sBx   R(A)+=R(A+2);if R(A) <?= R(A+1) then { pc+=sBx; R(A+3)=R(A) }*/
