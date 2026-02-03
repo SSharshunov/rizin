@@ -41,8 +41,6 @@ typedef enum {
 #define PARAM_Bx  16
 #define PARAM_sBx 32
 
-#define has_param_flag(flag, bit) ((flag) & (bit)) ? true : false
-
 /* Offset of arguments in opcode */
 #define SIZE_C  9
 #define SIZE_B  9
@@ -158,32 +156,6 @@ typedef enum {
 
   (*) All `skips' (pc++) assume that next instruction is a jump
 ===========================================================================*/
-
-/*
-** masks for instruction properties. The format is:
-** bits 0-1: op mode
-** bits 2-3: C arg mode
-** bits 4-5: B arg mode
-** bit 6: instruction set register A
-** bit 7: operator is a test
-*/
-
-enum OpArgMask {
-	OpArgN, /* argument is not used */
-	OpArgU, /* argument is used */
-	OpArgR, /* argument is a register or a jump offset */
-	OpArgK /* argument is a constant or register/constant */
-};
-
-extern const ut8 luaP_opmodes51[LUA_NUM_OPCODES];
-
-#define opmode(t, a, b, c, m) (((t) << 7) | ((a) << 6) | ((b) << 4) | ((c) << 2) | (m))
-
-#define getOpMode(m) (cast(LuaOpMode, luaP_opmodes51[m] & 3))
-#define getBMode(m)  (cast(enum OpArgMask, (luaP_opmodes51[m] >> 4) & 3))
-#define getCMode(m)  (cast(enum OpArgMask, (luaP_opmodes51[m] >> 2) & 3))
-#define testAMode(m) (luaP_opmodes51[m] & (1 << 6))
-#define testTMode(m) (luaP_opmodes51[m] & (1 << 7))
 
 #define MYK(x) (-1 - (x))
 

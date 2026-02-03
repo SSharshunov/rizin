@@ -37,7 +37,14 @@
 #define PARAM_sB 256
 #define PARAM_k  512
 
+/* test whether value is a constant */
+#define ISK(x) ((x) & BITRK)
+
 #define has_param_flag(flag, bit) ((flag) & (bit)) ? true : false
+
+#define lua_strcase(case_str) if ( \
+	((limit) <= sizeof(case_str) - 1) && \
+	rz_str_ncasecmp((name), (case_str), sizeof(case_str) - 1) == 0)
 
 /* Opcode Instruction Type */
 typedef ut32 LuaInstruction;

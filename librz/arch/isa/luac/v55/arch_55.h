@@ -246,9 +246,4 @@ typedef enum {
 #define PARAM_sB  256
 #define PARAM_k   512
 
-#define has_param_flag(flag, bit) ((flag) & (bit)) ? true : false
-
-#define ISK(isk)    ((isk) ? "#CONST" : "#R")
-#define ISFLIP(isk) ((isk) ? "#FLIP" : "")
-
 #endif // BUILD_ARCH_54_H

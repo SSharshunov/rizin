@@ -56,10 +56,6 @@ const ut8 luaP_opmodes53[LUA_NUM_OPCODES] = {
 	opmode(0, 0, OpArgU, OpArgU, iAx) /* OP_EXTRAARG */
 };
 
-#define lua_strcase(case_str) if ( \
-	((limit) <= sizeof(case_str) - 1) && \
-	rz_str_ncasecmp((name), (case_str), sizeof(case_str) - 1) == 0)
-
 LuaOpNameList get_lua53_opnames(void) {
 	const LuaOpNameList list = RZ_NEWS(char *, LUA_NUM_OPCODES + 1);
 	if (list == NULL) {

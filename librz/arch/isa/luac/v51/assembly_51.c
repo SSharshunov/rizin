@@ -25,22 +25,34 @@ static LuaInstruction encode_instruction(ut8 opcode, const char *arg_start, ut16
 		}
 	}
 
-	switch (getOpMode(opcode)) {
-	case iABC:
-		if (getBMode(opcode) != OpArgN) {
-			args[1] = ISK(args[1]) ? (MYK(INDEXK(args[1]))) : args[1];
-		}
-		if (getCMode(opcode) != OpArgN) {
-			args[2] = ISK(args[2]) ? (MYK(INDEXK(args[2]))) : args[2];
-		}
-		break;
-	case iABx:
-		if (getBMode(opcode) == OpArgK) {
-			args[1] = MYK(args[1]);
-		}
-		break;
-	case iAsBx:
-		break;
+	if (opcode == OP_LOADK || opcode == OP_GETGLOBAL || opcode == OP_SETGLOBAL) {
+		args[1] = MYK(args[1]);
+	}
+
+	if (!(opcode == OP_TFORLOOP || opcode == OP_CLOSE)) {
+		args[1] = ISK(args[1]) ? (MYK(INDEXK(args[1]))) : args[1];
+	}
+	if (opcode == OP_GETTABLE ||
+		opcode == OP_SETTABLE ||
+		opcode == OP_NEWTABLE ||
+		opcode == OP_SELF ||
+		opcode == OP_ADD ||
+		opcode == OP_SUB ||
+		opcode == OP_MUL ||
+		opcode == OP_DIV ||
+		opcode == OP_MOD ||
+		opcode == OP_POW ||
+		opcode == OP_CONCAT ||
+		opcode == OP_TFORLOOP ||
+		opcode == OP_SETLIST ||
+		opcode == OP_LT ||
+		opcode == OP_LE ||
+		opcode == OP_TEST ||
+		opcode == OP_TESTSET ||
+		opcode == OP_EQ ||
+		opcode == OP_CALL ||
+		opcode == OP_TAILCALL) {
+		args[2] = ISK(args[2]) ? (MYK(INDEXK(args[2]))) : args[2];
 	}
 
 	SET_OPCODE(instruction, opcode);

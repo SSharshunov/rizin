@@ -46,8 +46,6 @@ typedef enum {
 #define PARAM_C     4
 #define PARAM_iAsBx 8
 
-#define has_param_flag(flag, bit) ((flag) & (bit)) ? true : false
-
 /* Offset of arguments in opcode */
 #define SIZE_C  9
 #define SIZE_B  9

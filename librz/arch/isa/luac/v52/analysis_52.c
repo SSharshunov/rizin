@@ -52,7 +52,6 @@ int lua52_anal_op(RzAnalysis *anal, RzAnalysisOp *op, ut64 addr, const ut8 *data
 		break;
 	case OP_GETTABLE: /*  A B C   R(A) := R(B)[RK(C)]                             */
 		break;
-
 	case OP_SETTABUP: /*  A B C   UpValue[A][RK(B)] := RK(C)                      */
 	case OP_SETUPVAL: /*  A B     UpValue[B] := R(A)                              */
 		op->type = RZ_ANALYSIS_OP_TYPE_STORE;

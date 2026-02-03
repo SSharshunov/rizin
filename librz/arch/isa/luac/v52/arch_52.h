@@ -56,9 +56,6 @@ typedef enum {
 /* this bit 1 means constant (0 means register) */
 #define BITRK (1 << (SIZE_B - 1))
 
-/* test whether value is a constant */
-#define ISK(x) ((x) & BITRK)
-
 /* gets the index of the constant */
 #define INDEXK(r) ((int)(r) & ~BITRK)
 
@@ -168,32 +165,6 @@ typedef enum {
   (*) All `skips' (pc++) assume that next instruction is a jump.
 
 ===========================================================================*/
-
-/*
-** masks for instruction properties. The format is:
-** bits 0-1: op mode
-** bits 2-3: C arg mode
-** bits 4-5: B arg mode
-** bit 6: instruction set register A
-** bit 7: operator is a test (next instruction must be a jump)
-*/
-
-enum OpArgMask {
-	OpArgN, /* argument is not used */
-	OpArgU, /* argument is used */
-	OpArgR, /* argument is a register or a jump offset */
-	OpArgK /* argument is a constant or register/constant */
-};
-
-extern const ut8 luaP_opmodes52[LUA_NUM_OPCODES];
-
-#define opmode(t, a, b, c, m) (((t) << 7) | ((a) << 6) | ((b) << 4) | ((c) << 2) | (m))
-
-#define getOpMode(m) (cast(LuaOpMode, luaP_opmodes52[m] & 3))
-#define getBMode(m)  (cast(enum OpArgMask, (luaP_opmodes52[m] >> 4) & 3))
-#define getCMode(m)  (cast(enum OpArgMask, (luaP_opmodes52[m] >> 2) & 3))
-#define testAMode(m) (luaP_opmodes52[m] & (1 << 6))
-#define testTMode(m) (luaP_opmodes52[m] & (1 << 7))
 
 #define MYK(x) (-1 - (x))
 

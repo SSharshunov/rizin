@@ -25,25 +25,8 @@ static LuaInstruction encode_instruction(const ut8 opcode, const char *arg_start
 		}
 	}
 
-	switch (getOpMode(opcode)) {
-	case iABC:
-		if (getBMode(opcode) != OpArgN) {
-			args[1] = ISK(args[1]) ? (MYK(INDEXK(args[1]))) : args[1];
-		}
-		if (getCMode(opcode) != OpArgN) {
-			args[2] = ISK(args[2]) ? (MYK(INDEXK(args[2]))) : args[2];
-		}
-		break;
-	case iABx:
-		if (getBMode(opcode) == OpArgK) {
-			args[1] = MYK(args[1]);
-		}
-		break;
-	case iAsBx:
-		break;
-	case iAx:
-		args[0] = MYK(args[0]);
-		break;
+	if (opcode == OP_LOADK) {
+		args[1] = MYK(args[1]); ///< MYK(bx)
 	}
 
 	SET_OPCODE(instruction, opcode);
@@ -61,7 +44,9 @@ static LuaInstruction encode_instruction(const ut8 opcode, const char *arg_start
 		SETARG_C(instruction, temp);
 	}
 	if (has_param_flag(flag, PARAM_Ax)) {
-		SETARG_Ax(instruction, args[cur_cnt++]);
+		temp = args[cur_cnt++];
+		temp = MYK(temp);
+		SETARG_Ax(instruction, temp); ///< OP_EXTRAARG ax
 	}
 	if (has_param_flag(flag, PARAM_sBx)) {
 		SETARG_sBx(instruction, args[cur_cnt++]);

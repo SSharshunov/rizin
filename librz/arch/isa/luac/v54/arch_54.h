@@ -231,7 +231,4 @@ typedef enum {
 
 #define SETARG_k(i, v) LUA_SETARG(i, v, LUAOP_k_OFFSET, 1)
 
-#define ISK(isk)    ((isk) ? "#CONST" : "#R")
-#define ISFLIP(isk) ((isk) ? "#FLIP" : "")
-
 #endif // BUILD_ARCH_54_H

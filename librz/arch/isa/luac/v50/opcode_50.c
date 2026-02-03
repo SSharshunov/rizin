@@ -4,13 +4,6 @@
 // SPDX-FileCopyrightText: 2025-2026 Sergey Sharshunov <s.sharshunov@gmail.com>
 
 #include "arch_50.h"
-#define opmode(t, b, bk, ck, sa, k, m) (((t) << OpModeT) | \
-	((b) << OpModeBreg) | ((bk) << OpModeBrk) | ((ck) << OpModeCrk) | \
-	((sa) << OpModesetA) | ((k) << OpModeK) | (m))
-
-#define lua_strcase(case_str) if ( \
-	((limit) <= sizeof(case_str) - 1) && \
-	rz_str_ncasecmp((name), (case_str), sizeof(case_str) - 1) == 0)
 
 LuaOpNameList get_lua50_opnames(void) {
 	LuaOpNameList list = RZ_NEWS(char *, LUA_NUM_OPCODES + 1);
