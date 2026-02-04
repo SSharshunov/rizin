@@ -47,38 +47,10 @@ typedef enum {
 #define PARAM_iAsBx 8
 
 /* Offset of arguments in opcode */
-#define SIZE_C  9
-#define SIZE_B  9
-#define SIZE_Bx (SIZE_C + SIZE_B)
-#define SIZE_A  8
-
-#define SIZE_OP 6
-
 #define POS_C  SIZE_OP
 #define POS_B  (POS_C + SIZE_C)
 #define POS_Bx POS_C
 #define POS_A  (POS_B + SIZE_B)
-
-#define POS_OP 0
-
-/*
-** Macros to operate RK indices
-*/
-
-/* this bit 1 means constant (0 means register) */
-#define BITRK (1 << (SIZE_B - 1))
-/* test whether value is a constant */
-#define ISK(x) ((x) & BITRK)
-/* gets the index of the constant */
-#define INDEXK(r)  ((int)(r) & ~BITRK)
-#define MAXINDEXRK (BITRK - 1)
-/* code a constant index as a RK value */
-#define RKASK(x) ((x) | BITRK)
-
-/*
-** invalid register that fits in 8 bits
-*/
-#define NO_REG MAXARG_A
 
 typedef enum {
 	/*----------------------------------------------------------------------
@@ -163,47 +135,16 @@ enum OpModeMask {
 	OpModeT /* operator is a test */
 };
 
-#define getOpMode(m)     (cast(enum OpMode, luaP_opmodes50[m] & 3))
+#define getOpMode(m)     (LUA_CAST(enum OpMode, luaP_opmodes50[m] & 3))
 #define testOpMode(m, b) (luaP_opmodes50[m] & (1 << (b)))
 
-#define MYK(x) (-1 - (x))
-
-#define MAX_INT INT_MAX /* maximum value of an int */
-
-#define LUAI_BITSINT 32
-
-/*
-** limits for opcode arguments.
-** we use (signed) int to manipulate most arguments,
-** so they must fit in LUAI_BITSINT-1 bits (-1 for sign)
-*/
-#if SIZE_Bx < LUAI_BITSINT - 1
-#define MAXARG_Bx  ((1 << SIZE_Bx) - 1)
-#define MAXARG_sBx (MAXARG_Bx >> 1) /* 'sBx' is signed */
-#else
-#define MAXARG_Bx  MAX_INT
-#define MAXARG_sBx MAX_INT
-#endif
-
-#define MAXARG_A ((1 << SIZE_A) - 1)
-#define MAXARG_B ((1 << SIZE_B) - 1)
-#define MAXARG_C ((1 << SIZE_C) - 1)
-
-/* creates a mask with 'n' 1 bits at position 'p' */
-#define MASK1(n, p) ((~((~0u) << (n))) << (p))
-
-/* creates a mask with 'n' 0 bits at position 'p' */
-#define MASK0(n, p) (~MASK1(n, p))
-
-#define cast(x, y) ((x)(y))
-
-#define GET_OPCODE(i)    (cast(LuaOpCode, ((i) >> POS_OP) & MASK1(SIZE_OP, 0)))
+#define GET_OPCODE(i)    (LUA_CAST(LuaOpCode, ((i) >> POS_OP) & MASK1(SIZE_OP, 0)))
 #define SET_OPCODE(i, o) ((i) = (((i) & MASK0(SIZE_OP, POS_OP)) | \
-				  ((cast(ut32, o) << POS_OP) & MASK1(SIZE_OP, POS_OP))))
+				  ((LUA_CAST(ut32, o) << POS_OP) & MASK1(SIZE_OP, POS_OP))))
 
-#define getarg(i, pos, size)    (cast(int, ((i) >> (pos)) & MASK1(size, 0)))
+#define getarg(i, pos, size)    (LUA_CAST(int, ((i) >> (pos)) & MASK1(size, 0)))
 #define setarg(i, v, pos, size) ((i) = (((i) & MASK0(size, pos)) | \
-					 ((cast(ut32, v) << (pos)) & MASK1(size, pos))))
+					 ((LUA_CAST(ut32, v) << (pos)) & MASK1(size, pos))))
 
 #define GETARG_A(i)    getarg(i, POS_A, SIZE_A)
 #define SETARG_A(i, v) setarg(i, v, POS_A, SIZE_A)
@@ -218,10 +159,10 @@ enum OpModeMask {
 #define SETARG_Bx(i, v) setarg(i, v, POS_Bx, SIZE_Bx)
 
 #define GETARG_sBx(i)    (GETARG_Bx(i) - MAXARG_sBx)
-#define SETARG_sBx(i, b) SETARG_Bx((i), cast(unsigned int, (b) + MAXARG_sBx))
+#define SETARG_sBx(i, b) SETARG_Bx((i), LUA_CAST(unsigned int, (b) + MAXARG_sBx))
 
-#define CREATE_ABC(o, a, b, c) ((cast(ut32, o) << POS_OP) | (cast(ut32, a) << POS_A) | (cast(ut32, b) << POS_B) | (cast(ut32, c) << POS_C))
+#define CREATE_ABC(o, a, b, c) ((LUA_CAST(ut32, o) << POS_OP) | (LUA_CAST(ut32, a) << POS_A) | (LUA_CAST(ut32, b) << POS_B) | (LUA_CAST(ut32, c) << POS_C))
 
-#define CREATE_ABx(o, a, bc) ((cast(ut32, o) << POS_OP) | (cast(ut32, a) << POS_A) | (cast(ut32, bc) << POS_Bx))
+#define CREATE_ABx(o, a, bc) ((LUA_CAST(ut32, o) << POS_OP) | (LUA_CAST(ut32, a) << POS_A) | (LUA_CAST(ut32, bc) << POS_Bx))
 
 #endif // BUILD_ARCH_52_H
