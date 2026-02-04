@@ -28,14 +28,6 @@ isJ                           sJ(25)                     |   Op(7)     |
 ===========================================================================*/
 
 typedef enum {
-	iABC,
-	iABx,
-	iAsBx,
-	iAx,
-	isJ
-} LuaOpMode;
-
-typedef enum {
 	/*----------------------------------------------------------------------
   name		args	description
 ------------------------------------------------------------------------*/
@@ -183,14 +175,9 @@ typedef enum {
 #define LUAOP_FIX_sJ  (LUAOP_MAXARG_sJ >> 1)
 #define LUAOP_FIX_sC  (LUAOP_MAXARG_C >> 1)
 
-/* ===========================================
- * Operation Method Macros
- * =========================================== */
-
-/* Macros Highlight the cast */
-#define LUA_CAST(x, y) ((x)y)
-#define int2sC(i)      ((i) + LUAOP_FIX_sC)
-#define sC2int(i)      ((i) - LUAOP_FIX_sC)
+// /* ===========================================
+//  * Operation Method Macros
+//  * =========================================== */
 
 /* creates a mask with 'n' 1/0 bits at position 'p' */
 #define LUA_MASK1(n, p) ((~((~(LuaInstruction)0) << (n))) << (p))

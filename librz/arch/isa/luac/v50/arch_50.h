@@ -33,25 +33,6 @@ typedef unsigned long Instruction;
   unsigned argument.
 ===========================================================================*/
 
-/* basic instruction format */
-typedef enum {
-	iABC,
-	iABx,
-	iAsBx
-} LuaOpMode;
-
-/* parameter flags */
-#define PARAM_A     1
-#define PARAM_B     2
-#define PARAM_C     4
-#define PARAM_iAsBx 8
-
-/* Offset of arguments in opcode */
-#define POS_C  SIZE_OP
-#define POS_B  (POS_C + SIZE_C)
-#define POS_Bx POS_C
-#define POS_A  (POS_B + SIZE_B)
-
 typedef enum {
 	/*----------------------------------------------------------------------
 		name            args    description
@@ -146,23 +127,23 @@ enum OpModeMask {
 #define setarg(i, v, pos, size) ((i) = (((i) & MASK0(size, pos)) | \
 					 ((LUA_CAST(ut32, v) << (pos)) & MASK1(size, pos))))
 
-#define GETARG_A(i)    getarg(i, POS_A, SIZE_A)
-#define SETARG_A(i, v) setarg(i, v, POS_A, SIZE_A)
+#define GETARG_A(i)    getarg(i, POS_A0, SIZE_A)
+#define SETARG_A(i, v) setarg(i, v, POS_A0, SIZE_A)
 
-#define GETARG_B(i)    getarg(i, POS_B, SIZE_B)
-#define SETARG_B(i, v) setarg(i, v, POS_B, SIZE_B)
+#define GETARG_B(i)    getarg(i, POS_B0, SIZE_B)
+#define SETARG_B(i, v) setarg(i, v, POS_B0, SIZE_B)
 
-#define GETARG_C(i)    getarg(i, POS_C, SIZE_C)
-#define SETARG_C(i, v) setarg(i, v, POS_C, SIZE_C)
+#define GETARG_C(i)    getarg(i, POS_C0, SIZE_C)
+#define SETARG_C(i, v) setarg(i, v, POS_C0, SIZE_C)
 
-#define GETARG_Bx(i)    getarg(i, POS_Bx, SIZE_Bx)
-#define SETARG_Bx(i, v) setarg(i, v, POS_Bx, SIZE_Bx)
+#define GETARG_Bx(i)    getarg(i, POS_Bx0, SIZE_Bx)
+#define SETARG_Bx(i, v) setarg(i, v, POS_Bx0, SIZE_Bx)
 
 #define GETARG_sBx(i)    (GETARG_Bx(i) - MAXARG_sBx)
 #define SETARG_sBx(i, b) SETARG_Bx((i), LUA_CAST(unsigned int, (b) + MAXARG_sBx))
 
-#define CREATE_ABC(o, a, b, c) ((LUA_CAST(ut32, o) << POS_OP) | (LUA_CAST(ut32, a) << POS_A) | (LUA_CAST(ut32, b) << POS_B) | (LUA_CAST(ut32, c) << POS_C))
+#define CREATE_ABC(o, a, b, c) ((LUA_CAST(ut32, o) << POS_OP) | (LUA_CAST(ut32, a) << POS_A0) | (LUA_CAST(ut32, b) << POS_B0) | (LUA_CAST(ut32, c) << POS_C0))
 
-#define CREATE_ABx(o, a, bc) ((LUA_CAST(ut32, o) << POS_OP) | (LUA_CAST(ut32, a) << POS_A) | (LUA_CAST(ut32, bc) << POS_Bx))
+#define CREATE_ABx(o, a, bc) ((LUA_CAST(ut32, o) << POS_OP) | (LUA_CAST(ut32, a) << POS_A0) | (LUA_CAST(ut32, bc) << POS_Bx0))
 
 #endif // BUILD_ARCH_52_H

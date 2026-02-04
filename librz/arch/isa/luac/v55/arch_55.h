@@ -27,14 +27,6 @@ isJ                           sJ(25)                     |   Op(7)     |
   corresponding unsigned argument.
 ===========================================================================*/
 
-typedef enum {
-	iABC,
-	iABx,
-	iAsBx,
-	iAx,
-	isJ
-} LuaOpMode;
-
 /* Offset and size of opcode arguments */
 #define LUAOP_A_SIZE  8
 #define LUAOP_B_SIZE  8
@@ -190,11 +182,6 @@ typedef enum {
  * Operation Method Macros
  * =========================================== */
 
-/* Macros Highlight the cast */
-#define LUA_CAST(x, y) ((x)y)
-#define int2sC(i)      ((i) + LUAOP_FIX_sC)
-#define sC2int(i)      ((i) - LUAOP_FIX_sC)
-
 /* creates a mask with 'n' 1/0 bits at position 'p' */
 #define LUA_MASK1(n, p) ((~((~(LuaInstruction)0) << (n))) << (p))
 #define LUA_MASK0(n, p) (~LUA_MASK1(n, p))
@@ -233,17 +220,5 @@ typedef enum {
 #define SETARG_sB(i, v) SETARG_B((i), int2sC(v))
 
 #define SETARG_k(i, v) LUA_SETARG(i, v, LUAOP_k_OFFSET, 1)
-
-/* parameter flags */
-#define PARAM_A   1
-#define PARAM_B   2
-#define PARAM_C   4
-#define PARAM_Ax  8
-#define PARAM_Bx  16
-#define PARAM_sBx 32
-#define PARAM_sJ  64
-#define PARAM_sC  128
-#define PARAM_sB  256
-#define PARAM_k   512
 
 #endif // BUILD_ARCH_54_H
