@@ -102,7 +102,7 @@ typedef enum {
 	OP_VARARG, /*    A B     R(A), R(A+1), ..., R(A+B-2) = vararg            */
 
 	OP_EXTRAARG /*   Ax      extra (larger) argument for previous opcode     */
-} LuaOpCode;
+} LuaOpCode53;
 
 #define LUA_NUM_OPCODES ((int)(OP_EXTRAARG) + 1)
 
@@ -149,12 +149,13 @@ extern const ut8 luaP_opmodes53[LUA_NUM_OPCODES];
 
 #define opmode(t, a, b, c, m) (((t) << 7) | ((a) << 6) | ((b) << 4) | ((c) << 2) | (m))
 
-#define getOpMode(m) (LUA_CAST(LuaOpMode, luaP_opmodes53[m] & 3))
-#define getBMode(m)  (LUA_CAST(enum OpArgMask, (luaP_opmodes53[m] >> 4) & 3))
-#define getCMode(m)  (LUA_CAST(enum OpArgMask, (luaP_opmodes53[m] >> 2) & 3))
+#define getOpMode(m) (cast(LuaOpMode, luaP_opmodes53[m] & 3))
+#define getBMode(m)  (cast(enum OpArgMask, (luaP_opmodes53[m] >> 4) & 3))
+#define getCMode(m)  (cast(enum OpArgMask, (luaP_opmodes53[m] >> 2) & 3))
 #define testAMode(m) (luaP_opmodes53[m] & (1 << 6))
 #define testTMode(m) (luaP_opmodes53[m] & (1 << 7))
 
+/*
 #define GET_OPCODE(i)    (LUA_CAST(LuaOpCode, ((i) >> POS_OP) & MASK1(SIZE_OP, 0)))
 #define SET_OPCODE(i, o) ((i) = (((i) & MASK0(SIZE_OP, POS_OP)) | \
 				  ((LUA_CAST(ut32, o) << POS_OP) & MASK1(SIZE_OP, POS_OP))))
@@ -186,5 +187,5 @@ extern const ut8 luaP_opmodes53[LUA_NUM_OPCODES];
 #define CREATE_ABx(o, a, bc) ((LUA_CAST(ut32, o) << POS_OP) | (LUA_CAST(ut32, a) << POS_A3) | (LUA_CAST(ut32, bc) << POS_Bx))
 
 #define CREATE_Ax(o, a) ((LUA_CAST(ut32) << POS_OP) | (LUA_CAST(ut32, a) << POS_Ax))
-
+*/
 #endif // BUILD_ARCH_53_H

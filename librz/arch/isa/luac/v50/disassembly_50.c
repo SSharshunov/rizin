@@ -11,14 +11,14 @@ int lua50_disasm(RzAsmOp *op, const ut8 *buf, int len, LuaOpNameList opnames) {
 		return 0;
 	}
 	ut32 instruction = rz_read_at_le32(buf, 0);
-	LuaOpCode opcode = GET_OPCODE(instruction);
+	LuaOpCode50 opcode = GET_OPCODE50(instruction);
 
 	/* Pre fetch some args */
-	int a = GETARG_A(instruction);
-	int b = GETARG_B(instruction);
-	int c = GETARG_C(instruction);
-	int bx = GETARG_Bx(instruction);
-	int sbx = GETARG_sBx(instruction);
+	int a = GETARG_A0(instruction);
+	int b = GETARG_B0(instruction);
+	int c = GETARG_C0(instruction);
+	int bx = GETARG_Bx0(instruction);
+	int sbx = GETARG_sBx0(instruction);
 
 	// simplify test flag
 	int is_special_B = b & 0x100;

@@ -29,30 +29,30 @@ static LuaInstruction encode_instruction(const ut8 opcode, const char *arg_start
 		args[1] = MYK(args[1]); ///< MYK(bx)
 	}
 
-	SET_OPCODE(instruction, opcode);
+	SET_OPCODE52(instruction, opcode);
 	if (has_param_flag(flag, PARAM_A)) {
-		SETARG_A(instruction, args[cur_cnt++]);
+		SETARG_A1(instruction, args[cur_cnt++]);
 	}
 	if (has_param_flag(flag, PARAM_B)) {
 		temp = args[cur_cnt++];
 		temp = temp < 0 ? 0xFF - temp : temp;
-		SETARG_B(instruction, temp);
+		SETARG_B1(instruction, temp);
 	}
 	if (has_param_flag(flag, PARAM_C)) {
 		temp = args[cur_cnt++];
 		temp = temp < 0 ? 0xFF - temp : temp;
-		SETARG_C(instruction, temp);
+		SETARG_C1(instruction, temp);
 	}
 	if (has_param_flag(flag, PARAM_Ax)) {
 		temp = args[cur_cnt++];
 		temp = MYK(temp);
-		SETARG_Ax(instruction, temp); ///< OP_EXTRAARG ax
+		SETARG_Ax2(instruction, temp); ///< OP_EXTRAARG ax
 	}
 	if (has_param_flag(flag, PARAM_sBx)) {
-		SETARG_sBx(instruction, args[cur_cnt++]);
+		SETARG_sBx1(instruction, args[cur_cnt++]);
 	}
 	if (has_param_flag(flag, PARAM_Bx)) {
-		SETARG_Bx(instruction, args[cur_cnt++]);
+		SETARG_Bx1(instruction, args[cur_cnt++]);
 	}
 	rz_return_val_if_fail(cur_cnt == arg_num, -1);
 	return instruction;

@@ -13,15 +13,15 @@ int lua52_disasm(RzAsmOp *op, const ut8 *buf, int len, LuaOpNameList opnames) {
 
 	const ut32 instruction = rz_read_at_le32(buf, 0);
 
-	const LuaOpCode opcode = GET_OPCODE(instruction);
+	const LuaOpCode52 opcode = GET_OPCODE52(instruction);
 
 	/* Pre fetch some args */
-	const int a = GETARG_A(instruction);
-	int b = GETARG_B(instruction);
-	int c = GETARG_C(instruction);
-	int ax = GETARG_Ax(instruction);
-	int bx = GETARG_Bx(instruction);
-	const int sbx = GETARG_sBx(instruction);
+	const int a = GETARG_A1(instruction);
+	int b = GETARG_B1(instruction);
+	int c = GETARG_C1(instruction);
+	int ax = GETARG_Ax2(instruction);
+	int bx = GETARG_Bx1(instruction);
+	const int sbx = GETARG_sBx1(instruction);
 
 	op->size = 4;
 

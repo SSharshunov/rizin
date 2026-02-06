@@ -11,14 +11,14 @@ int lua51_disasm(RzAsmOp *op, const ut8 *buf, int len, LuaOpNameList opnames) {
 		return 0;
 	}
 	ut32 instruction = rz_read_at_le32(buf, 0);
-	LuaOpCode opcode = GET_OPCODE(instruction);
+	LuaOpCode51 opcode = GET_OPCODE51(instruction);
 
 	/* Pre fetch some args */
-	int a = GETARG_A(instruction);
-	int b = GETARG_B(instruction);
-	int c = GETARG_C(instruction);
-	int bx = GETARG_Bx(instruction);
-	int sbx = GETARG_sBx(instruction);
+	int a = GETARG_A1(instruction);
+	int b = GETARG_B1(instruction);
+	int c = GETARG_C1(instruction);
+	int bx = GETARG_Bx1(instruction);
+	int sbx = GETARG_sBx1(instruction);
 
 	char *asm_string;
 

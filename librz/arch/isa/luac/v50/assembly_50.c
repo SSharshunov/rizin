@@ -25,25 +25,25 @@ static LuaInstruction encode_instruction(ut8 opcode, const char *arg_start, ut16
 		}
 	}
 
-	SET_OPCODE(instruction, opcode);
+	SET_OPCODE50(instruction, opcode);
 	if (has_param_flag(flag, PARAM_A)) {
-		SETARG_A(instruction, args[cur_cnt++]);
+		SETARG_A0(instruction, args[cur_cnt++]);
 	}
 	if (has_param_flag(flag, PARAM_B)) {
 		temp = args[cur_cnt++];
 		temp = temp < 0 ? 0xFF - temp : temp;
-		SETARG_B(instruction, temp);
+		SETARG_B0(instruction, temp);
 	}
 	if (has_param_flag(flag, PARAM_C)) {
 		temp = args[cur_cnt++];
 		temp = temp < 0 ? 0xFF - temp : temp;
-		SETARG_C(instruction, temp);
+		SETARG_C0(instruction, temp);
 	}
 	if (has_param_flag(flag, PARAM_sBx)) {
-		SETARG_sBx(instruction, args[cur_cnt++]);
+		SETARG_sBx0(instruction, args[cur_cnt++]);
 	}
 	if (has_param_flag(flag, PARAM_Bx)) {
-		SETARG_Bx(instruction, args[cur_cnt++]);
+		SETARG_Bx0(instruction, args[cur_cnt++]);
 	}
 	rz_return_val_if_fail(cur_cnt == arg_num, -1);
 

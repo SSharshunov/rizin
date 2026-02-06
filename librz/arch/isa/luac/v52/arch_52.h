@@ -98,7 +98,7 @@ typedef enum {
 	OP_VARARG, /*    A B     R(A), R(A+1), ..., R(A+B-2) = vararg            */
 
 	OP_EXTRAARG /*   Ax      extra (larger) argument for previous opcode     */
-} LuaOpCode;
+} LuaOpCode52;
 
 #define LUA_NUM_OPCODES ((int)(OP_EXTRAARG) + 1)
 
@@ -125,6 +125,7 @@ typedef enum {
 
 ===========================================================================*/
 
+/*
 #define GET_OPCODE(i)    (LUA_CAST(LuaOpCode, ((i) >> POS_OP) & MASK1(SIZE_OP, 0)))
 #define SET_OPCODE(i, o) ((i) = (((i) & MASK0(SIZE_OP, POS_OP)) | \
 				  ((LUA_CAST(ut32, o) << POS_OP) & MASK1(SIZE_OP, POS_OP))))
@@ -156,5 +157,6 @@ typedef enum {
 #define CREATE_ABx(o, a, bc) ((LUA_CAST(ut32, o) << POS_OP) | (LUA_CAST(ut32, a) << POS_A3) | (LUA_CAST(ut32, bc) << POS_Bx3))
 
 #define CREATE_Ax(o, a) ((LUA_CAST(ut32) << POS_OP) | (LUA_CAST(ut32, a) << POS_Ax3))
+*/
 
 #endif // BUILD_ARCH_52_H
