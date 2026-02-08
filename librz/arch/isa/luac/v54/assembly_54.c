@@ -25,15 +25,15 @@ static LuaInstruction encode_instruction(ut8 opcode, const char *arg_start, ut16
 		arg_start += delta_offset;
 	}
 
-	LUA_SET_OPCODE(instruction, opcode);
+	SET_OPCODE54(instruction, opcode);
 	if (has_param_flag(flag, PARAM_A)) {
-		SETARG_A(instruction, args[cur_cnt++]);
+		SETARG_A4(instruction, args[cur_cnt++]);
 		if (cur_cnt >= arg_num) {
 			return instruction;
 		}
 	}
 	if (has_param_flag(flag, PARAM_B)) {
-		SETARG_B(instruction, args[cur_cnt++]);
+		SETARG_B4(instruction, args[cur_cnt++]);
 		if (cur_cnt >= arg_num) {
 			return instruction;
 		}
@@ -45,7 +45,7 @@ static LuaInstruction encode_instruction(ut8 opcode, const char *arg_start, ut16
 		}
 	}
 	if (has_param_flag(flag, PARAM_C)) {
-		SETARG_C(instruction, args[cur_cnt++]);
+		SETARG_C4(instruction, args[cur_cnt++]);
 		if (cur_cnt >= arg_num) {
 			return instruction;
 		}
@@ -57,19 +57,19 @@ static LuaInstruction encode_instruction(ut8 opcode, const char *arg_start, ut16
 		}
 	}
 	if (has_param_flag(flag, PARAM_Ax)) {
-		SETARG_Ax(instruction, args[cur_cnt++]);
+		SETARG_Ax4(instruction, args[cur_cnt++]);
 		if (cur_cnt >= arg_num) {
 			return instruction;
 		}
 	}
 	if (has_param_flag(flag, PARAM_sBx)) {
-		SETARG_sBx(instruction, args[cur_cnt++]);
+		SETARG_sBx4(instruction, args[cur_cnt++]);
 		if (cur_cnt >= arg_num) {
 			return instruction;
 		}
 	}
 	if (has_param_flag(flag, PARAM_Bx)) {
-		SETARG_Bx(instruction, args[cur_cnt++]);
+		SETARG_Bx4(instruction, args[cur_cnt++]);
 		if (cur_cnt >= arg_num) {
 			return instruction;
 		}
@@ -233,7 +233,7 @@ bool lua54_assembly(const char *input, st32 input_size, LuaInstruction *instruct
 		break;
 	// no arg
 	case OP_RETURN0:
-		LUA_SET_OPCODE(instruction, OP_RETURN0);
+		SET_OPCODE54(instruction, OP_RETURN0);
 		break;
 	// A Bx
 	case OP_LOADK:

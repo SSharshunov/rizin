@@ -29,13 +29,6 @@
 ===========================================================================*/
 
 typedef enum {
-	iABC,
-	iABx,
-	iAsBx,
-	iAx
-} LuaOpMode;
-
-typedef enum {
 	/*----------------------------------------------------------------------
 	name            args    description
 	------------------------------------------------------------------------*/
@@ -138,54 +131,6 @@ typedef enum {
 ** bit 7: operator is a test (next instruction must be a jump)
 */
 
-enum OpArgMask {
-	OpArgN, /* argument is not used */
-	OpArgU, /* argument is used */
-	OpArgR, /* argument is a register or a jump offset */
-	OpArgK /* argument is a constant or register/constant */
-};
-
 extern const ut8 luaP_opmodes53[LUA_NUM_OPCODES];
 
-#define opmode(t, a, b, c, m) (((t) << 7) | ((a) << 6) | ((b) << 4) | ((c) << 2) | (m))
-
-#define getOpMode(m) (cast(LuaOpMode, luaP_opmodes53[m] & 3))
-#define getBMode(m)  (cast(enum OpArgMask, (luaP_opmodes53[m] >> 4) & 3))
-#define getCMode(m)  (cast(enum OpArgMask, (luaP_opmodes53[m] >> 2) & 3))
-#define testAMode(m) (luaP_opmodes53[m] & (1 << 6))
-#define testTMode(m) (luaP_opmodes53[m] & (1 << 7))
-
-/*
-#define GET_OPCODE(i)    (LUA_CAST(LuaOpCode, ((i) >> POS_OP) & MASK1(SIZE_OP, 0)))
-#define SET_OPCODE(i, o) ((i) = (((i) & MASK0(SIZE_OP, POS_OP)) | \
-				  ((LUA_CAST(ut32, o) << POS_OP) & MASK1(SIZE_OP, POS_OP))))
-
-#define getarg(i, pos, size)    (LUA_CAST(int, ((i) >> (pos)) & MASK1(size, 0)))
-#define setarg(i, v, pos, size) ((i) = (((i) & MASK0(size, pos)) | \
-					 ((LUA_CAST(ut32, v) << (pos)) & MASK1(size, pos))))
-
-#define GETARG_A(i)    getarg(i, POS_A3, SIZE_A)
-#define SETARG_A(i, v) setarg(i, v, POS_A3, SIZE_A)
-
-#define GETARG_B(i)    getarg(i, POS_B3, SIZE_B)
-#define SETARG_B(i, v) setarg(i, v, POS_B3, SIZE_B)
-
-#define GETARG_C(i)    getarg(i, POS_C3, SIZE_C)
-#define SETARG_C(i, v) setarg(i, v, POS_C3, SIZE_C)
-
-#define GETARG_Bx(i)    getarg(i, POS_Bx3, SIZE_Bx)
-#define SETARG_Bx(i, v) setarg(i, v, POS_Bx3, SIZE_Bx)
-
-#define GETARG_Ax(i)    getarg(i, POS_Ax3, SIZE_Ax)
-#define SETARG_Ax(i, v) setarg(i, v, POS_Ax3, SIZE_Ax)
-
-#define GETARG_sBx(i)    (GETARG_Bx(i) - MAXARG_sBx)
-#define SETARG_sBx(i, b) SETARG_Bx((i), LUA_CAST(unsigned int, (b) + MAXARG_sBx))
-
-#define CREATE_ABC(o, a, b, c) ((LUA_CAST(ut32, o) << POS_OP) | (LUA_CAST(ut32, a) << POS_A3) | (LUA_CAST(ut32, b) << POS_B3) | (LUA_CAST(ut32, c) << POS_C3))
-
-#define CREATE_ABx(o, a, bc) ((LUA_CAST(ut32, o) << POS_OP) | (LUA_CAST(ut32, a) << POS_A3) | (LUA_CAST(ut32, bc) << POS_Bx))
-
-#define CREATE_Ax(o, a) ((LUA_CAST(ut32) << POS_OP) | (LUA_CAST(ut32, a) << POS_Ax))
-*/
 #endif // BUILD_ARCH_53_H

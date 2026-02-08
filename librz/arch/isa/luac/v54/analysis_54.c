@@ -15,11 +15,11 @@ int lua54_anal_op(RzAnalysis *analysis, RzAnalysisOp *op, ut64 addr, const ut8 *
 	op->size = 4;
 	op->addr = addr;
 
-	if (LUA_GET_OPCODE(instruction) > OP_EXTRAARG) {
+	if (GET_OPCODE54(instruction) > OP_EXTRAARG) {
 		return op->size;
 	}
 
-	switch (LUA_GET_OPCODE(instruction)) {
+	switch (GET_OPCODE54(instruction)) {
 	case OP_MOVE: /*	A B	R[A] := R[B]					*/
 		op->type = RZ_ANALYSIS_OP_TYPE_MOV;
 		break;
@@ -124,7 +124,7 @@ int lua54_anal_op(RzAnalysis *analysis, RzAnalysisOp *op, ut64 addr, const ut8 *
 		break;
 	case OP_JMP: /*	sJ	pc += sJ					*/
 		op->type = RZ_ANALYSIS_OP_TYPE_CJMP;
-		op->jump = op->addr + (st32)(4 * (LUA_GETARG_sJ(instruction)));
+		op->jump = op->addr + (st32)(4 * (GETARG_sJ(instruction)));
 		op->fail = op->addr + 4;
 		break;
 	case OP_EQ: /*	A B k	if ((R[A] == R[B]) ~= k) then pc++		*/
@@ -166,18 +166,18 @@ int lua54_anal_op(RzAnalysis *analysis, RzAnalysisOp *op, ut64 addr, const ut8 *
 		break;
 	case OP_FORLOOP: /*	A Bx	update counters; if loop continues then pc-=Bx; */
 		op->type = RZ_ANALYSIS_OP_TYPE_JMP;
-		op->jump = op->addr + 4 - 4 * (LUA_GETARG_Bx(instruction));
+		op->jump = op->addr + 4 - 4 * (GETARG_Bx4(instruction));
 		op->fail = op->addr + 4;
 		break;
 	case OP_FORPREP: /*	A Bx	<check values and prepare counters>;
 	      if not to run then pc+=Bx+1;			*/
 		op->type = RZ_ANALYSIS_OP_TYPE_JMP;
-		op->jump = op->addr + 4 + 4 * (LUA_GETARG_Bx(instruction) + 1);
+		op->jump = op->addr + 4 + 4 * (GETARG_Bx4(instruction) + 1);
 		op->fail = op->addr + 4;
 		break;
 	case OP_TFORPREP: /*	A Bx	create upvalue for R[A + 3]; pc+=Bx		*/
 		op->type = RZ_ANALYSIS_OP_TYPE_JMP;
-		op->jump = op->addr + 4 + 4 * (LUA_GETARG_Bx(instruction));
+		op->jump = op->addr + 4 + 4 * (GETARG_Bx4(instruction));
 		op->fail = op->addr + 4;
 		break;
 	case OP_TFORCALL: /*	A C	R[A+4], ... ,R[A+3+C] := R[A](R[A+1], R[A+2]);	*/
@@ -185,7 +185,7 @@ int lua54_anal_op(RzAnalysis *analysis, RzAnalysisOp *op, ut64 addr, const ut8 *
 		break;
 	case OP_TFORLOOP: /*	A Bx	if R[A+2] ~= nil then { R[A]=R[A+2]; pc -= Bx }	*/
 		op->type = RZ_ANALYSIS_OP_TYPE_CJMP;
-		op->jump = op->addr + 4 - 4 * (LUA_GETARG_Bx(instruction));
+		op->jump = op->addr + 4 - 4 * (GETARG_Bx4(instruction));
 		op->fail = op->addr + 4;
 		break;
 	case OP_SETLIST: /*	A B C k	R[A][C+i] := R[A+i], 1 <= i <= B		*/

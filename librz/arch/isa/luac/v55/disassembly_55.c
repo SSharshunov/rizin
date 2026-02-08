@@ -11,19 +11,19 @@ int lua55_disasm(RzAsmOp *op, const ut8 *buf, int len, LuaOpNameList opnames) {
 	}
 
 	LuaInstruction instruction = lua_build_instruction(buf);
-	LuaOpCode opcode = LUA_GET_OPCODE(instruction);
+	LuaOpCode55 opcode = GET_OPCODE55(instruction);
 
 	/* Pre-fetch arguments */
-	int a = LUA_GETARG_A(instruction);
-	int b = LUA_GETARG_B(instruction);
-	int c = LUA_GETARG_C(instruction);
-	int ax = LUA_GETARG_Ax(instruction);
-	int bx = LUA_GETARG_Bx(instruction);
-	int sb = LUA_GETARG_sB(instruction);
-	int sc = LUA_GETARG_sC(instruction);
-	int sbx = LUA_GETARG_sBx(instruction);
-	int isk = LUA_GETARG_k(instruction);
-	int sj = LUA_GETARG_sJ(instruction);
+	int a = GETARG_A4(instruction);
+	int b = GETARG_B4(instruction);
+	int c = GETARG_C4(instruction);
+	int ax = GETARG_Ax4(instruction);
+	int bx = GETARG_Bx4(instruction);
+	int sb = GETARG_sB(instruction);
+	int sc = GETARG_sC(instruction);
+	int sbx = GETARG_sBx4(instruction);
+	int isk = GETARG_k4(instruction);
+	int sj = GETARG_sJ(instruction);
 
 	char *asm_string;
 

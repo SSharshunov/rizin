@@ -25,25 +25,8 @@ static LuaInstruction encode_instruction(ut8 opcode, const char *arg_start, ut16
 		}
 	}
 
-	switch (getOpMode(opcode)) {
-	case iABC:
-		if (getBMode(opcode) != OpArgN) {
-			args[1] = ISK(args[1]) ? (MYK(INDEXK(args[1]))) : args[1];
-		}
-		if (getCMode(opcode) != OpArgN) {
-			args[2] = ISK(args[2]) ? (MYK(INDEXK(args[2]))) : args[2];
-		}
-		break;
-	case iABx:
-		if (getBMode(opcode) == OpArgK) {
-			args[1] = MYK(args[1]);
-		}
-		break;
-	case iAsBx:
-		break;
-	case iAx:
-		args[0] = MYK(args[0]);
-		break;
+	if (opcode == OP_LOADK) {
+		args[1] = MYK(args[1]); ///< MYK(bx)
 	}
 
 	SET_OPCODE53(instruction, opcode);
@@ -52,15 +35,18 @@ static LuaInstruction encode_instruction(ut8 opcode, const char *arg_start, ut16
 	}
 	if (has_param_flag(flag, PARAM_B)) {
 		temp = args[cur_cnt++];
+		// args[1] = ISK(args[1]) ? (MYK(INDEXK(args[1]))) : args[1]; // Need verify
 		temp = temp < 0 ? 0xFF - temp : temp;
 		SETARG_B1(instruction, temp);
 	}
 	if (has_param_flag(flag, PARAM_C)) {
 		temp = args[cur_cnt++];
+		// args[2] = ISK(args[2]) ? (MYK(INDEXK(args[2]))) : args[2]; // Need verify
 		temp = temp < 0 ? 0xFF - temp : temp;
 		SETARG_C1(instruction, temp);
 	}
 	if (has_param_flag(flag, PARAM_Ax)) {
+		args[0] = MYK(args[0]);
 		SETARG_Ax2(instruction, args[cur_cnt++]);
 	}
 	if (has_param_flag(flag, PARAM_sBx)) {

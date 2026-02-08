@@ -140,82 +140,8 @@ typedef enum {
 	OP_VARARGPREP, /*A	(adjust vararg parameters)			*/
 
 	OP_EXTRAARG /*	Ax	extra (larger) argument for previous opcode	*/
-} LuaOpCode;
+} LuaOpCode54;
 
 #define LUA_NUM_OPCODES ((int)(OP_EXTRAARG) + 1)
-
-/* Offset and size of opcode arguments */
-#define LUAOP_A_SIZE  8
-#define LUAOP_B_SIZE  8
-#define LUAOP_C_SIZE  8
-#define LUAOP_Bx_SIZE (LUAOP_C_SIZE + LUAOP_B_SIZE + 1)
-#define LUAOP_Ax_SIZE (LUAOP_Bx_SIZE + LUAOP_A_SIZE)
-#define LUAOP_sJ_SIZE (LUAOP_Bx_SIZE + LUAOP_A_SIZE)
-#define LUAOP_OP_SIZE 7
-
-#define LUAOP_OP_OFFSET 0
-#define LUAOP_A_OFFSET  (LUAOP_OP_OFFSET + LUAOP_OP_SIZE)
-#define LUAOP_k_OFFSET  (LUAOP_A_OFFSET + LUAOP_A_SIZE)
-#define LUAOP_B_OFFSET  (LUAOP_k_OFFSET + 1)
-#define LUAOP_C_OFFSET  (LUAOP_B_OFFSET + LUAOP_B_SIZE)
-#define LUAOP_Bx_OFFSET LUAOP_k_OFFSET
-#define LUAOP_Ax_OFFSET LUAOP_A_OFFSET
-#define LUAOP_sJ_OFFSET LUAOP_A_OFFSET
-
-/* max value of these args */
-#define LUAOP_MAXARG_Bx ((1 << LUAOP_Bx_SIZE) - 1)
-#define LUAOP_MAXARG_Ax ((1 << LUAOP_Ax_SIZE) - 1)
-#define LUAOP_MAXARG_sJ ((1 << LUAOP_sJ_SIZE) - 1)
-#define LUAOP_MAXARG_A  ((1 << LUAOP_A_SIZE) - 1)
-#define LUAOP_MAXARG_B  ((1 << LUAOP_B_SIZE) - 1)
-#define LUAOP_MAXARG_C  ((1 << LUAOP_C_SIZE) - 1)
-
-/* fix value of signed args */
-#define LUAOP_FIX_sBx (LUAOP_MAXARG_Bx >> 1)
-#define LUAOP_FIX_sJ  (LUAOP_MAXARG_sJ >> 1)
-#define LUAOP_FIX_sC  (LUAOP_MAXARG_C >> 1)
-
-// /* ===========================================
-//  * Operation Method Macros
-//  * =========================================== */
-
-/* creates a mask with 'n' 1/0 bits at position 'p' */
-#define LUA_MASK1(n, p) ((~((~(LuaInstruction)0) << (n))) << (p))
-#define LUA_MASK0(n, p) (~LUA_MASK1(n, p))
-
-/* OPCODE getter */
-#define LUA_GET_OPCODE(i)    (LUA_CAST(LuaOpCode, ((i) >> LUAOP_OP_OFFSET) & LUA_MASK1(LUAOP_OP_SIZE, 0)))
-#define LUA_SET_OPCODE(i, o) ((i) = (((i) & LUA_MASK0(LUAOP_OP_SIZE, LUAOP_OP_OFFSET)) | \
-				      ((LUA_CAST(LuaInstruction, o) << LUAOP_OP_OFFSET) & LUA_MASK1(LUAOP_OP_SIZE, LUAOP_OP_OFFSET))))
-
-/* Arguments getter */
-#define LUA_GETARG(i, offset, size) (LUA_CAST(int, ((i) >> (offset)) & LUA_MASK1(size, 0)))
-#define LUA_SETARG(i, v, pos, size) ((i) = (((i) & LUA_MASK0(size, pos)) | \
-					     ((LUA_CAST(LuaInstruction, v) << (pos)) & LUA_MASK1(size, pos))))
-
-#define LUA_GETARG_A(i)   LUA_GETARG(i, LUAOP_A_OFFSET, LUAOP_A_SIZE)
-#define LUA_GETARG_B(i)   LUA_GETARG(i, LUAOP_B_OFFSET, LUAOP_B_SIZE)
-#define LUA_GETARG_C(i)   LUA_GETARG(i, LUAOP_C_OFFSET, LUAOP_C_SIZE)
-#define LUA_GETARG_Bx(i)  LUA_GETARG(i, LUAOP_Bx_OFFSET, LUAOP_Bx_SIZE)
-#define LUA_GETARG_Ax(i)  LUA_GETARG(i, LUAOP_Ax_OFFSET, LUAOP_Ax_SIZE)
-#define LUA_GETARG_sBx(i) (LUA_GETARG_Bx(i) - LUAOP_FIX_sBx)
-#define LUA_GETARG_sJ(i)  (LUA_GETARG(i, LUAOP_sJ_OFFSET, LUAOP_sJ_SIZE) - LUAOP_FIX_sJ)
-#define LUA_GETARG_sC(i)  sC2int(LUA_GETARG_C(i))
-#define LUA_GETARG_sB(i)  sC2int(LUA_GETARG_B(i))
-
-#define LUA_GETARG_k(i) LUA_GETARG(i, LUAOP_k_OFFSET, 1)
-
-#define SETARG_A(i, v)   LUA_SETARG(i, v, LUAOP_A_OFFSET, LUAOP_A_SIZE)
-#define SETARG_B(i, v)   LUA_SETARG(i, v, LUAOP_B_OFFSET, LUAOP_B_SIZE)
-#define SETARG_C(i, v)   LUA_SETARG(i, v, LUAOP_C_OFFSET, LUAOP_C_SIZE)
-#define SETARG_Bx(i, v)  LUA_SETARG(i, v, LUAOP_Bx_OFFSET, LUAOP_Bx_SIZE)
-#define SETARG_Ax(i, v)  LUA_SETARG(i, v, LUAOP_Ax_OFFSET, LUAOP_Ax_SIZE)
-#define SETARG_sBx(i, b) SETARG_Bx((i), LUA_CAST(ut32, (b) + LUAOP_FIX_sBx))
-#define SETARG_sJ(i, j) \
-	LUA_SETARG((i), LUA_CAST(ut32, (j) + LUAOP_FIX_sJ), LUAOP_sJ_OFFSET, LUAOP_sJ_SIZE)
-#define SETARG_sC(i, v) SETARG_C((i), int2sC(v))
-#define SETARG_sB(i, v) SETARG_B((i), int2sC(v))
-
-#define SETARG_k(i, v) LUA_SETARG(i, v, LUAOP_k_OFFSET, 1)
 
 #endif // BUILD_ARCH_54_H
