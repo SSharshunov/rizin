@@ -4,7 +4,7 @@
 
 #include "arch_54.h"
 
-int lua54_anal_op(RzAnalysis *analysis, RzAnalysisOp *op, ut64 addr, const ut8 *data, int len) {
+int lua54_analysis_op(RzAnalysis *analysis, RzAnalysisOp *op, ut64 addr, const ut8 *data, int len) {
 	if (!op || len < 4) {
 		return 0;
 	}

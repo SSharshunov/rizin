@@ -5,7 +5,7 @@
 
 #include "arch_51.h"
 
-int lua51_anal_op(RzAnalysis *anal, RzAnalysisOp *op, ut64 addr, const ut8 *data, int len) {
+int lua51_analysis_op(RzAnalysis *analysis, RzAnalysisOp *op, ut64 addr, const ut8 *data, int len) {
 	if (!op) {
 		return 0;
 	}

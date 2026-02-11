@@ -10,12 +10,9 @@
 #include <rz_bin.h>
 #include <rz_lib.h>
 #include <rz_list.h>
+#include <arch/isa/luac/lua_arch.h>
 
 /* Macros for bin_luac.c */
-/* Macros/Typedefs used in luac */
-typedef double LUA_NUMBER;
-typedef ut64 LUA_INTEGER;
-typedef ut32 LUA_INT;
 
 #define PF_VAHID 1 /* function has hidden vararg arguments */
 #define PF_VATAB 2 /* function has vararg table */
@@ -66,6 +63,7 @@ typedef ut32 LUA_INSTRUCTION;
 typedef struct lua_proto_ex {
 	ut64 offset; ///< proto offset in bytes
 	ut64 size; ///< current proto size
+	ut8 num_size; ///< numeric size for strings
 
 	ut8 *proto_name; ///<  current proto name
 	int name_size; ///< size of proto name
@@ -106,7 +104,6 @@ typedef struct lua_proto_ex {
 	RzList /*<LuaAbsLineinfoEntry *>*/ *abs_line_info_entries; ///< A list to store absolutely line info entries
 	RzList /*<LuaLocalVarEntry *>*/ *local_var_info_entries; ///< A list to store local var entries
 	RzList /*<LuaLocalVarEntry *>*/ *dbg_upvalue_entries; ///< A list to store upvalue names
-
 } LuaProtoHeavy;
 
 typedef LuaProtoHeavy LuaProto;
@@ -116,16 +113,17 @@ typedef LuaProtoHeavy LuaProto;
  * \brief Store header information of luac file
  */
 typedef struct lua_header_info {
-	st32 major; ///< major version
-	st32 minor; ///< minor version
+	ut8 major; ///< major version
+	ut8 minor; ///< minor version
 	ut8 format; ///< official or unofficial compiler used
 	ut8 endianness; ///< endianness on luac 5.1 and 5.2
-	st32 int_size; ///< size of int used, exclude 5.4
+	ut32 int_size; ///< size of int used, exclude 5.4
 	ut8 size_t_size; ///< size of size_t used, < 5.4
-	st32 instruction_size; ///< size of instruction used
-	st32 integer_size; ///< size of lua integer used
-	st32 number_size; ///< size of lua number used
+	ut32 instruction_size; ///< size of instruction used
+	ut32 integer_size; ///< size of lua integer used
+	ut32 number_size; ///< size of lua number used
 	ut8 is_number_integral; ///< is lua_Number integral? (< 5.3)
+	bool is_openwrt; ///< may be custom system
 	size_t psize; ///< physical size of header in bytes
 	char *src_file_name;
 } LuaHeaderInfo;

@@ -169,7 +169,6 @@ static const char *get_tag_string(ut8 tag) {
 /* Heap allocated string */
 static char *get_constant_symbol_name(char *proto_name, LuaConstEntry *entry) {
 	rz_return_val_if_fail(entry && proto_name, NULL);
-	// rz_return_val_if_fail(entry || proto_name, NULL);
 	ut8 tag = entry->tag;
 	char *ret;
 	st64 integer_value;

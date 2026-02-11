@@ -4,6 +4,8 @@
 
 #include "lua_arch.h"
 
+#define print_isk isk ? "k" : ""
+
 LuaInstruction lua_build_instruction(const ut8 *buf) {
 	LuaInstruction ret = 0;
 	ret |= buf[3] << 24;
@@ -13,7 +15,7 @@ LuaInstruction lua_build_instruction(const ut8 *buf) {
 	return ret;
 }
 
-void lua_set_instruction(LuaInstruction instruction, ut8 *data) {
+void lua_set_instruction(const LuaInstruction instruction, ut8 *data) {
 	data[3] = instruction >> 24;
 	data[2] = instruction >> 16;
 	data[1] = instruction >> 8;
@@ -29,37 +31,38 @@ bool free_lua_opnames(LuaOpNameList list) {
 }
 
 /* formatted strings for asm_buf */
-char *luaop_new_str_3arg(char *opname, int a, int b, int c) {
-	return rz_str_newf("%s %d %d %d", opname, a, b, c);
+char *luaop_new_str_3arg(char *opname, const int a, const int b, const int c) {
+	// return rz_str_newf("%s %d %d %d", opname, a, b, c);
+	return rz_str_newf("%s %" PFMT32d " %" PFMT32d " %" PFMT32d, opname, a, b, c);
 }
 
-char *luaop_new_str_2arg(char *opname, int a, int b) {
-	return rz_str_newf("%s %d %d", opname, a, b);
+char *luaop_new_str_2arg(char *opname, const int a, const int b) {
+	return rz_str_newf("%s %" PFMT32d " %" PFMT32d, opname, a, b);
 }
 
-char *luaop_new_str_1arg(char *opname, int a) {
-	return rz_str_newf("%s %d", opname, a);
+char *luaop_new_str_1arg(char *opname, const int a) {
+	return rz_str_newf("%s %" PFMT32d, opname, a);
 }
 
 /* For the k flag */
-char *luaop_new_str_3arg_ex(char *opname, int a, int b, int c, int isk) {
-	return rz_str_newf("%s %d %d %d%s", opname, a, b, c, isk ? "k" : "");
+char *luaop_new_str_3arg_ex(char *opname, const int a, const int b, const int c, const int isk) {
+	return rz_str_newf("%s %" PFMT32d " %" PFMT32d " %" PFMT32d "%s", opname, a, b, c, print_isk);
 }
 
-char *luaop_new_str_2arg_ex(char *opname, int a, int b, int isk) {
-	return rz_str_newf("%s %d %d%s", opname, a, b, isk ? "k" : "");
+char *luaop_new_str_2arg_ex(char *opname, const int a, const int b, const int isk) {
+	return rz_str_newf("%s %" PFMT32d " %" PFMT32d "%s", opname, a, b, print_isk);
 }
 
-char *luaop_new_str_2arg_ex_ki(char *opname, int a, int b, int isk) {
-	return rz_str_newf("%s %d %d %d", opname, a, b, isk);
+char *luaop_new_str_2arg_ex_ki(char *opname, const int a, const int b, const int isk) {
+	return rz_str_newf("%s %" PFMT32d " %" PFMT32d " %" PFMT32d, opname, a, b, isk);
 }
 
-char *luaop_new_str_2arg_ex_kc(char *opname, int a, int b, int isk) {
-	return rz_str_newf("%s %d %d%s", opname, a, b, isk ? "k" : "");
+char *luaop_new_str_2arg_ex_kc(char *opname, const int a, const int b, const int isk) {
+	return rz_str_newf("%s %" PFMT32d " %" PFMT32d "%s", opname, a, b, print_isk);
 }
 
-char *luaop_new_str_1arg_ex(char *opname, int a, int isk) {
-	return rz_str_newf("%s %d%s", opname, a, isk ? "k" : "");
+char *luaop_new_str_1arg_ex(char *opname, const int a, const int isk) {
+	return rz_str_newf("%s %" PFMT32d "%s", opname, a, print_isk);
 }
 
 int lua_load_next_arg_start(const char *raw_string, char *recv_buf) {
@@ -80,7 +83,7 @@ int lua_load_next_arg_start(const char *raw_string, char *recv_buf) {
 	arg_end = strchr(arg_start, ' ');
 	if (arg_end == NULL) {
 		/* is last arg */
-		arg_len = strlen(arg_start);
+		arg_len = (int)strlen(arg_start);
 	} else {
 		arg_len = arg_end - arg_start;
 	}
@@ -102,5 +105,5 @@ bool lua_is_valid_num_value_string(const char *str) {
 }
 
 int lua_convert_str_to_num(const char *str) {
-	return strtoll(str, NULL, 0);
+	return (int)strtoll(str, NULL, 0);
 }

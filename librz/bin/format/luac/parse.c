@@ -5,6 +5,44 @@
 
 #include "librz/bin/format/luac/luac_common.h"
 
+#ifdef RZ_DEBUG
+#define CHECK_SIZE \
+	if (offset >= bf->size) { \
+		RZ_LOG_ERROR("Truncated Header (line: %d)\n", __LINE__); \
+		return 0; \
+	}
+#else
+#define CHECK_SIZE rz_return_val_if_fail((offset < bf->size), 0)
+#endif
+
+#define READ8(buffer, offset, receiver) \
+	{ \
+		ut8 tmp; \
+		if (!rz_buf_read_ble8_offset(buffer, &offset, &tmp, false)) { \
+			return 0; \
+		} \
+		receiver = tmp; \
+	}
+
+#define READ8_CHECK_SIZE(buffer, offset, receiver) \
+	{ \
+		READ8(buffer, offset, receiver) \
+		CHECK_SIZE; \
+	}
+
+#define READ8_CHECK_VAL(buffer, offset, val, err) \
+	{ \
+		ut8 tmp; \
+		if (!rz_buf_read_ble8_offset(buffer, offset, &tmp, false)) { \
+			return 0; \
+		}; \
+		if (tmp != val) { \
+			RZ_LOG_ERROR(err); \
+			return 0; \
+		} \
+		CHECK_SIZE; \
+	}
+
 static void lua_load_block(RzBuffer *buffer, void *dest, size_t size, ut64 offset, ut64 data_size) {
 	if (offset + size > data_size) {
 		RZ_LOG_ERROR("Truncated load block at 0x%llx\n", offset);
@@ -32,7 +70,6 @@ static ut32 lua_load_int(RzBuffer *buffer, ut64 offset) {
 }
 
 // return an offset to skip string, return 1 if no string (0x80)
-// TODO : clean type related issues
 static ut64 lua_parse_szint(RzBuffer *buffer, st32 *size, ut64 offset, ut64 data_size, ut8 minor) {
 	st32 result = 0;
 	st32 i = 0;
@@ -102,7 +139,7 @@ static ut64 lua_parse_line_defined(LuaProto *proto, RzBuffer *buffer, ut64 offse
 	return size_offset;
 }
 
-static ut64 lua_parse_string(RzBuffer *buffer, ut8 **dest, int *str_len, ut64 offset, ut64 data_size, ut8 minor) {
+static ut64 lua_parse_string(RzBuffer *buffer, ut8 **dest, int *str_len, ut64 offset, ut64 data_size, ut8 minor, ut8 num_size) {
 	ut64 size_offset = 0;
 	int ret_buf_size = 0;
 	int string_len = 0;
@@ -116,7 +153,7 @@ static ut64 lua_parse_string(RzBuffer *buffer, ut8 **dest, int *str_len, ut64 of
 			return 0;
 		}
 		ret_buf_size = (int)tmp16;
-		size_offset = sizeof(LUA_NUMBER);
+		size_offset = num_size;
 		offset += size_offset;
 	} else if (minor == 3) {
 		ut8 tmp = 0;
@@ -132,7 +169,7 @@ static ut64 lua_parse_string(RzBuffer *buffer, ut8 **dest, int *str_len, ut64 of
 				return 0;
 			}
 			ret_buf_size = (int)tmp16;
-			size_offset = sizeof(LUA_NUMBER);
+			size_offset = num_size;
 		}
 		offset += size_offset;
 	} else if (minor >= 4) {
@@ -172,7 +209,7 @@ static ut64 lua_parse_string(RzBuffer *buffer, ut8 **dest, int *str_len, ut64 of
 }
 
 static ut64 lua_parse_name(LuaProto *proto, RzBuffer *buffer, ut64 offset, ut64 data_size, ut8 minor) {
-	return lua_parse_string(buffer, &proto->proto_name, &proto->name_size, offset, data_size, minor);
+	return lua_parse_string(buffer, &proto->proto_name, &proto->name_size, offset, data_size, minor, proto->num_size);
 }
 
 static ut64 lua_parse_code(LuaProto *proto, RzBuffer *buffer, ut64 offset, ut64 data_size, ut8 minor) {
@@ -270,7 +307,7 @@ static ut64 lua_parse_const_entry(const LuaProto *proto, RzBuffer *buffer, ut64 
 		break;
 	case LUA_VSHRSTR:
 	case LUA_VLNGSTR:
-		delta_offset = lua_parse_string(buffer, &recv_data, &data_len, offset, data_size, minor);
+		delta_offset = lua_parse_string(buffer, &recv_data, &data_len, offset, data_size, minor, proto->num_size);
 		lua_check_error_offset(delta_offset);
 		if (minor == 1)
 			delta_offset++;
@@ -395,13 +432,7 @@ static ut64 lua_parse_debug(LuaProto *proto, RzBuffer *buffer, ut64 offset, ut64
 		LuaLineinfoEntry *info_entry = lua_new_lineinfo_entry();
 		info_entry->offset = offset;
 		if (minor > 3) {
-			ut8 tmp;
-			if (!rz_buf_read8_at(buffer, offset, &tmp)) {
-				free(info_entry);
-				return 0;
-			}
-			info_entry->info_data = tmp;
-			offset += 1;
+			READ8(buffer, offset, info_entry->info_data);
 		} else {
 			info_entry->info_data = lua_load_int(buffer, offset);
 			offset += sizeof(LUA_INT);
@@ -441,7 +472,7 @@ static ut64 lua_parse_debug(LuaProto *proto, RzBuffer *buffer, ut64 offset, ut64
 		delta_offset = lua_parse_string(
 			buffer,
 			&var_entry->varname, &var_entry->varname_len,
-			offset, data_size, minor);
+			offset, data_size, minor, proto->num_size);
 		lua_check_error_offset(delta_offset);
 		if (minor == 1)
 			delta_offset++;
@@ -473,7 +504,7 @@ static ut64 lua_parse_debug(LuaProto *proto, RzBuffer *buffer, ut64 offset, ut64
 			buffer,
 			&dbg_upvalue_entry->upvalue_name,
 			&dbg_upvalue_entry->name_len,
-			offset, data_size, minor);
+			offset, data_size, minor, proto->num_size);
 		lua_check_error_offset(delta_offset);
 		offset += delta_offset;
 		rz_list_append(proto->dbg_upvalue_entries, dbg_upvalue_entry);
@@ -506,6 +537,7 @@ static ut64 lua_parse_protos(LuaProto *proto, RzBuffer *buffer, LuaHeaderInfo *h
 LuaProto *lua_parse_body(RzBuffer *buffer, LuaHeaderInfo *header, ut64 base_offset, ut64 data_size) {
 	LuaProto *ret_proto = lua_new_proto_entry(); /* constructed proto for return */
 	rz_return_val_if_fail(ret_proto, NULL);
+	ret_proto->num_size = header->is_openwrt ? 4 : sizeof(LUA_NUMBER);
 
 	ut8 minor = header->minor;
 	ut64 delta_offset = 0;
@@ -663,12 +695,6 @@ LuaProto *lua_parse_body(RzBuffer *buffer, LuaHeaderInfo *header, ut64 base_offs
 	return ret_proto;
 }
 
-#define CHECK_SIZE \
-	if (offset >= bf->size) { \
-		RZ_LOG_ERROR("Truncated Header (line: %d)\n", __LINE__); \
-		return 0; \
-	}
-
 size_t parse_header(const RzBinFile *bf, LuaHeaderInfo *header) {
 	RzBuffer *buffer = bf->buf;
 	ut8 major_minor_version = 0x00;
@@ -696,41 +722,30 @@ size_t parse_header(const RzBinFile *bf, LuaHeaderInfo *header) {
 	/* read header members from work buffer */
 	/* is official compiler (minor > 0) */
 	if (minor > 0) {
-		if (!rz_buf_read8_at(buffer, offset, &header->format)) {
-			return 0;
-		}
-		offset++;
-		CHECK_SIZE;
+		READ8_CHECK_SIZE(buffer, offset, header->format);
 	}
 
 	/* check luac data if minor > 2 */
 	if (minor > 2) {
 		offset += strlen(LUAC_DATA);
+		CHECK_SIZE;
 	} else {
-		/* get endianness on luac 5.1 and 5.2 */
-		if (!rz_buf_read8_at(buffer, offset, &header->endianness)) {
-			return 0;
-		}
-		offset++;
+		READ8_CHECK_SIZE(buffer, offset, header->endianness);
 	}
-	CHECK_SIZE;
 
 	/* get int size on 5.1, 5.2, 5.3, 5.5 */
 	if (minor == 5) {
-		const ut64 size_offset = lua_parse_szint(buffer, &header->int_size, offset, bf->size, minor);
+		st32 tmp = 0;
+		const ut64 size_offset = lua_parse_szint(buffer, &tmp, offset, bf->size, minor);
+		header->int_size = (ut32)tmp;
 		offset += size_offset;
 		CHECK_SIZE;
 		const ut32 test_valid = lua_load_int(buffer, offset);
 		(void)test_valid;
 		offset += header->int_size;
 	} else if (minor <= 3) { ///< TODO: ????? need 3?
-		ut8 tmp;
-		if (!rz_buf_read8_at(buffer, offset, &tmp)) {
-			return 0;
-		}
-		header->int_size = tmp;
+		READ8_CHECK_SIZE(buffer, offset, header->int_size);
 		header->integer_size = 4;
-		offset++;
 	} else {
 		header->int_size = 4;
 	}
@@ -738,18 +753,14 @@ size_t parse_header(const RzBinFile *bf, LuaHeaderInfo *header) {
 
 	/* get size_t size on 5.1, 5.2, 5.3 */
 	if (minor <= 3) {
-		ut8 tmp;
-		if (!rz_buf_read8_at(buffer, offset, &tmp)) {
-			return 0;
-		}
-		header->size_t_size = tmp;
-		offset++;
-		CHECK_SIZE;
+		READ8_CHECK_SIZE(buffer, offset, header->size_t_size);
 	}
 
 	/* get instruction size */
 	if (minor == 5) {
-		const ut64 size_offset = lua_parse_szint(buffer, &header->instruction_size, offset, bf->size, minor);
+		st32 tmp = 0;
+		const ut64 size_offset = lua_parse_szint(buffer, &tmp, offset, bf->size, minor);
+		header->instruction_size = (ut32)tmp;
 		offset += size_offset;
 		CHECK_SIZE;
 
@@ -762,59 +773,21 @@ size_t parse_header(const RzBinFile *bf, LuaHeaderInfo *header) {
 			return 0;
 		}
 	} else {
-		ut8 tmp;
-		if (!rz_buf_read8_at(buffer, offset, &tmp)) {
-			return 0;
-		}
-		header->instruction_size = tmp;
-		offset++;
-		CHECK_SIZE;
+		READ8_CHECK_SIZE(buffer, offset, header->instruction_size);
 	}
 
 	if (minor == 0) {
-		ut8 tmp;
-		if (!rz_buf_read8_at(buffer, offset, &tmp)) {
-			return 0;
-		}
-		offset++;
-		if (tmp != 6) {
-			RZ_LOG_ERROR("Wrong size of SIZE_OP\n");
-			return 0;
-		}
-		CHECK_SIZE;
-		if (!rz_buf_read8_at(buffer, offset, &tmp)) {
-			return 0;
-		}
-		offset++;
-		if (tmp != 8) {
-			RZ_LOG_ERROR("Wrong size of SIZE_A\n");
-			return 0;
-		}
-		CHECK_SIZE;
-		if (!rz_buf_read8_at(buffer, offset, &tmp)) {
-			return 0;
-		}
-		offset++;
-		if (tmp != 9) {
-			RZ_LOG_ERROR("Wrong size of SIZE_B\n");
-			return 0;
-		}
-		CHECK_SIZE;
-		if (!rz_buf_read8_at(buffer, offset, &tmp)) {
-			return 0;
-		}
-		offset++;
-		if (tmp != 9) {
-			RZ_LOG_ERROR("Wrong size of SIZE_C\n");
-			return 0;
-		}
-		CHECK_SIZE;
+		READ8_CHECK_VAL(buffer, &offset, 6, "Wrong size of SIZE_OP\n");
+		READ8_CHECK_VAL(buffer, &offset, 8, "Wrong size of SIZE_A\n");
+		READ8_CHECK_VAL(buffer, &offset, 9, "Wrong size of SIZE_B\n");
+		READ8_CHECK_VAL(buffer, &offset, 9, "Wrong size of SIZE_C\n");
 	}
 
 	/* get lua integer size on luac > 5.3 */
 	if (minor == 5) {
-		const ut64 size_offset = lua_parse_szint(buffer, &header->integer_size, offset, bf->size, minor);
-		// printf("size_offset: %llu, offset: %llu\n", size_offset, offset);
+		st32 tmp = 0;
+		const ut64 size_offset = lua_parse_szint(buffer, &tmp, offset, bf->size, minor);
+		header->integer_size = (ut32)tmp;
 		offset += size_offset;
 		CHECK_SIZE;
 		const ut64 test_valid = lua_load_integer(buffer, offset);
@@ -828,18 +801,14 @@ size_t parse_header(const RzBinFile *bf, LuaHeaderInfo *header) {
 		}
 		*/
 	} else if ((minor == 3) || (minor == 4)) {
-		ut8 tmp;
-		if (!rz_buf_read8_at(buffer, offset, &tmp)) {
-			return 0;
-		}
-		offset++;
-		header->integer_size = tmp;
-		CHECK_SIZE;
+		READ8_CHECK_SIZE(buffer, offset, header->integer_size);
 	}
 
 	/* get lua number size */
 	if (minor == 5) {
-		const ut64 size_offset = lua_parse_szint(buffer, &header->number_size, offset, bf->size, minor);
+		st32 tmp = 0;
+		const ut64 size_offset = lua_parse_szint(buffer, &tmp, offset, bf->size, minor);
+		header->number_size = (ut32)tmp;
 		offset += size_offset;
 		CHECK_SIZE;
 		const double test_valid = lua_load_number(buffer, offset);
@@ -850,16 +819,10 @@ size_t parse_header(const RzBinFile *bf, LuaHeaderInfo *header) {
 			return 0;
 		}
 	} else {
-		ut8 tmp;
-		if (!rz_buf_read8_at(buffer, offset, &tmp)) {
-			return 0;
-		}
-		offset++;
-		CHECK_SIZE;
-		header->number_size = tmp;
+		READ8_CHECK_SIZE(buffer, offset, header->number_size);
 	}
 	if (minor == 0) {
-		double number_valid = lua_load_number(buffer, offset);
+		const double number_valid = lua_load_number(buffer, offset);
 		if (number_valid != LUAC0_NUMBER_VALIDATION) {
 			RZ_LOG_ERROR("Number format does not match with the expected number (expected: %f, actual: %f)\n", LUAC0_NUMBER_VALIDATION, number_valid);
 			return 0;
@@ -874,6 +837,13 @@ size_t parse_header(const RzBinFile *bf, LuaHeaderInfo *header) {
 			return 0;
 		}
 		offset++;
+		if (header->is_number_integral > 0x01) {
+			header->is_openwrt = true;
+			if (!rz_buf_read8_at(buffer, offset, &header->is_number_integral)) {
+				return 0;
+			}
+			offset += 1;
+		}
 	}
 	if (minor == 2) {
 		offset += strlen(LUAC_DATA);
@@ -906,12 +876,7 @@ size_t parse_header(const RzBinFile *bf, LuaHeaderInfo *header) {
 		/* size upvalues */
 		int size_upvalues = 0;
 		if ((header->minor == 3) || (header->minor == 4)) {
-			ut8 tmp;
-			if (!rz_buf_read8_at(buffer, offset, &tmp)) {
-				return 0;
-			}
-			offset++;
-			size_upvalues = tmp;
+			READ8_CHECK_SIZE(buffer, offset, size_upvalues);
 		} else {
 			const ut64 delta_offset = lua_parse_szint(buffer, &size_upvalues, offset, bf->size, minor);
 			lua_check_error_offset(delta_offset);
@@ -923,7 +888,7 @@ size_t parse_header(const RzBinFile *bf, LuaHeaderInfo *header) {
 		return offset;
 
 	int name_len;
-	lua_parse_string(buffer, ((ut8 **)&(header->src_file_name)), &name_len, offset, bf->size, header->minor);
+	lua_parse_string(buffer, ((ut8 **)&(header->src_file_name)), &name_len, offset, bf->size, header->minor, header->is_openwrt ? 4 : sizeof(LUA_NUMBER));
 	(void)name_len;
 
 	return offset;
@@ -939,7 +904,7 @@ RzBinInfo *lua_parse_bin_info(const RzBinFile *bf, const LuaHeaderInfo *header) 
 	ret->bclass = rz_str_dup("Lua compiled file");
 	ret->rclass = rz_str_dup("luac");
 	ret->arch = rz_str_dup("luac");
-	ret->machine = rz_str_newf("Lua %c.%c VM", header->major + '0', header->minor + '0');
+	ret->machine = rz_str_newf("Lua %c.%c VM%s", header->major + '0', header->minor + '0', header->is_openwrt ? " (openwrt)" : "");
 	ret->os = rz_str_newf("%c.%c", header->major + '0', header->minor + '0');
 	ret->cpu = rz_str_newf("%c.%c", header->major + '0', header->minor + '0');
 	ret->bits = 8;

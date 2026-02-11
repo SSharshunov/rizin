@@ -13,24 +13,24 @@ int rz_luac_disasm(RzAsm *a, RzAsmOp *opstruct, const ut8 *buf, int len) {
 		return -1;
 	}
 
-	if (strcmp(a->cpu, "5.5") == 0) {
-		oplist = get_lua55_opnames();
-		r = lua55_disasm(opstruct, buf, len, oplist);
-	} else if (strcmp(a->cpu, "5.4") == 0) {
-		oplist = get_lua54_opnames();
-		r = lua54_disasm(opstruct, buf, len, oplist);
-	} else if (strcmp(a->cpu, "5.3") == 0) {
-		oplist = get_lua53_opnames();
-		r = lua53_disasm(opstruct, buf, len, oplist);
-	} else if (strcmp(a->cpu, "5.2") == 0) {
-		oplist = get_lua52_opnames();
-		r = lua52_disasm(opstruct, buf, len, oplist);
-	} else if (strcmp(a->cpu, "5.1") == 0) {
-		oplist = get_lua51_opnames();
-		r = lua51_disasm(opstruct, buf, len, oplist);
-	} else if (strcmp(a->cpu, "5.0") == 0) {
+	if (RZ_STR_EQ(a->cpu, "5.0")) {
 		oplist = get_lua50_opnames();
 		r = lua50_disasm(opstruct, buf, len, oplist);
+	} else if (RZ_STR_EQ(a->cpu, "5.1")) {
+		oplist = get_lua51_opnames();
+		r = lua51_disasm(opstruct, buf, len, oplist);
+	} else if (RZ_STR_EQ(a->cpu, "5.2")) {
+		oplist = get_lua52_opnames();
+		r = lua52_disasm(opstruct, buf, len, oplist);
+	} else if (RZ_STR_EQ(a->cpu, "5.3")) {
+		oplist = get_lua53_opnames();
+		r = lua53_disasm(opstruct, buf, len, oplist);
+	} else if (RZ_STR_EQ(a->cpu, "5.4")) {
+		oplist = get_lua54_opnames();
+		r = lua54_disasm(opstruct, buf, len, oplist);
+	} else if (RZ_STR_EQ(a->cpu, "5.5")) {
+		oplist = get_lua55_opnames();
+		r = lua55_disasm(opstruct, buf, len, oplist);
 	} else {
 		RZ_LOG_ERROR("disassembler: lua: version %s is not supported\n", a->cpu);
 		return -1;
@@ -50,28 +50,27 @@ int rz_luac_asm(RzAsm *a, RzAsmOp *opstruct, const char *str) {
 		RZ_LOG_ERROR("assembler: lua: no version info, specify it with `asm.cpu` option\n");
 		return -1;
 	}
-
-	if (strcmp(a->cpu, "5.0") == 0) {
+	if (RZ_STR_EQ(a->cpu, "5.0")) {
 		if (!lua50_assembly(str, str_len, &instruction)) {
 			return -1;
 		}
-	} else if (strcmp(a->cpu, "5.1") == 0) {
+	} else if (RZ_STR_EQ(a->cpu, "5.1")) {
 		if (!lua51_assembly(str, str_len, &instruction)) {
 			return -1;
 		}
-	} else if (strcmp(a->cpu, "5.2") == 0) {
+	} else if (RZ_STR_EQ(a->cpu, "5.2")) {
 		if (!lua52_assembly(str, str_len, &instruction)) {
 			return -1;
 		}
-	} else if (strcmp(a->cpu, "5.3") == 0) {
+	} else if (RZ_STR_EQ(a->cpu, "5.3")) {
 		if (!lua53_assembly(str, str_len, &instruction)) {
 			return -1;
 		}
-	} else if (strcmp(a->cpu, "5.4") == 0) {
+	} else if (RZ_STR_EQ(a->cpu, "5.4")) {
 		if (!lua54_assembly(str, str_len, &instruction)) {
 			return -1;
 		}
-	} else if (strcmp(a->cpu, "5.5") == 0) {
+	} else if (RZ_STR_EQ(a->cpu, "5.5")) {
 		if (!lua55_assembly(str, str_len, &instruction)) {
 			return -1;
 		}

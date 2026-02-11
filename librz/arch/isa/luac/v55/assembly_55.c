@@ -4,26 +4,14 @@
 
 #include "arch_55.h"
 
-static LuaInstruction encode_instruction(ut8 opcode, const char *arg_start, ut16 flag, ut8 arg_num) {
+static LuaInstruction encode_instruction(const ut8 opcode, const char *arg_start, ut16 flag, ut8 arg_num) {
+	rz_return_val_if_fail((arg_num > 0) && (arg_num <= LUA_MAX_ARGS4), LUA_INVALID_INSNTRUCTION);
 	LuaInstruction instruction = 0;
-	int args[4];
+	int args[LUA_MAX_ARGS4];
 	char buffer[64]; // buffer for digits
 	int cur_cnt = 0;
 
-	for (int i = 0; i < arg_num; ++i) {
-		const int delta_offset = lua_load_next_arg_start(arg_start, buffer);
-		char *ptr = strchr(buffer, 'k');
-		if (ptr != NULL) {
-			*ptr = '\0';
-			args[i] = lua_convert_str_to_num(buffer);
-			args[i + 1] = 1;
-			arg_num++;
-			flag |= PARAM_k;
-			break;
-		}
-		args[i] = lua_convert_str_to_num(buffer);
-		arg_start += delta_offset;
-	}
+	load_args4;
 
 	SET_OPCODE55(instruction, opcode);
 	if (has_param_flag(flag, PARAM_A)) {
@@ -92,6 +80,8 @@ static LuaInstruction encode_instruction(ut8 opcode, const char *arg_start, ut16
 }
 
 bool lua55_assembly(const char *input, st32 input_size, LuaInstruction *instruction_p) {
+	rz_return_val_if_fail(input && input_size > 0, false);
+
 	/* Find the opcode */
 	const char *opcode_start = input; ///< point to the header
 	const char *opcode_end = strchr(input, ' '); ///< point to the first white space

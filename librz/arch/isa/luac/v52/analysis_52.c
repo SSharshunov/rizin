@@ -5,7 +5,7 @@
 
 #include "arch_52.h"
 
-int lua52_anal_op(RzAnalysis *anal, RzAnalysisOp *op, ut64 addr, const ut8 *data, int len) {
+int lua52_analysis_op(RzAnalysis *analysis, RzAnalysisOp *op, ut64 addr, const ut8 *data, int len) {
 	if (!op) {
 		return 0;
 	}
@@ -22,7 +22,6 @@ int lua52_anal_op(RzAnalysis *anal, RzAnalysisOp *op, ut64 addr, const ut8 *data
 	if (GET_OPCODE52(instruction) > OP_EXTRAARG) {
 		return op->size;
 	}
-	// op->mnemonic = rz_str_dup ();
 
 	switch (GET_OPCODE52(instruction)) {
 	case OP_MOVE: /*      A B     R(A) := R(B)                                    */

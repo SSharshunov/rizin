@@ -5,25 +5,15 @@
 
 #include "arch_53.h"
 
-static LuaInstruction encode_instruction(ut8 opcode, const char *arg_start, ut16 flag, ut8 arg_num) {
+static LuaInstruction encode_instruction(const ut8 opcode, const char *arg_start, const ut16 flag, const ut8 arg_num) {
+	rz_return_val_if_fail((arg_num > 0) && (arg_num <= LUA_MAX_ARGS0), LUA_INVALID_INSNTRUCTION);
 	LuaInstruction instruction = 0;
-	int args[3];
+	int args[LUA_MAX_ARGS0];
 	char buffer[64]; // buffer for digits
 	int cur_cnt = 0;
 	int temp;
 
-	for (int i = 0; i < arg_num; ++i) {
-		const int delta_offset = lua_load_next_arg_start(arg_start, buffer);
-		if (delta_offset == 0) {
-			return -1;
-		}
-		if (lua_is_valid_num_value_string(buffer)) {
-			args[i] = lua_convert_str_to_num(buffer);
-			arg_start += delta_offset;
-		} else {
-			return -1;
-		}
-	}
+	load_args0;
 
 	if (opcode == OP_LOADK) {
 		args[1] = MYK(args[1]); ///< MYK(bx)
@@ -35,13 +25,11 @@ static LuaInstruction encode_instruction(ut8 opcode, const char *arg_start, ut16
 	}
 	if (has_param_flag(flag, PARAM_B)) {
 		temp = args[cur_cnt++];
-		// args[1] = ISK(args[1]) ? (MYK(INDEXK(args[1]))) : args[1]; // Need verify
 		temp = temp < 0 ? 0xFF - temp : temp;
 		SETARG_B1(instruction, temp);
 	}
 	if (has_param_flag(flag, PARAM_C)) {
 		temp = args[cur_cnt++];
-		// args[2] = ISK(args[2]) ? (MYK(INDEXK(args[2]))) : args[2]; // Need verify
 		temp = temp < 0 ? 0xFF - temp : temp;
 		SETARG_C1(instruction, temp);
 	}
@@ -61,6 +49,8 @@ static LuaInstruction encode_instruction(ut8 opcode, const char *arg_start, ut16
 }
 
 bool lua53_assembly(const char *input, st32 input_size, LuaInstruction *instruction_p) {
+	rz_return_val_if_fail(input && input_size > 0, false);
+
 	/* Find the opcode */
 	const char *opcode_start = input; ///< point to the header
 	const char *opcode_end = strchr(input, ' '); ///< point to the first white space
@@ -79,7 +69,8 @@ bool lua53_assembly(const char *input, st32 input_size, LuaInstruction *instruct
 	/* Encode opcode and args */
 	switch (opcode) {
 	case OP_LOADKX:
-		instruction = encode_instruction(opcode, arg_start, PARAM_A, 1);
+		instruction = encode_instruction(opcode, arg_start,
+			PARAM_A, 1);
 		break;
 	case OP_MOVE:
 	case OP_SETUPVAL:
@@ -91,15 +82,18 @@ bool lua53_assembly(const char *input, st32 input_size, LuaInstruction *instruct
 	case OP_RETURN:
 	case OP_VARARG:
 	case OP_GETUPVAL:
-		instruction = encode_instruction(opcode, arg_start, PARAM_A | PARAM_B, 2);
+		instruction = encode_instruction(opcode, arg_start,
+			PARAM_A | PARAM_B, 2);
 		break;
 	case OP_TEST:
 	case OP_TFORCALL:
-		instruction = encode_instruction(opcode, arg_start, PARAM_A | PARAM_C, 2);
+		instruction = encode_instruction(opcode, arg_start,
+			PARAM_A | PARAM_C, 2);
 		break;
 	case OP_LOADK:
 	case OP_CLOSURE:
-		instruction = encode_instruction(opcode, arg_start, PARAM_A | PARAM_Bx, 2);
+		instruction = encode_instruction(opcode, arg_start,
+			PARAM_A | PARAM_Bx, 2);
 		break;
 	case OP_CONCAT:
 	case OP_TESTSET:
@@ -129,17 +123,18 @@ bool lua53_assembly(const char *input, st32 input_size, LuaInstruction *instruct
 	case OP_LT:
 	case OP_LE:
 		instruction = encode_instruction(opcode, arg_start,
-			PARAM_A | PARAM_B | PARAM_C,
-			3);
+			PARAM_A | PARAM_B | PARAM_C, 3);
 		break;
 	case OP_JMP:
 	case OP_FORLOOP:
 	case OP_FORPREP:
 	case OP_TFORLOOP:
-		instruction = encode_instruction(opcode, arg_start, PARAM_A | PARAM_sBx, 2);
+		instruction = encode_instruction(opcode, arg_start,
+			PARAM_A | PARAM_sBx, 2);
 		break;
 	case OP_EXTRAARG:
-		instruction = encode_instruction(opcode, arg_start, PARAM_Ax, 1);
+		instruction = encode_instruction(opcode, arg_start,
+			PARAM_Ax, 1);
 		break;
 	default:
 		return false;

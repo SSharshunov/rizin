@@ -113,11 +113,11 @@ static void destroy(RzBinFile *bf) {
 }
 
 static RzStructuredData *get_structured_data_protos(RzStructuredData *parent, LuaProto *proto, st32 minor) {
-	ut8 instruction_size = (minor == 0) ? 8 : 4;
+	ut8 instruction_size = minor == 0 ? 8 : 4;
 #ifdef RZ_DEBUG
 	const char *pnd = proto->proto_name ? rz_str_dup((char *)proto->proto_name + 1) : rz_str_newf("fcn.%08llx", proto->offset);
-	printf("\n%s <%s:%lld,%lld> (%lld instructions at 0x%p)\n",
-		(proto->line_defined == 0) ? "main" : "function",
+	RZ_LOG_DEBUG("\n%s <%s:%" PFMT64d ",%" PFMT64d "> (%" PFMT64d " instructions at 0x%p)\n",
+		proto->line_defined == 0 ? "main" : "function",
 		pnd,
 		proto->line_defined,
 		proto->lastline_defined,
@@ -125,35 +125,49 @@ static RzStructuredData *get_structured_data_protos(RzStructuredData *parent, Lu
 		&proto);
 	free((char *)pnd);
 
-	printf("%d%s param%s, %d slots, %d upvalues, %d locals, %d constants, %d functions\n",
+	RZ_LOG_DEBUG("%" PFMT32d "%s param%s, %" PFMT32d " slots, %" PFMT32d " upvalues, %" PFMT32d " locals, %" PFMT32d " constants, %" PFMT32d " functions\n",
 		proto->num_params,
 		isvararg(proto->is_vararg) ? "+" : "",
-		(proto->num_params > 1) ? "s" : "",
+		proto->num_params > 1 ? "s" : "",
 		proto->max_stack_size,
 		proto->upvalue_entries->length,
 		proto->local_var_info_entries->length,
 		proto->const_entries->length,
 		proto->proto_entries->length);
-	printf("constants (%d)\n",
+	RZ_LOG_DEBUG("constants (%" PFMT32d ")\n",
 		proto->const_entries->length);
 	RzListIter *it;
 	LuaConstEntry *val;
-	int i = 0;
+	st32 i = 0;
 	(void)i;
 	rz_list_foreach (proto->const_entries, it, val) {
-		if (val)
-			printf("%d	%s\n", ++i, (char *)val->data);
+		if (!val) {
+			continue;
+		}
+		if ((val->tag & 0x0F) == LUA_TSTRING) {
+			RZ_LOG_DEBUG("%" PFMT32d "	%s\n", ++i, val->data ? (char *)val->data : "NULL");
+		} else if (val->tag == LUA_VNUMINT) {
+			RZ_LOG_DEBUG("%" PFMT32d "	%" PFMT64d "\n", ++i, *(st64 *)val->data);
+		} else if (val->tag == LUA_VNUMFLT) {
+			RZ_LOG_DEBUG("%" PFMT32d "	%f\n", ++i, *(double *)val->data);
+		} else if ((val->tag & 0x0F) == LUA_TBOOLEAN) {
+			RZ_LOG_DEBUG("%" PFMT32d "	%s\n", ++i, (bool)val->data == true ? "true" : "false");
+		} else if ((val->tag & 0x0F) == LUA_TNIL) {
+			RZ_LOG_DEBUG("%" PFMT32d "	%s\n", ++i, "NIL");
+		} else {
+			rz_warn_if_reached();
+		}
 	}
 #endif
 
-	const char *key = rz_str_newf("fcn.%08llx", proto->offset);
+	const char *key = rz_str_newf("fcn.%08" PFMT64x, proto->offset);
 	RzStructuredData *sd = rz_structured_data_map_add_map(parent, key);
 	free((char *)key);
 	if (!sd) {
 		return NULL;
 	}
 
-	const char *pn = rz_str_newf(proto->line_defined ? "fcn.%08llx" : "main.%08llx", proto->offset);
+	const char *pn = rz_str_newf(proto->line_defined ? "fcn.%08" PFMT64x : "main.%08" PFMT64x, proto->offset);
 	rz_structured_data_map_add_string(sd, "proto_name", pn);
 	free((char *)pn);
 
@@ -179,22 +193,23 @@ static RzStructuredData *get_structured_data_protos(RzStructuredData *parent, Lu
 		RzListIter *it;
 		LuaConstEntry *val;
 		rz_list_foreach (proto->const_entries, it, val) {
-			if (val) {
-				if ((val->tag & 0x0F) == LUA_TSTRING) {
-					const char *cnst = rz_str_dup(val->data ? (char *)val->data : "NULL");
-					rz_structured_data_array_add_string(constants, cnst);
-					free((char *)cnst);
-				} else if (val->tag == LUA_VNUMINT) {
-					rz_structured_data_array_add_signed(constants, *(st64 *)val->data);
-				} else if (val->tag == LUA_VNUMFLT) {
-					rz_structured_data_array_add_double(constants, *(double *)val->data);
-				} else if ((val->tag & 0x0F) == LUA_TBOOLEAN) {
-					rz_structured_data_array_add_boolean(constants, (bool)val->data);
-				} else if ((val->tag & 0x0F) == LUA_TNIL) {
-					rz_structured_data_array_add_string(constants, "NIL");
-				} else {
-					rz_warn_if_reached();
-				}
+			if (!val) {
+				continue;
+			}
+			if ((val->tag & 0x0F) == LUA_TSTRING) {
+				const char *cnst = rz_str_dup(val->data ? (char *)val->data : "NULL");
+				rz_structured_data_array_add_string(constants, cnst);
+				free((char *)cnst);
+			} else if (val->tag == LUA_VNUMINT) {
+				rz_structured_data_array_add_signed(constants, *(st64 *)val->data);
+			} else if (val->tag == LUA_VNUMFLT) {
+				rz_structured_data_array_add_double(constants, *(double *)val->data);
+			} else if ((val->tag & 0x0F) == LUA_TBOOLEAN) {
+				rz_structured_data_array_add_boolean(constants, (bool)val->data);
+			} else if ((val->tag & 0x0F) == LUA_TNIL) {
+				rz_structured_data_array_add_string(constants, "NIL");
+			} else {
+				rz_warn_if_reached();
 			}
 		}
 	}

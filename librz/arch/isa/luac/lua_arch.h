@@ -8,6 +8,40 @@
 #include <rz_types.h>
 #include <rz_asm.h>
 
+#define LUA_INVALID_INSNTRUCTION -1
+#define LUA_MAX_ARGS0            3
+#define LUA_MAX_ARGS4            4
+
+#define load_args0 \
+	for (int i = 0; i < arg_num; ++i) { \
+		const int delta_offset = lua_load_next_arg_start(arg_start, buffer); \
+		if (delta_offset == 0) { \
+			return LUA_INVALID_INSNTRUCTION; \
+		} \
+		if (lua_is_valid_num_value_string(buffer)) { \
+			args[i] = lua_convert_str_to_num(buffer); \
+			arg_start += delta_offset; \
+		} else { \
+			return LUA_INVALID_INSNTRUCTION; \
+		} \
+	}
+
+#define load_args4 \
+	for (int i = 0; i < arg_num; ++i) { \
+		const int delta_offset = lua_load_next_arg_start(arg_start, buffer); \
+		char *ptr = strchr(buffer, 'k'); \
+		if (ptr != NULL) { \
+			*ptr = '\0'; \
+			args[i] = lua_convert_str_to_num(buffer); \
+			args[i + 1] = 1; \
+			arg_num++; \
+			flag |= PARAM_k; \
+			break; \
+		} \
+		args[i] = lua_convert_str_to_num(buffer); \
+		arg_start += delta_offset; \
+	}
+
 /*
 @@ LUAI_BITSINT defines the (minimum) number of bits in an 'int'.
 */
@@ -55,10 +89,6 @@
 
 #define POS_C1 (POS_A1 + SIZE_A)
 
-// #define POS_k           (POS_A4 + SIZE_A)
-// #define POS_B           (POS_k + 1)
-// #define POS_C           (POS_B + SIZE_B)
-// #define POS_Bx          POS_k
 #define POS_Ax POS_A
 #define POS_sJ POS_A
 
@@ -72,7 +102,7 @@
 
 #define SIZE_Bx4 (SIZE_C4 + SIZE_B4 + 1)
 #define SIZE_Ax4 (SIZE_Bx4 + SIZE_A)
-#define SIZE_sJ4 SIZE_Ax4 // (SIZE_Bx4 + SIZE_A4)
+#define SIZE_sJ4 SIZE_Ax4
 
 #define POS_k4  (POS_A4 + SIZE_A)
 #define POS_C4  (POS_B4 + SIZE_B4)
@@ -149,26 +179,36 @@
 #define GET_OPCODE54(i) (cast(LuaOpCode54, ((i) >> POS_OP) & MASK1(SIZE_OP4, 0)))
 #define GET_OPCODE55(i) (cast(LuaOpCode55, ((i) >> POS_OP) & MASK1(SIZE_OP4, 0)))
 
-#define SET_OPCODE50(i, o) ((i) = (((i) & MASK0(SIZE_OP0, POS_OP)) | cast(LuaInstruction, o)))
-#define SET_OPCODE51(i, o) ((i) = (((i) & MASK0(SIZE_OP0, POS_OP)) | \
-				    ((cast(LuaInstruction, o) << POS_OP) & MASK1(SIZE_OP0, POS_OP))))
-#define SET_OPCODE52(i, o) ((i) = (((i) & MASK0(SIZE_OP0, POS_OP)) | \
-				    ((cast(LuaInstruction, o) << POS_OP) & MASK1(SIZE_OP0, POS_OP))))
-#define SET_OPCODE53(i, o) ((i) = (((i) & MASK0(SIZE_OP0, POS_OP)) | \
-				    ((cast(LuaInstruction, o) << POS_OP) & MASK1(SIZE_OP0, POS_OP))))
-#define SET_OPCODE54(i, o) ((i) = (((i) & MASK0(SIZE_OP4, POS_OP)) | \
-				    ((cast(LuaInstruction, o) << POS_OP) & MASK1(SIZE_OP4, POS_OP))))
-#define SET_OPCODE55(i, o) ((i) = (((i) & MASK0(SIZE_OP4, POS_OP)) | \
-				    ((cast(LuaInstruction, o) << POS_OP) & MASK1(SIZE_OP4, POS_OP))))
+#define SET_OPCODE50(i, o) \
+	((i) = (((i) & MASK0(SIZE_OP0, POS_OP)) | cast(LuaInstruction, o)))
+#define SET_OPCODE51(i, o) \
+	((i) = (((i) & MASK0(SIZE_OP0, POS_OP)) | \
+		 ((cast(LuaInstruction, o) << POS_OP) & MASK1(SIZE_OP0, POS_OP))))
+#define SET_OPCODE52(i, o) \
+	((i) = (((i) & MASK0(SIZE_OP0, POS_OP)) | \
+		 ((cast(LuaInstruction, o) << POS_OP) & MASK1(SIZE_OP0, POS_OP))))
+#define SET_OPCODE53(i, o) \
+	((i) = (((i) & MASK0(SIZE_OP0, POS_OP)) | \
+		 ((cast(LuaInstruction, o) << POS_OP) & MASK1(SIZE_OP0, POS_OP))))
+#define SET_OPCODE54(i, o) \
+	((i) = (((i) & MASK0(SIZE_OP4, POS_OP)) | \
+		 ((cast(LuaInstruction, o) << POS_OP) & MASK1(SIZE_OP4, POS_OP))))
+#define SET_OPCODE55(i, o) \
+	((i) = (((i) & MASK0(SIZE_OP4, POS_OP)) | \
+		 ((cast(LuaInstruction, o) << POS_OP) & MASK1(SIZE_OP4, POS_OP))))
 
-#define getarg(i, pos, size)    (cast(int, ((i) >> (pos)) & MASK1(size, 0)))
-#define setarg(i, v, pos, size) ((i) = (((i) & MASK0(size, pos)) | \
-					 ((cast(LuaInstruction, v) << pos) & MASK1(size, pos))))
+#define getarg(i, pos, size) \
+	(cast(int, ((i) >> (pos)) & MASK1(size, 0)))
+#define setarg(i, v, pos, size) \
+	((i) = (((i) & MASK0(size, pos)) | \
+		 ((cast(LuaInstruction, v) << pos) & MASK1(size, pos))))
 
 /* 5.0 */
 #define GETARG_A0(i)    (cast(int, (i) >> POS_A0))
-#define SETARG_A0(i, u) ((i) = (((i) & MASK0(SIZE_A, POS_A0)) | \
-				 ((cast(LuaInstruction, u) << POS_A0) & MASK1(SIZE_A, POS_A0))))
+#define SETARG_A0(i, u) ( \
+	(i) = (((i) & MASK0(SIZE_A, POS_A0)) | \
+		((cast(LuaInstruction, u) << POS_A0) & MASK1(SIZE_A, POS_A0))))
+
 /* 5.0-5.5 */
 #define SETARG_B0(i, v) setarg(i, v, POS_B0, SIZE_B0)
 #define SETARG_B1(i, v) setarg(i, v, POS_B1, SIZE_B0)
@@ -180,16 +220,13 @@
 #define SETARG_Bx0(i, v) setarg(i, v, POS_Bx0, SIZE_Bx0)
 #define SETARG_Bx4(i, v) setarg(i, v, POS_Bx4, SIZE_Bx4)
 
-#define CREATE_ABx(o, a, bc) ((cast(LuaInstruction, o) << POS_OP) | (cast(LuaInstruction, a) << POS_A) | (cast(LuaInstruction, bc) << POS_Bx))
 /* 5.1 */
 #define GETARG_B1(i) (cast(int, ((i) >> POS_B1) & MASK1(SIZE_B0, 0)))
 
 /* 5.0-5.3 */
-#define GETARG_B0(i) getarg(i, POS_B0, SIZE_B0)
-// #define GETARG_C0(i)     getarg(i, POS_C0, SIZE_C0)
+#define GETARG_B0(i)  getarg(i, POS_B0, SIZE_B0)
 #define GETARG_Bx0(i) getarg(i, POS_Bx0, SIZE_Bx0)
 
-// #define GETARG_C1(i)     getarg(i, POS_C1, SIZE_C0)
 #define SETARG_C1(i, v) setarg(i, v, POS_C1, SIZE_C0)
 
 #define POS_Bx1          POS_C1
@@ -197,25 +234,20 @@
 #define SETARG_Bx1(i, v) setarg(i, v, POS_Bx1, SIZE_Bx0)
 
 #define GETARG_sBx1(i)    (GETARG_Bx1(i) - MAXARG_sBx)
-#define SETARG_sBx1(i, b) SETARG_Bx1((i), cast(unsigned int, (b) + MAXARG_sBx))
+#define SETARG_sBx1(i, b) SETARG_Bx1((i), cast(ut32, (b) + MAXARG_sBx))
 
 #define GETARG_sBx0(i)    (GETARG_Bx0(i) - MAXARG_sBx)
-#define SETARG_sBx0(i, b) SETARG_Bx0((i), cast(unsigned int, (b) + MAXARG_sBx))
-
-#define CREATE_ABC(o, a, b, c) ((cast(LuaInstruction, o) << POS_OP) | (cast(LuaInstruction, a) << POS_A) | (cast(LuaInstruction, b) << POS_B) | (cast(LuaInstruction, c) << POS_C))
+#define SETARG_sBx0(i, b) SETARG_Bx0((i), cast(ut32, (b) + MAXARG_sBx))
 
 /* 5.1-5.5 */
 #define GETARG_A1(i)    getarg(i, POS_A1, SIZE_A)
 #define GETARG_A4(i)    getarg(i, POS_A4, SIZE_A)
 #define SETARG_A1(i, v) setarg(i, v, POS_A1, SIZE_A)
 #define SETARG_A4(i, v) setarg(i, v, POS_A4, SIZE_A)
-/* 5.2-5.3 */
 
+/* 5.2-5.3 */
 #define GETARG_Ax2(i)    getarg(i, POS_Ax1, SIZE_Ax2)
 #define SETARG_Ax2(i, v) setarg(i, v, POS_Ax1, SIZE_Ax2)
-
-/* 5.2-5.5 */
-#define CREATE_Ax(o, a) ((cast(LuaInstruction, o) << POS_OP) | (cast(LuaInstruction, a) << POS_Ax1))
 
 /* 5.4 */
 /* Check whether type 'int' has at least 'b' bits ('b' < 32) */
@@ -237,6 +269,7 @@
 #else
 #define MAXARG_sJ INT_MAX
 #endif
+
 /* 5.5 */
 /*
 ** Check whether type 'int' has at least 'b' + 1 bits.
@@ -291,11 +324,8 @@
 #define SETARG_sC(i, v) SETARG_C4((i), int2sC(v))
 #define SETARG_sB(i, v) SETARG_B4((i), int2sC(v))
 
-#define CREATE_ABCk(o, a, b, c, k) ((cast(LuaInstruction, o) << POS_OP) | (cast(LuaInstruction, a) << POS_A) | (cast(LuaInstruction, b) << POS_B) | (cast(LuaInstruction, c) << POS_C) | (cast(LuaInstruction, k) << POS_k))
-
-#define CREATE_Ax4(o, a) ((cast(LuaInstruction, o) << POS_OP) | (cast(LuaInstruction, a) << POS_Ax))
-
-#define CREATE_sJ(o, j, k) ((cast(LuaInstruction, o) << POS_OP) | (cast(LuaInstruction, j) << POS_sJ4) | (cast(LuaInstruction, k) << POS_k4))
+#define CREATE_Ax4(o, a) \
+	((cast(LuaInstruction, o) << POS_OP) | (cast(LuaInstruction, a) << POS_Ax))
 
 #define GETARG_B4(i) getarg(i, POS_B4, SIZE_B4)
 
@@ -319,22 +349,7 @@
 
 #define SETARG_k(i, v) setarg(i, v, POS_k4, 1)
 
-/* 5.4 only */
-#define TESTARG_k4(i) (cast_st32(((i) & (1u << POS_k4)))
-#define GETARG_k4(i)    getarg(i, POS_k4, 1)
-#define SETARG_vC(i, v) setarg(i, v, POS_vC, SIZE_vC)
-
-/* 5.5 only */
-#define SETARG_vB(i, v)             setarg(i, v, POS_vB, SIZE_vB)
-#define GETARG_vC(i)                getarg(i, POS_vC, SIZE_vC)
-#define GETARG_vB(i)                getarg(i, POS_vB, SIZE_vB)
-#define CREATE_vABCk(o, a, b, c, k) ((cast(LuaInstruction, o) << POS_OP) | (cast(LuaInstruction, a) << POS_A) | (cast(LuaInstruction, b) << POS_vB) | (cast(LuaInstruction, c) << POS_vC) | (cast(LuaInstruction, k) << POS_k))
-
-#define TESTARG_k5(i) (cast_int(((i) & (1u << POS_k))))
-#define GETARG_k5(i)  getarg(i, POS_k, 1)
-
-#define MAXARG_vC ((1 << SIZE_vC) - 1)
-#define MAXARG_vB ((1 << SIZE_vB) - 1)
+#define GETARG_k4(i) getarg(i, POS_k4, 1)
 
 #define has_param_flag(flag, bit) ((flag) & (bit)) ? true : false
 
@@ -342,8 +357,16 @@
 	((limit) <= sizeof(case_str) - 1) && \
 	rz_str_ncasecmp((name), (case_str), sizeof(case_str) - 1) == 0)
 
+/**
+ * type for virtual-machine instructions
+ * must be an unsigned with (at least) 4 bytes (see details in lopcodes.h)
+ */
 /* Opcode Instruction Type */
 typedef ut32 LuaInstruction;
+/* Macros/Typedefs used in luac */
+typedef double LUA_NUMBER;
+typedef ut64 LUA_INTEGER;
+typedef ut32 LUA_INT;
 
 /* opcode names */
 typedef char **LuaOpNameList;
@@ -369,42 +392,42 @@ bool free_lua_opnames(LuaOpNameList list);
 
 /* Lua 5.5 specified */
 int lua55_disasm(RzAsmOp *op, const ut8 *buf, int len, LuaOpNameList oplist);
-int lua55_anal_op(RzAnalysis *analysis, RzAnalysisOp *op, ut64 addr, const ut8 *data, int len);
+int lua55_analysis_op(RzAnalysis *analysis, RzAnalysisOp *op, ut64 addr, const ut8 *data, int len);
 bool lua55_assembly(const char *input, st32 input_size, LuaInstruction *instruction);
 LuaOpNameList get_lua55_opnames(void);
 ut8 get_lua55_opcode_by_name(const char *name, int len);
 
 /* Lua 5.4 specified */
 int lua54_disasm(RzAsmOp *op, const ut8 *buf, int len, LuaOpNameList oplist);
-int lua54_anal_op(RzAnalysis *analysis, RzAnalysisOp *op, ut64 addr, const ut8 *data, int len);
+int lua54_analysis_op(RzAnalysis *analysis, RzAnalysisOp *op, ut64 addr, const ut8 *data, int len);
 bool lua54_assembly(const char *input, st32 input_size, LuaInstruction *instruction);
 LuaOpNameList get_lua54_opnames(void);
 ut8 get_lua54_opcode_by_name(const char *name, int len);
 
 /* Lua 5.3 specified */
 int lua53_disasm(RzAsmOp *op, const ut8 *buf, int len, LuaOpNameList oplist);
-int lua53_anal_op(RzAnalysis *analysis, RzAnalysisOp *op, ut64 addr, const ut8 *data, int len);
+int lua53_analysis_op(RzAnalysis *analysis, RzAnalysisOp *op, ut64 addr, const ut8 *data, int len);
 bool lua53_assembly(const char *input, st32 input_size, LuaInstruction *instruction);
 LuaOpNameList get_lua53_opnames(void);
 ut8 get_lua53_opcode_by_name(const char *name, int len);
 
 /* Lua 5.2 specified */
 int lua52_disasm(RzAsmOp *op, const ut8 *buf, int len, LuaOpNameList oplist);
-int lua52_anal_op(RzAnalysis *analysis, RzAnalysisOp *op, ut64 addr, const ut8 *data, int len);
+int lua52_analysis_op(RzAnalysis *analysis, RzAnalysisOp *op, ut64 addr, const ut8 *data, int len);
 bool lua52_assembly(const char *input, st32 input_size, LuaInstruction *instruction);
 LuaOpNameList get_lua52_opnames(void);
 ut8 get_lua52_opcode_by_name(const char *name, int len);
 
 /* Lua 5.1 specified */
 int lua51_disasm(RzAsmOp *op, const ut8 *buf, int len, LuaOpNameList oplist);
-int lua51_anal_op(RzAnalysis *analysis, RzAnalysisOp *op, ut64 addr, const ut8 *data, int len);
+int lua51_analysis_op(RzAnalysis *analysis, RzAnalysisOp *op, ut64 addr, const ut8 *data, int len);
 bool lua51_assembly(const char *input, st32 input_size, LuaInstruction *instruction);
 LuaOpNameList get_lua51_opnames(void);
 ut8 get_lua51_opcode_by_name(const char *name, int len);
 
 /* Lua 5.0 specified */
 int lua50_disasm(RzAsmOp *op, const ut8 *buf, int len, LuaOpNameList oplist);
-int lua50_anal_op(RzAnalysis *analysis, RzAnalysisOp *op, ut64 addr, const ut8 *data, int len);
+int lua50_analysis_op(RzAnalysis *analysis, RzAnalysisOp *op, ut64 addr, const ut8 *data, int len);
 bool lua50_assembly(const char *input, st32 input_size, LuaInstruction *instruction);
 LuaOpNameList get_lua50_opnames(void);
 ut8 get_lua50_opcode_by_name(const char *name, int len);

@@ -11,26 +11,22 @@ int rz_lua_analysis_op(RzAnalysis *analysis, RzAnalysisOp *op, ut64 addr, const 
 		RZ_LOG_ERROR("Cannot get lua version\n");
 		return 0;
 	}
-	if (strcmp(analysis->cpu, "5.5") == 0) {
-		return lua55_anal_op(analysis, op, addr, data, len);
+	if (RZ_STR_EQ(analysis->cpu, "5.0")) {
+		return lua50_analysis_op(analysis, op, addr, data, len);
+	} else if (RZ_STR_EQ(analysis->cpu, "5.1")) {
+		return lua51_analysis_op(analysis, op, addr, data, len);
+	} else if (RZ_STR_EQ(analysis->cpu, "5.2")) {
+		return lua52_analysis_op(analysis, op, addr, data, len);
+	} else if (RZ_STR_EQ(analysis->cpu, "5.3")) {
+		return lua53_analysis_op(analysis, op, addr, data, len);
+	} else if (RZ_STR_EQ(analysis->cpu, "5.4")) {
+		return lua54_analysis_op(analysis, op, addr, data, len);
+	} else if (RZ_STR_EQ(analysis->cpu, "5.5")) {
+		return lua55_analysis_op(analysis, op, addr, data, len);
+	} else {
+		RZ_LOG_ERROR("Cannot find a suitable lua version to handle lua analysis\n");
+		return 0;
 	}
-	if (strcmp(analysis->cpu, "5.4") == 0) {
-		return lua54_anal_op(analysis, op, addr, data, len);
-	}
-	if (strcmp(analysis->cpu, "5.3") == 0) {
-		return lua53_anal_op(analysis, op, addr, data, len);
-	}
-	if (strcmp(analysis->cpu, "5.2") == 0) {
-		return lua52_anal_op(analysis, op, addr, data, len);
-	}
-	if (strcmp(analysis->cpu, "5.1") == 0) {
-		return lua51_anal_op(analysis, op, addr, data, len);
-	}
-	if (strcmp(analysis->cpu, "5.0") == 0) {
-		return lua50_anal_op(analysis, op, addr, data, len);
-	}
-	RZ_LOG_ERROR("Cannot find a suitable lua version to handle lua analysis\n");
-	return 0;
 }
 
 RzAnalysisPlugin rz_analysis_plugin_luac = {
