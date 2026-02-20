@@ -16,6 +16,8 @@
 #include "core_private.h"
 #include "rz_util/rz_iterator.h"
 
+#include <bin/format/luac/luac_common.h>
+
 HEAPTYPE(ut64);
 
 // used to speedup strcmp with rconfig.get in loops
@@ -3872,6 +3874,19 @@ static bool is_apple_target(RzCore *core) {
 	return bo ? strstr(bo->plugin->name, "mach") : false;
 }
 
+static bool is_luac_format(RzCore *core) {
+	const char *arch = rz_config_get(core->config, "asm.arch");
+	if (!strstr(arch, "luac")) {
+		return false;
+	}
+	RzBinObject *bo = rz_bin_cur_object(core->bin);
+	if (!bo || !bo->info || !bo->info->rclass)
+		return false;
+	RzBinInfo *info = bo ? bo->info : NULL;
+	rz_return_val_if_fail((info && info->rclass), false);
+	return strcmp(info->rclass, "luac") ? false : true;
+}
+
 static void core_analysis_using_plugins(RzCore *core) {
 	RzIterator *it = ht_sp_as_iter(core->plugins);
 	RzCorePlugin **val;
@@ -3900,6 +3915,7 @@ RZ_API bool rz_core_analysis_everything(RzCore *core, bool experimental, char *d
 	bool cfg_debug = rz_config_get_b(core->config, "cfg.debug");
 	bool plugin_supports_esil = core->analysis->cur->esil;
 	bool is_apple = is_apple_target(core);
+	bool is_luac = is_luac_format(core);
 
 	if (rz_str_startswith(rz_config_get(core->config, "bin.lang"), "go")) {
 		rz_core_notify_done(core, "Find function and symbol names from golang binaries");
@@ -4065,6 +4081,14 @@ RZ_API bool rz_core_analysis_everything(RzCore *core, bool experimental, char *d
 		notify = "Integrate dwarf function information.";
 		rz_core_notify_begin(core, "%s", notify);
 		rz_analysis_dwarf_integrate_functions(core->analysis, core->flags);
+		rz_core_notify_done(core, "%s", notify);
+	}
+
+	// Apply luac function information
+	if (is_luac) {
+		notify = "Integrate luac function information.";
+		rz_core_notify_begin(core, "%s", notify);
+		rz_analysis_luac_integrate_functions(core->analysis, core->flags);
 		rz_core_notify_done(core, "%s", notify);
 	}
 

@@ -61,6 +61,7 @@ typedef ut32 LUA_INSTRUCTION;
  *  \brief Store valuable info when parsing. Treat luac file body as a main function.
  */
 typedef struct lua_proto_ex {
+	ut32 index; ///< index for map protos
 	ut64 offset; ///< proto offset in bytes
 	ut64 size; ///< current proto size
 	ut8 num_size; ///< numeric size for strings
@@ -137,6 +138,7 @@ typedef struct lua_constant_entry {
 	void *data; ///< can be Number/Integer/String
 	int data_len; ///< len of data
 	ut64 offset; ///< addr of this constant
+	ut64 voffset; ///< virtual addr of this constant
 } LuaConstEntry;
 
 /**
@@ -206,6 +208,7 @@ typedef struct luac_bin_info {
 	RzList /*<RzBinString *>*/ *string_list; ///< list of strings
 	RzBinInfo *general_info; ///< general binary info from luac header
 	LuaHeaderInfo *header;
+	RzTypeDB *typedb;
 } LuacBinInfo;
 
 /* ========================================================
@@ -230,9 +233,9 @@ void lua_free_proto_entry(LuaProto *);
  * Implemented in 'bin/format/luac/luac_bin.c'
  * ======================================================== */
 void luac_add_section(RzPVector /*<RzBinSection *>*/ *section_vec, char *name, ut64 offset, ut32 size, bool is_func);
-void luac_add_symbol(RzList /*<RzBinSymbol *>*/ *symbol_list, char *name, ut64 offset, ut64 size, const char *type);
+void luac_add_symbol(RzList /*<RzBinSymbol *>*/ *symbol_list, char *name, ut64 poffset, ut64 voffset, ut64 size, const char *type);
 void luac_add_entry(RzPVector /*<RzBinAddr *>*/ *entry_vec, ut64 offset, int entry_type);
-void luac_add_string(RzList /*<RzBinString *>*/ *string_list, char *string, ut64 offset, ut64 size);
+void luac_add_string(RzList /*<RzBinString *>*/ *string_list, char *string, ut64 poffset, ut64 voffset, ut64 size);
 
 LuacBinInfo *luac_build_info(RZ_NONNULL LuaProto *proto);
 void luac_build_info_free(LuacBinInfo *bin_info);
@@ -259,5 +262,8 @@ size_t parse_header(const RzBinFile *bf, LuaHeaderInfo *header);
 	if ((proto) == NULL) { \
 		return 0; \
 	}
+
+RZ_API void rz_analysis_luac_integrate_functions(RzAnalysis *analysis, RzFlag *flags);
+RZ_API bool rz_core_bin_apply_luac_debug(RzCore *core, RzBinFile *binfile);
 
 #endif // BUILD_LUAC_COMMON_H

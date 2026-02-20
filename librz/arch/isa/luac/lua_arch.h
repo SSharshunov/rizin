@@ -399,7 +399,7 @@ ut8 get_lua55_opcode_by_name(const char *name, int len);
 
 /* Lua 5.4 specified */
 int lua54_disasm(RzAsmOp *op, const ut8 *buf, int len, LuaOpNameList oplist);
-int lua54_analysis_op(RzAnalysis *analysis, RzAnalysisOp *op, ut64 addr, const ut8 *data, int len);
+int lua54_analysis_op(RzAnalysis *analysis, RzAnalysisOp *op, ut64 addr, const ut8 *data, int len, RzAnalysisOpMask mask);
 bool lua54_assembly(const char *input, st32 input_size, LuaInstruction *instruction);
 LuaOpNameList get_lua54_opnames(void);
 ut8 get_lua54_opcode_by_name(const char *name, int len);
@@ -432,4 +432,5 @@ bool lua50_assembly(const char *input, st32 input_size, LuaInstruction *instruct
 LuaOpNameList get_lua50_opnames(void);
 ut8 get_lua50_opcode_by_name(const char *name, int len);
 
+ut64 get_k_vaddr(RzAnalysis *analysis, ut64 addr, int k_idx);
 #endif // BUILD_LUA_ARCH_H

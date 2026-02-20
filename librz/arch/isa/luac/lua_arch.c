@@ -3,6 +3,23 @@
 // SPDX-FileCopyrightText: 2025-2026 Sergey Sharshunov <s.sharshunov@gmail.com>
 
 #include "lua_arch.h"
+#include <luac/luac_common.h>
+
+static LuacBinInfo *getLuacBinInfo(RzAnalysis *analysis) {
+	rz_return_val_if_fail(analysis->binb.bin->binfiles, NULL);
+	rz_return_val_if_fail(analysis->binb.bin->binfiles->length > 0, NULL);
+	RzBinFile *bfile = (RzBinFile *)analysis->binb.bin->binfiles->head->val;
+	rz_return_val_if_fail(bfile, NULL);
+	rz_return_val_if_fail(bfile->o, NULL);
+	RzBinObject *bo = (RzBinObject *)bfile->o;
+	LuacBinInfo *obj = (LuacBinInfo *)bo->bin_obj;
+	return obj;
+}
+
+ut64 get_k_vaddr(RzAnalysis *analysis, ut64 addr, int k_idx) {
+	ut64 proto_base = addr & ~0xFFF;
+	return proto_base + 0x800 + (k_idx * 16);
+}
 
 #define print_isk isk ? "k" : ""
 
@@ -46,11 +63,11 @@ char *luaop_new_str_1arg(char *opname, const int a) {
 
 /* For the k flag */
 char *luaop_new_str_3arg_ex(char *opname, const int a, const int b, const int c, const int isk) {
-	return rz_str_newf("%s %" PFMT32d " %" PFMT32d " %" PFMT32d "%s", opname, a, b, c, print_isk);
+	return rz_str_newf("%s %" PFMT32d " %" PFMT32d " %" PFMT32d " %s", opname, a, b, c, print_isk);
 }
 
 char *luaop_new_str_2arg_ex(char *opname, const int a, const int b, const int isk) {
-	return rz_str_newf("%s %" PFMT32d " %" PFMT32d "%s", opname, a, b, print_isk);
+	return rz_str_newf("%s %" PFMT32d " %" PFMT32d " %s", opname, a, b, print_isk);
 }
 
 char *luaop_new_str_2arg_ex_ki(char *opname, const int a, const int b, const int isk) {
@@ -58,11 +75,11 @@ char *luaop_new_str_2arg_ex_ki(char *opname, const int a, const int b, const int
 }
 
 char *luaop_new_str_2arg_ex_kc(char *opname, const int a, const int b, const int isk) {
-	return rz_str_newf("%s %" PFMT32d " %" PFMT32d "%s", opname, a, b, print_isk);
+	return rz_str_newf("%s %" PFMT32d " %" PFMT32d " %s", opname, a, b, print_isk);
 }
 
 char *luaop_new_str_1arg_ex(char *opname, const int a, const int isk) {
-	return rz_str_newf("%s %" PFMT32d "%s", opname, a, print_isk);
+	return rz_str_newf("%s %" PFMT32d " %s", opname, a, print_isk);
 }
 
 int lua_load_next_arg_start(const char *raw_string, char *recv_buf) {

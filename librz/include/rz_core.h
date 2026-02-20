@@ -1033,6 +1033,7 @@ RZ_API RZ_OWN RzList /*<RzWindowsHeapInfo *>*/ *rz_heap_windows_heap_list(RzCore
 #define RZ_CORE_BIN_ACC_LIBS             0x200
 #define RZ_CORE_BIN_ACC_CLASSES          0x400
 #define RZ_CORE_BIN_ACC_DWARF            0x800
+#define RZ_CORE_BIN_ACC_LUAC_DEBUG       0x850
 #define RZ_CORE_BIN_ACC_SIZE             0x1000
 #define RZ_CORE_BIN_ACC_PDB              0x2000
 #define RZ_CORE_BIN_ACC_MEM              0x4000

@@ -236,12 +236,14 @@ static ut64 lua_parse_code(LuaProto *proto, RzBuffer *buffer, ut64 offset, ut64 
 	return total_size;
 }
 
-static ut64 lua_parse_const_entry(const LuaProto *proto, RzBuffer *buffer, ut64 offset, ut64 data_size, ut8 minor) {
+static ut64 lua_parse_const_entry(const LuaProto *proto, RzBuffer *buffer, int index, ut64 offset, ut64 data_size, ut8 minor) {
 	ut8 *recv_data;
 	int data_len = 0;
 
 	LuaConstEntry *current_entry = lua_new_const_entry();
+	ut64 k_vaddr = (proto->index * 0x1000) + 0x800 + (index * 16); // Шаг 16 байт для надежности
 	current_entry->offset = offset;
+	current_entry->voffset = k_vaddr;
 	ut64 base_offset = offset;
 	ut64 delta_offset = 0;
 
@@ -354,7 +356,7 @@ static ut64 lua_parse_consts(LuaProto *proto, RzBuffer *buffer, ut64 offset, ut6
 	offset += delta_offset;
 	for (int i = 0; i < consts_cnt; ++i) {
 		// add an entry of constant
-		delta_offset = lua_parse_const_entry(proto, buffer, offset, data_size, minor);
+		delta_offset = lua_parse_const_entry(proto, buffer, i, offset, data_size, minor);
 		lua_check_error_offset(delta_offset);
 		offset += delta_offset;
 	}
@@ -534,9 +536,13 @@ static ut64 lua_parse_protos(LuaProto *proto, RzBuffer *buffer, LuaHeaderInfo *h
 	return offset - base_offset;
 }
 
+int proto_index = 0;
+
 LuaProto *lua_parse_body(RzBuffer *buffer, LuaHeaderInfo *header, ut64 base_offset, ut64 data_size) {
 	LuaProto *ret_proto = lua_new_proto_entry(); /* constructed proto for return */
 	rz_return_val_if_fail(ret_proto, NULL);
+	ret_proto->index = proto_index;
+	proto_index++;
 	ret_proto->num_size = header->is_openwrt ? 4 : sizeof(LUA_NUMBER);
 
 	ut8 minor = header->minor;
@@ -899,6 +905,7 @@ RzBinInfo *lua_parse_bin_info(const RzBinFile *bf, const LuaHeaderInfo *header) 
 	RzBinInfo *ret = RZ_NEW0(RzBinInfo);
 	rz_return_val_if_fail(ret, NULL);
 
+	ret->has_va = true;
 	ret->file = rz_str_dup(bf->file);
 	ret->type = rz_str_newf("Lua %c.%c compiled file", header->major + '0', header->minor + '0');
 	ret->bclass = rz_str_dup("Lua compiled file");

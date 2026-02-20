@@ -16,6 +16,13 @@ static bool check_buffer(RzBuffer *buff) {
 	return false;
 }
 
+static int cmp_sections(const void *a, const void *b) {
+	const RzBinSection *s_a, *s_b;
+	s_a = a;
+	s_b = b;
+	return s_a->paddr - s_b->paddr;
+}
+
 static bool load_buffer(RzBinFile *bf, RzBinObject *obj, RzBuffer *buf, Sdb *sdb) {
 	LuaHeaderInfo *header = RZ_NEW0(LuaHeaderInfo);
 	const size_t header_size = parse_header(bf, header);
@@ -44,6 +51,27 @@ static bool load_buffer(RzBinFile *bf, RzBinObject *obj, RzBuffer *buf, Sdb *sdb
 	bin_info_obj->general_info = general_info;
 	bin_info_obj->proto = proto;
 
+	rz_pvector_sort(bin_info_obj->section_vec, (RzPVectorComparator)cmp_sections, NULL);
+
+	void **iter;
+	RzBinSection *bin_sec;
+	int i = 0;
+	rz_pvector_foreach (bin_info_obj->section_vec, iter) {
+		bin_sec = *iter;
+		ut64 vaddr = i * 0x1000;
+		char *proto_name = NULL;
+		if (bin_sec->is_data) {
+			proto_name = rz_str_newf("fcn.proto%d.const", i);
+			vaddr = i * 0x1000 + 0x800;
+			i++;
+		} else {
+			proto_name = rz_str_newf("fcn.proto%d.code", i);
+		}
+		bin_sec->vaddr = vaddr;
+		bin_sec->name = rz_str_dup(proto_name);
+		RZ_FREE(proto_name);
+	}
+
 	obj->bin_obj = bin_info_obj;
 	return true;
 }
@@ -60,6 +88,41 @@ static RzPVector /*<RzBinSection *>*/ *sections(RzBinFile *bf) {
 	LuacBinInfo *bin_info_obj = GET_INTERNAL_BIN_INFO_OBJ(bf);
 	rz_return_val_if_fail(bin_info_obj, NULL);
 	return rz_pvector_clone(bin_info_obj->section_vec);
+}
+
+static RzPVector /*<RzBinMap *>*/ *maps(RzBinFile *bf) {
+	if (!bf || !bf->o || !bf->o->bin_obj) {
+		return NULL;
+	}
+
+	LuacBinInfo *obj = bf->o->bin_obj;
+
+	RzPVector *ret = rz_pvector_new((RzPVectorFree)rz_bin_map_free);
+	if (!ret) {
+		return NULL;
+	}
+
+	RzBinMap *map = NULL;
+	RzPVector *v = obj->section_vec;
+	void **it;
+	int i = 0;
+	rz_pvector_foreach (v, it) {
+		RzBinSection *bin_sec = (RzBinSection *)*it;
+
+		if (!(map = RZ_NEW0(RzBinMap))) {
+			rz_pvector_free(ret);
+			return NULL;
+		}
+		map->paddr = bin_sec->paddr;
+		map->vaddr = bin_sec->vaddr;
+		// printf("paddr: 0x%llx, vaddr: 0x%llx, bin_sec->paddr: 0x%llx, bin_sec->vaddr: 0x%llx\n", map->paddr, map->vaddr, bin_sec->paddr, bin_sec->vaddr);
+		map->psize = map->vsize = bin_sec->size;
+		map->perm = bin_sec->perm;
+		map->name = rz_str_dup(bin_sec->name);
+		rz_pvector_push(ret, map);
+		i++;
+	}
+	return ret;
 }
 
 static RzPVector /*<RzBinSymbol *>*/ *symbols(RzBinFile *bf) {
@@ -270,15 +333,6 @@ static RzStructuredData *luac_structure(RzBinFile *bf) {
 		rz_structured_data_free(modinfo);
 		rz_structured_data_free(info);
 	}
-
-	RzListIter *iter;
-	LuaProto *sub_proto;
-	rz_list_foreach (obj->proto->proto_entries, iter, sub_proto) {
-		// _luac_build_info(sub_proto, info);
-		get_structured_data_protos(protos, sub_proto, obj->header->minor);
-	}
-	lua_free_proto_entry(obj->proto);
-	obj->proto = NULL;
 	return info;
 }
 
@@ -293,12 +347,12 @@ RzBinPlugin rz_bin_plugin_luac = {
 	.check_buffer = &check_buffer,
 	.baddr = NULL,
 	.entries = &entries,
-	.maps = &rz_bin_maps_of_file_sections,
 	.sections = &sections,
 	.symbols = &symbols,
 	.info = &info,
 	.bin_structure = &luac_structure,
 	.strings = &strings,
+	.maps = &maps,
 };
 
 #ifndef RZ_PLUGIN_INCORE
