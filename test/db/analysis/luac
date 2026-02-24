@@ -9,6 +9,21 @@ EXPECT=<<EOF
 EOF
 RUN
 
+NAME=LUAC_5.4: functions check
+FILE=bins/luac/class54.luac
+CMDS=<<EOF
+aa
+is
+EOF
+EXPECT=<<EOF
+nth      paddr      vaddr bind   type size lib name
+------------------------------------------------------
+  0 0x00000031 0x00000000 GLOBAL FUNC   92     main
+  0 0x000000cc 0x00001000 GLOBAL FUNC   36     method.create
+  0 0x00000147 0x00002000 GLOBAL FUNC   20     method.withdraw
+EOF
+RUN
+
 NAME=LUAC: jump states
 FILE=bins/luac/big.luac
 CMDS=<<EOF

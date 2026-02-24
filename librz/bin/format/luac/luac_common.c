@@ -43,7 +43,7 @@ LuaProto *lua_new_proto_entry() {
 		return NULL;
 	}
 
-	proto->const_entries = rz_list_newf((RzListFree)lua_free_const_entry);
+	proto->const_entries = rz_pvector_new((RzPVectorFree)lua_free_const_entry);
 	if (!proto->const_entries) {
 		RZ_LOG_ERROR("Cannot allocate Const Entry List\n");
 		goto fail;
@@ -123,7 +123,7 @@ void lua_free_proto_entry(LuaProto *proto) {
 	}
 
 	/* free constants entries */
-	rz_list_free(proto->const_entries);
+	rz_pvector_free(proto->const_entries);
 
 	/* free upvalue entries */
 	rz_list_free(proto->upvalue_entries);

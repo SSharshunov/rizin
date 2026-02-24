@@ -17,7 +17,7 @@ void luac_add_section(RzPVector /*<RzBinSection *>*/ *section_vec, char *name, u
 	bin_sec->size = size;
 	bin_sec->vsize = size;
 	bin_sec->is_data = is_func ? false : true;
-	bin_sec->bits = 1;
+	bin_sec->bits = 32;
 	bin_sec->has_strings = false;
 	bin_sec->arch = "luac";
 
@@ -43,6 +43,7 @@ void luac_add_symbol(RzList /*<RzBinSymbol *>*/ *symbol_list, char *name, ut64 p
 	bin_sym->paddr = poffset;
 	bin_sym->size = size;
 	bin_sym->type = type;
+	bin_sym->bits = 32;
 
 	rz_list_append(symbol_list, bin_sym);
 }
@@ -117,8 +118,10 @@ void luac_build_info_free(LuacBinInfo *bin_info) {
 	free(bin_info->header);
 	lua_free_proto_entry(bin_info->proto);
 	bin_info->proto = NULL;
+	rz_pvector_free(bin_info->protos_vec);
 	rz_pvector_free(bin_info->entry_vec);
 	rz_list_free(bin_info->symbol_list);
+	// rz_pvector_free(bin_info->line_nums_vec);
 	rz_pvector_free(bin_info->section_vec);
 	rz_list_free(bin_info->string_list);
 	free(bin_info);
@@ -133,24 +136,35 @@ LuacBinInfo *luac_build_info(RZ_NONNULL LuaProto *proto) {
 	LuacBinInfo *ret = RZ_NEW0(LuacBinInfo);
 	rz_return_val_if_fail(ret, NULL);
 
+	ret->protos_vec = rz_pvector_new((RzPVectorFree)NULL);
 	ret->entry_vec = rz_pvector_new((RzPVectorFree)free_rz_addr);
 	ret->symbol_list = rz_list_newf((RzListFree)rz_bin_symbol_free);
 	ret->section_vec = rz_pvector_new((RzPVectorFree)free_rz_section);
+	ret->line_nums_vec = rz_pvector_new((RzPVectorFree)rz_bin_source_line_info_free);
 	ret->string_list = rz_list_newf((RzListFree)free_rz_string);
 
 	if (!(ret->entry_vec && ret->symbol_list && ret->section_vec && ret->string_list)) {
 		rz_pvector_free(ret->entry_vec);
 		rz_list_free(ret->symbol_list);
 		rz_pvector_free(ret->section_vec);
+		rz_pvector_free(ret->line_nums_vec);
 		rz_list_free(ret->string_list);
 	}
 
 	_luac_build_info(proto, ret);
 
 	// add entry of main
-	// ut64 main_entry_offset = proto->code_offset + proto->code_skipped;
 	ut64 main_entry_offset = 0x0;
 	luac_add_entry(ret->entry_vec, main_entry_offset, RZ_BIN_ENTRY_TYPE_PROGRAM);
+
+	size_t paddr = proto->code_offset+proto->code_skipped;
+	RzBinSymbol *msym = rz_bin_symbol_new("main", paddr, main_entry_offset);
+	msym->type = RZ_BIN_TYPE_FUNC_STR;
+	msym->bind = RZ_BIN_BIND_GLOBAL_STR;
+	msym->size = proto->code_size; // section->size;
+	msym->paddr = paddr;
+	rz_list_append(ret->symbol_list, msym);
+	// rz_analysis_create_function(analysis, flag_name, offset, RZ_ANALYSIS_FCN_TYPE_FCN);
 
 	return ret;
 }
@@ -251,10 +265,14 @@ void _luac_build_info(LuaProto *proto, LuacBinInfo *info) {
 	section_name = rz_str_newf("%s.code", proto_name);
 	luac_add_section(info->section_vec, section_name, current_offset, current_size, true);
 
-	const char *p = rz_str_newf("proto%d", proto->index);
-	RzBinSymbol *proto_sym = rz_bin_symbol_new(p, current_offset, proto->index * 0x1000);
-	rz_list_append(info->symbol_list, proto_sym);
-	RZ_FREE(p);
+	// const char *p = rz_str_newf("proto%d", proto->index);
+	// RzBinSymbol *proto_sym = rz_bin_symbol_new(p, current_offset, proto->index * 0x1000);
+	// proto_sym->bind = RZ_BIN_BIND_GLOBAL_STR;
+	// proto_sym->type = RZ_BIN_TYPE_FUNC_STR;
+	// proto_sym->bits = 32;
+	// proto_sym->size = current_size;
+	// rz_list_append(info->symbol_list, proto_sym);
+	// RZ_FREE(p);
 	RZ_FREE(section_name);
 
 	// 1.3 set const section
@@ -264,6 +282,19 @@ void _luac_build_info(LuaProto *proto, LuacBinInfo *info) {
 	section_name = rz_str_newf("%s.const", proto_name);
 	luac_add_section(info->section_vec, section_name, current_offset, current_size, false);
 	RZ_FREE(section_name);
+
+	LuaLineinfoEntry *line_info_entry;
+	rz_list_foreach (proto->line_info_entries, iter, line_info_entry) {
+		RzBinSourceLineSample *new_line_sample = RZ_NEW0(RzBinSourceLineSample);
+		if (!new_line_sample) {
+			return;
+		}
+		new_line_sample->address = line_info_entry->offset;
+		new_line_sample->column = 0;
+		new_line_sample->line = line_info_entry->info_data;
+		new_line_sample->file = (const char *)proto->proto_name;
+		rz_pvector_push(info->line_nums_vec, new_line_sample);
+	}
 
 	// 1.4 upvalue section
 	// current_offset = proto->upvalue_offset;
@@ -321,9 +352,10 @@ void _luac_build_info(LuaProto *proto, LuacBinInfo *info) {
 	}
 	*/
 	// 3.1 construct constant symbols
-	LuaConstEntry *const_entry;
-
-	rz_list_foreach (proto->const_entries, iter, const_entry) {
+	LuaConstEntry *const_entry = NULL;
+	void **it;
+	rz_pvector_foreach (proto->const_entries, it) {
+		const_entry = *it;
 		RZ_FREE(proto_name);
 		proto_name = rz_str_newf("data.%08llx", const_entry->voffset);
 		symbol_name = get_constant_symbol_name(proto_name, const_entry);
@@ -340,6 +372,7 @@ void _luac_build_info(LuaProto *proto, LuacBinInfo *info) {
 				const_entry->data_len);
 		}
 		RZ_FREE(symbol_name);
+		RZ_FREE(proto_name);
 	}
 
 	// 3.2 construct upvalue symbols
@@ -361,6 +394,7 @@ void _luac_build_info(LuaProto *proto, LuacBinInfo *info) {
 	(void)get_upvalue_symbol_name;
 	(void)get_constant_symbol_name;
 	(void)get_tag_string;
+	rz_pvector_push(info->protos_vec, proto);
 
 	// 4. parse sub proto
 	LuaProto *sub_proto;

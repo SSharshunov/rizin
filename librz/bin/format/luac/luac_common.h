@@ -21,6 +21,9 @@
 /* a vararg function either has hidden args. or a vararg table */
 #define isvararg(flag) (flag & (PF_VAHID | PF_VATAB))
 
+
+#define DEBUG_LINE_OFFSET(x) (x > 0x80) ? -((0xFF - x) + 1) : x;
+
 /* Macro Functions */
 /* type casts (a macro highlights casts in the code) */
 #define luac_cast(t, exp) ((t)(exp))
@@ -83,7 +86,7 @@ typedef struct lua_proto_ex {
 	ut64 code_skipped; ///< opcode data offset to code_offset.
 
 	/* store constant entries */
-	RzList /*<LuaConstEntry *>*/ *const_entries; ///< A list to store constant entries
+	RzPVector /*<LuaConstEntry *>*/ *const_entries; ///< A list to store constant entries
 	ut64 const_offset; ///< const section offset
 	ut64 const_size; ///< const section size
 
@@ -202,9 +205,11 @@ typedef struct lua_dbg_upvalue_entry {
  */
 typedef struct luac_bin_info {
 	LuaProto *proto;
+	RzPVector /*<LuaProto *>*/ *protos_vec; ///< list of all protos
 	RzPVector /*<RzBinSection *>*/ *section_vec; ///< list of sections
 	RzList /*<RzBinSymbol *>*/ *symbol_list; ///< list of symbols
 	RzPVector /*<RzBinAddr *>*/ *entry_vec; ///< list of entries
+	RzPVector /*<RzBinSourceLineSample *>*/ *line_nums_vec; ///< list of line numbers
 	RzList /*<RzBinString *>*/ *string_list; ///< list of strings
 	RzBinInfo *general_info; ///< general binary info from luac header
 	LuaHeaderInfo *header;
@@ -265,5 +270,6 @@ size_t parse_header(const RzBinFile *bf, LuaHeaderInfo *header);
 
 RZ_API void rz_analysis_luac_integrate_functions(RzAnalysis *analysis, RzFlag *flags);
 RZ_API bool rz_core_bin_apply_luac_debug(RzCore *core, RzBinFile *binfile);
+LuacBinInfo *getLuacBinInfo(RzAnalysis *analysis);
 
 #endif // BUILD_LUAC_COMMON_H

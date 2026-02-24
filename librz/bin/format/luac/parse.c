@@ -338,8 +338,7 @@ static ut64 lua_parse_const_entry(const LuaProto *proto, RzBuffer *buffer, int i
 	current_entry->data_len = data_len;
 
 	/* add to list */
-	rz_list_append(proto->const_entries, current_entry);
-
+	rz_pvector_push(proto->const_entries, current_entry);
 	return offset - base_offset;
 }
 
@@ -430,12 +429,16 @@ static ut64 lua_parse_debug(LuaProto *proto, RzBuffer *buffer, ut64 offset, ut64
 	lua_check_error_offset(delta_offset);
 
 	offset += delta_offset;
+	int line_num = proto->line_defined;
 	for (int i = 0; i < entries_cnt; ++i) {
 		LuaLineinfoEntry *info_entry = lua_new_lineinfo_entry();
-		info_entry->offset = offset;
 		if (minor > 3) {
+			ut64 ad = proto->index * 0x1000;
 			READ8(buffer, offset, info_entry->info_data);
+			info_entry->info_data = line_num += DEBUG_LINE_OFFSET(info_entry->info_data);
+			info_entry->offset = ad += i * 4;
 		} else {
+			info_entry->offset = offset;
 			info_entry->info_data = lua_load_int(buffer, offset);
 			offset += sizeof(LUA_INT);
 		}
@@ -445,6 +448,7 @@ static ut64 lua_parse_debug(LuaProto *proto, RzBuffer *buffer, ut64 offset, ut64
 		/* parse absline info */
 		delta_offset = lua_parse_szint(buffer, &entries_cnt, offset, data_size, minor);
 		lua_check_error_offset(delta_offset);
+		RZ_LOG_DEBUG("abs_info_entry entries_cnt: %d (offset: 0x%llx)\n", entries_cnt, offset );
 		offset += delta_offset;
 		for (int i = 0; i < entries_cnt; ++i) {
 			LuaAbsLineinfoEntry *abs_info_entry = lua_new_abs_lineinfo_entry();
@@ -914,7 +918,7 @@ RzBinInfo *lua_parse_bin_info(const RzBinFile *bf, const LuaHeaderInfo *header) 
 	ret->machine = rz_str_newf("Lua %c.%c VM%s", header->major + '0', header->minor + '0', header->is_openwrt ? " (openwrt)" : "");
 	ret->os = rz_str_newf("%c.%c", header->major + '0', header->minor + '0');
 	ret->cpu = rz_str_newf("%c.%c", header->major + '0', header->minor + '0');
-	ret->bits = 8;
+	ret->bits = 32;
 
 	/* official format */
 	if (header->format != LUAC_FORMAT) {

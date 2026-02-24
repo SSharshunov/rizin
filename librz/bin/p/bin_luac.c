@@ -66,6 +66,7 @@ static bool load_buffer(RzBinFile *bf, RzBinObject *obj, RzBuffer *buf, Sdb *sdb
 			i++;
 		} else {
 			proto_name = rz_str_newf("fcn.proto%d.code", i);
+			// rz_pvector_push(bin_info_obj->protos_vec, proto);
 		}
 		bin_sec->vaddr = vaddr;
 		bin_sec->name = rz_str_dup(proto_name);
@@ -115,7 +116,6 @@ static RzPVector /*<RzBinMap *>*/ *maps(RzBinFile *bf) {
 		}
 		map->paddr = bin_sec->paddr;
 		map->vaddr = bin_sec->vaddr;
-		// printf("paddr: 0x%llx, vaddr: 0x%llx, bin_sec->paddr: 0x%llx, bin_sec->vaddr: 0x%llx\n", map->paddr, map->vaddr, bin_sec->paddr, bin_sec->vaddr);
 		map->psize = map->vsize = bin_sec->size;
 		map->perm = bin_sec->perm;
 		map->name = rz_str_dup(bin_sec->name);
@@ -146,6 +146,13 @@ static RzPVector /*<RzBinAddr *>*/ *entries(RzBinFile *bf) {
 }
 
 static RzPVector /*<RzBinString *>*/ *strings(RzBinFile *bf) {
+#if 1
+	RzBinStringSearchOpt opt;
+	rz_bin_string_search_opt_init(&opt);
+	opt.mode = RZ_BIN_STRING_SEARCH_MODE_READ_ONLY_SECTIONS;
+	opt.string_encoding = RZ_STRING_ENC_UTF8;
+	return rz_bin_file_strings(bf, &opt);
+#else
 	rz_return_val_if_fail(bf, NULL);
 	LuacBinInfo *bin_info_obj = GET_INTERNAL_BIN_INFO_OBJ(bf);
 	rz_return_val_if_fail(bin_info_obj, NULL);
@@ -168,6 +175,7 @@ static RzPVector /*<RzBinString *>*/ *strings(RzBinFile *bf) {
 	rz_list_purge(bin_info_obj->string_list);
 	bin_info_obj->string_list->free = free_cb;
 	return pvec;
+#endif
 }
 
 static void destroy(RzBinFile *bf) {
@@ -246,16 +254,17 @@ static RzStructuredData *get_structured_data_protos(RzStructuredData *parent, Lu
 	if (!proto->const_entries)
 		return sd;
 
-	rz_structured_data_map_add_unsigned(sd, "constants_count", proto->const_entries->length, false);
-	if (proto->const_entries->length > 0) {
+	size_t const_length = rz_pvector_len(proto->const_entries);
+	rz_structured_data_map_add_unsigned(sd, "constants_count", const_length, false);
+	if (const_length > 0) {
 		RzStructuredData *constants = rz_structured_data_map_add_array(sd, "constants");
 		if (!constants) {
 			return NULL;
 		}
-
-		RzListIter *it;
-		LuaConstEntry *val;
-		rz_list_foreach (proto->const_entries, it, val) {
+		LuaConstEntry *val = NULL;
+		void **it;
+		rz_pvector_foreach (proto->const_entries, it) {
+			val = (LuaConstEntry *)*it;
 			if (!val) {
 				continue;
 			}

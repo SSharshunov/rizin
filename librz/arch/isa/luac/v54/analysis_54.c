@@ -3,7 +3,28 @@
 // SPDX-FileCopyrightText: 2025-2026 Sergey Sharshunov <s.sharshunov@gmail.com>
 
 #include "arch_54.h"
+#include "rz_core.h"
+#include <rz_io_plugins.h>
+
 #include <luac/luac_common.h>
+
+char *read_string_from_vaddr(RzAnalysis *analysis, ut64 addr) {
+	if (addr == UT64_MAX || addr == 0) return NULL;
+
+	// 1. Сначала узнаем длину строки (или читаем буфер с запасом)
+	// В Lua строки могут быть длинными, но для имен методов обычно хватает 256 байт
+	ut8 buf[256];
+	int res = analysis->iob.read_at(analysis->iob.io, addr, buf, sizeof(buf) - 1);
+
+	if (res <= 0) return NULL;
+
+	buf[res] = '\0'; // Гарантируем zero-termination
+
+	// 2. Если это Lua TString, строка может начинаться со смещением (пропуск заголовка)
+	// В Lua 5.4 заголовок TString обычно составляет 24-32 байта.
+	// Если ваш RzBin замапил адрес сразу на начало текста, то читаем с 0.
+	return rz_str_dup((const char *)buf);
+}
 
 RzRegItem *new_reg_item(RzAnalysis *analysis, const char *fmt, ut8 index) {
 	char *r = rz_str_newf(fmt, index);
@@ -172,8 +193,9 @@ int lua54_analysis_op(RzAnalysis *analysis, RzAnalysisOp *op, ut64 addr, const u
 		op->src[0] = rz_analysis_value_new();
 		op->src[0]->reg = new_reg_item(analysis, "r%d", b);
 
+		char *constant_name = get_const_string(analysis, addr, b);
 		mnemonic = rz_str_newf("getfield r%d, r%d, k%d", a, b, c);
-		comment = rz_str_newf("r%d = r%d['k%d']", a, b, c);
+		comment = rz_str_newf("r%d = r%d['%s']", a, c, constant_name);
 	} break;
 	case OP_GETTABLE: /*	A B C	R[A] := R[B][R[C]]				*/
 	{
@@ -242,7 +264,8 @@ int lua54_analysis_op(RzAnalysis *analysis, RzAnalysisOp *op, ut64 addr, const u
 		mnemonic = rz_str_newf("gettabup r%d, uv%d, k%d", a, b, c);
 
 		const char *scope = (b == 0) ? "_ENV" : rz_str_newf("upvalue[%d]", b);
-		comment = rz_str_newf("r%d = %s['k%d']", a, scope, c);
+		char *constant_name = get_const_string(analysis, addr, c);
+		comment = rz_str_newf("r%d = %s['%s']", a, scope, (char*)constant_name);
 	} break;
 	case OP_SETTABUP: /*	A B C	UpValue[A][K[B]:string] := RK(C)		*/
 	{
@@ -268,7 +291,8 @@ int lua54_analysis_op(RzAnalysis *analysis, RzAnalysisOp *op, ut64 addr, const u
 
 		mnemonic = rz_str_newf("settabup uv%d, k%d, %s%d", a, b, (c <= 0xff ? "r" : "k"), (c & 0xff));
 		const char *scope = (a == 0) ? "_ENV" : rz_str_newf("upvalue[%d]", a);
-		comment = rz_str_newf("%s['k%d'] = RK(%d)", scope, b, c);
+		char *constant_name = get_const_string(analysis, addr, b);
+		comment = rz_str_newf("%s['%s'] = RK(%d)", scope, constant_name, c);
 	} break;
 	case OP_SETUPVAL: /*	A B	UpValue[B] := R[A]				*/
 	{
@@ -326,8 +350,149 @@ int lua54_analysis_op(RzAnalysis *analysis, RzAnalysisOp *op, ut64 addr, const u
 			op->src[0]->imm = (ut64)c;
 		}
 
+		char *constant_name = get_const_string(analysis, addr, b);
+
 		mnemonic = rz_str_newf("setfield r%d, k%d, r%d", a, b, c);
-		comment = rz_str_newf("table r%d['k%d'] = r%d", a, b, c);
+		comment = rz_str_newf("table r%d['%s'] = r%d", a, constant_name, c);
+
+		// 1. Читаем предыдущую инструкцию (адрес - 4)
+		ut8 prev_buf[4];
+		if (analysis->iob.read_at(analysis->iob.io, addr - 4, prev_buf, 4)) {
+			ut32 prev_inst = rz_read_le32(prev_buf);
+			int prev_opcode = prev_inst & 0x7f; // Маска опкода для Lua 5.4
+
+			// 2. Проверяем, был ли это OP_CLOSURE (0x51)
+			if (prev_opcode == OP_CLOSURE) {
+				int bx = GETARG_Bx4(prev_inst);
+
+				ut64 proto_base = (addr - 4) & ~0xFFF;
+				ut64 child_vaddr = proto_base + ((bx + 1) * 0x1000);
+				// ut64 child_vaddr = proto_base + ((bx + 1));
+
+				// printf("child_vaddr: %08llx\n", proto_base);
+				// printf("child_vaddr: 0x%llx\n", child_vaddr);
+
+				// Устанавливаем новый красивый флаг
+				char *flag_name = rz_str_newf("method.%s", constant_name);
+				// printf("flag_name: %s\n", flag_name);
+				// analysis->flb.set(analysis->flb.f, flag_name, child_vaddr, 1);
+
+				// Добавление символа "на лету"
+				if (analysis->binb.bin && analysis->binb.bin->cur && analysis->binb.bin->cur->o) {
+					RzBinObject *obj = analysis->binb.bin->cur->o;
+					bool exists = false;
+					void **it;
+					size_t size = 0;
+					RzBinSection *section = NULL;
+
+					rz_pvector_foreach (obj->sections, it) {
+						section = (RzBinSection *)*it;
+						if (section->vaddr == child_vaddr) {
+							exists = true;
+							size = section->size;
+
+							break;
+						}
+					}
+
+					exists = false;
+					rz_pvector_foreach (obj->symbols, it) {
+					     RzBinSymbol *s = (RzBinSymbol *)*it;
+						if (s->vaddr == child_vaddr) {
+							exists = true;
+							break;
+						}
+					}
+					if (!exists) {
+						RzBinSymbol *msym = rz_bin_symbol_new(flag_name, section->paddr, child_vaddr);
+						msym->type = RZ_BIN_TYPE_FUNC_STR;
+						msym->bind = RZ_BIN_BIND_GLOBAL_STR;
+						msym->size = section->size;
+						// msym->paddr = section->paddr;
+						rz_pvector_push(obj->symbols, msym);
+						// rz_analysis_create_function(analysis, flag_name, child_vaddr, RZ_ANALYSIS_FCN_TYPE_FCN);
+
+						// rz_bin_symbol_free(msym);
+					}
+					RzAnalysisFunction *fcn = rz_analysis_get_function_at(analysis, child_vaddr);
+					if (!fcn) {
+						// Создаем функцию.
+						// Четвертый параметр часто - тип функции, используй RZ_ANALYSIS_FCN_TYPE_FCN
+						analysis->flb.unset_off(analysis->flb.f, child_vaddr);
+						fcn = rz_analysis_create_function(analysis, flag_name, child_vaddr, RZ_ANALYSIS_FCN_TYPE_FCN);
+
+						if (fcn) {
+							// ОЧЕНЬ ВАЖНО: задать размер.
+							// Если размер 0 или 1, Rizin может "потерять" её при перерисовке графа.
+							// fcn->size = 4; // Как минимум одна инструкция
+						}
+						if (!fcn) {
+							eprintf("Failed to create function at 0x%08"PFMT64x"\n", child_vaddr);
+						}
+					}
+					// else {
+					// 	rz_bin_symbol_free(msym);
+					// }
+					// bool found = false;
+
+					// RzAnalysisFunction *f = ht_sp_find(analysis->ht_name_fun, flag_name, &found);
+					// if (f) {
+					// 	printf("found %s\n", f->name);
+					// }
+					// if (found) {
+					// 	rz_analysis_create_function(analysis, flag_name, child_vaddr, RZ_ANALYSIS_FCN_TYPE_FCN);
+					// }
+					// if (function_name_exists(analysis, fcn->name, fcn->addr)) {
+					// 	RZ_LOG_WARN("Function name '%s' already exists\n", fcn->name);
+					// 	return false;
+					// }
+					// size_t x = rz_pvector_find_index(obj->symbols, msym, compare_sym, /*void *user*/ NULL);
+					// if (rz_pvector_contains(obj->symbols, msym)) {
+					// 	rz_pvector_push(obj->symbols, msym);
+					// }
+
+
+
+					// Добавляем в список символов текущего объекта
+					// rz_pvector_push(obj->symbols, msym);
+					// rz_list_append(obj->symbols, msym);
+
+					RzFlagItem *flag = analysis->flb.get_at(analysis->flb.f, child_vaddr, false);
+					if (flag && flag->name) {
+						// printf("flag: %s\n", flag->name);
+						// Если флаг содержит мусор "str.ount...", чистим его
+						// char *real_name = clean_lua_string(flag->name);
+						//
+						// char *new_flag = rz_str_newf("flg.%s", flag_name);
+						// analysis->flb.set(analysis->flb.f, new_flag, child_vaddr, 1);
+						analysis->flb.set(analysis->flb.f, flag_name, child_vaddr, size);
+
+						// free(new_flag);
+						// free(real_name);
+					}
+				}
+
+				free(flag_name);
+				// RzBinSymbol *sym = analysis->binb.get_symbol_at(analysis->binb.bin, vaddr);
+				// if (sym && sym->name) {
+				// 	// У тебя есть имя!
+				// }
+				// int closure_a = GETARG_A(prev_inst);
+    //
+				// // Проверяем, что CLOSURE загрузил функцию именно в тот регистр,
+				// // который мы сейчас вызываем в CALL
+				// if (closure_a == a) {
+				// 	int bx = GETARG_Bx(prev_inst);
+    //
+				// 	// Теперь мы точно знаем адрес функции (Proto)
+				// 	op->jump = get_proto_vaddr(analysis, bx);
+				// 	op->type = RZ_ANALYSIS_OP_TYPE_CALL;
+    //
+				// 	rz_analysis_op_set_comment(op, rz_str_newf("Calling closure from Proto[%d]", bx));
+				// }
+			}
+		}
+
 		break;
 	}
 	case OP_NEWTABLE: /*	A B C k	R[A] := {}					*/ {
@@ -361,7 +526,8 @@ int lua54_analysis_op(RzAnalysis *analysis, RzAnalysisOp *op, ut64 addr, const u
 		op->val = c;
 
 		mnemonic = rz_str_newf("self r%d, r%d, k%d", a, b, c);
-		comment = rz_str_newf("r%d=r%d (self), r%d=r%d['k%d']", a + 1, b, a, b, c);
+		char *constant_name = get_const_string(analysis, addr, c);
+		comment = rz_str_newf("r%d=r%d (self), r%d=r%d['%s']", a + 1, b, a, b, constant_name);
 	} break;
 	case OP_ADDI: /*	A B sC	R[A] := R[B] + sC				*/
 		op->type = RZ_ANALYSIS_OP_TYPE_ADD;
@@ -528,11 +694,15 @@ int lua54_analysis_op(RzAnalysis *analysis, RzAnalysisOp *op, ut64 addr, const u
 		op->src[0] = rz_analysis_value_new();
 		op->src[0]->reg = new_reg_item(analysis, "r%d", a);
 
+		// op->ptr = c * 0x1000;
 		op->ptr = c * 0x1000;
 		// op->jump = op->ptr;
-		op->jump = addr + 4;
+		// op->jump = addr + 4;
+		// op->jump = op->ptr;
+		op->jump = c * 0x1000;
 		// op->jump = 0x1000;
-		op->fail = UT64_MAX;
+		op->fail = addr + 4;
+		// op->fail = UT64_MAX;
 		// rz_analysis_xrefs_set(analysis, op->addr, op->ptr+0x1000, RZ_ANALYSIS_XREF_TYPE_CALL);
 
 		int nparams = (b > 1) ? (b - 1) : (b == 0 ? -1 : 0);
@@ -588,19 +758,20 @@ int lua54_analysis_op(RzAnalysis *analysis, RzAnalysisOp *op, ut64 addr, const u
 	case OP_RETURN1: /*	A	return R[A]					*/
 	{
 		op->type = RZ_ANALYSIS_OP_TYPE_RET;
-		op->eob = true;
+		// op->eob = true;
 
 		op->src[0] = rz_analysis_value_new();
 		op->src[0]->reg = new_reg_item(analysis, "r%d", a);
 
 		mnemonic = rz_str_newf("return1 r%d", a);
-		comment = rz_str_newf("return R[%d]", a);
+		comment = rz_str_newf("return r%d", a);
 	} break;
 	case OP_RETURN0: /*		return						*/ {
 		op->type = RZ_ANALYSIS_OP_TYPE_RET;
 		op->eob = true;
 		op->stackop = RZ_ANALYSIS_STACK_INC;
 		op->stackptr = -4;
+		// op->jump = UT64_MAX;
 		op->jump = UT64_MAX;
 
 		mnemonic = rz_str_dup("return0");
@@ -633,8 +804,8 @@ int lua54_analysis_op(RzAnalysis *analysis, RzAnalysisOp *op, ut64 addr, const u
 		op->dst->reg = new_reg_item(analysis, "r%d", a);
 
 		mnemonic = rz_str_newf("closure r%d, p%d", a, bx);
-		comment = rz_str_newf("instantiate proto[%d] at 0x%" PFMT64x, bx + 1, child_vaddr);
-		rz_analysis_xrefs_set(analysis, op->addr, op->ptr, RZ_ANALYSIS_XREF_TYPE_CALL);
+		comment = rz_str_newf("instantiate proto%d at 0x%" PFMT64x, bx + 1, child_vaddr);
+		// rz_analysis_xrefs_set(analysis, op->addr, op->ptr, RZ_ANALYSIS_XREF_TYPE_CALL);
 		break;
 	}
 	case OP_TFORPREP: /*	A Bx	create upvalue for R[A + 3]; pc+=Bx		*/

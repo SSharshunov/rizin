@@ -5,7 +5,21 @@
 #include "lua_arch.h"
 #include <luac/luac_common.h>
 
-static LuacBinInfo *getLuacBinInfo(RzAnalysis *analysis) {
+char *get_const_string(RzAnalysis *analysis, ut64 addr, ut32 index) {
+	LuacBinInfo *lbi = getLuacBinInfo(analysis);
+	ut64 proto_base = (addr & ~0xFFF) >> 12; ///< eq `/ 0x1000`
+	LuaProto *proto = (LuaProto *)rz_pvector_at(lbi->protos_vec, proto_base);
+	rz_warn_if_fail(proto);
+	rz_warn_if_fail(proto->const_entries);
+	const size_t proto_len = rz_pvector_len(lbi->protos_vec);
+	const size_t len = rz_pvector_len(proto->const_entries);
+	rz_warn_if_fail(proto_len && len);
+
+	LuaConstEntry *cnst = (LuaConstEntry *)rz_pvector_at(proto->const_entries, index);
+	return (char *)cnst->data;
+}
+
+LuacBinInfo *getLuacBinInfo(RzAnalysis *analysis) {
 	rz_return_val_if_fail(analysis->binb.bin->binfiles, NULL);
 	rz_return_val_if_fail(analysis->binb.bin->binfiles->length > 0, NULL);
 	RzBinFile *bfile = (RzBinFile *)analysis->binb.bin->binfiles->head->val;

@@ -433,4 +433,5 @@ LuaOpNameList get_lua50_opnames(void);
 ut8 get_lua50_opcode_by_name(const char *name, int len);
 
 ut64 get_k_vaddr(RzAnalysis *analysis, ut64 addr, int k_idx);
+char *get_const_string(RzAnalysis *analysis, ut64 addr, ut32 index);
 #endif // BUILD_LUA_ARCH_H

@@ -95,6 +95,36 @@ static RzCallable *create_new_function(LuacBinInfo *luac_obj, RzBinSymbol *symbo
 	return callable;
 }
 
+static int line_sample_cmp(const void *a, const void *b, void *user) {
+	const RzBinSourceLineSample *sa = a;
+	const RzBinSourceLineSample *sb = b;
+	// first, sort by addr
+	if (sa->address < sb->address) {
+		return -1;
+	}
+	if (sa->address > sb->address) {
+		return 1;
+	}
+	// then sort by line
+	if (sa->line < sb->line) {
+		return -1;
+	}
+	if (sa->line > sb->line) {
+		return 1;
+	}
+	// and eventually by file because this is the most exponsive operation
+	if (!strlen(sa->file) && !strlen(sb->file)) {
+		return 0;
+	}
+	if (!strlen(sa->file)) {
+		return -1;
+	}
+	if (!strlen(sb->file)) {
+		return 1;
+	}
+	return strcmp(sa->file, sb->file);
+}
+
 RZ_API bool rz_core_bin_apply_luac_debug(RzCore *core, RzBinFile *binfile) {
 	rz_return_val_if_fail(core && binfile, false);
 
@@ -126,59 +156,30 @@ RZ_API bool rz_core_bin_apply_luac_debug(RzCore *core, RzBinFile *binfile) {
 	rz_type_db_reload(core->analysis->typedb, types_dir);
 	free(types_dir);
 
-	// rz_flag_space_push(core->flags, RZ_FLAGS_FS_SYMBOLS);
-
-	// ht_up_foreach(omf_obj->ht_types, (HtUPForeachCallback)types_cb, (void *)omf_obj);
-	//
-#if 1
-	RzListIter *iter;
-	RzBinSymbol *sym;
-	rz_list_foreach (luac_obj->symbol_list, iter, sym) {
-		if (strstr(sym->name, "proto")) {
-			printf("%s\n", sym->name);
-			create_new_function(luac_obj, sym);
-		}
-	}
 	(void)create_new_function;
-#else
-	RzPVector *vs = luac_obj->symbol_list;
-	void **vit;
-	rz_list_foreach ()
-		rz_pvector_foreach (vs, vit) {
-			// OMF_symbol *symbol = (OMF_symbol *)*vit;
-			RzBinSymbol *symbol = (RzBinSymbol *)*vit;
-			// if (symbol && (!symbol->is_data)) {
-			// 	bool found = false;
-			// 	OMF_type *type = ht_up_find(omf_obj->ht_types, symbol->ti, &found);
-			// 	if (!create_new_func(omf_obj, type, symbol))
-			// 		RZ_LOG_DEBUG("error create_new_func\n");
-			// }
-			create_new_function(luac_obj, symbol);
-		}
-#endif
 
-	// omf_try_create_var_global(core->analysis, omf_obj);
-	//
-	// if (!binfile->o->lines) {
-	// 	RzPVector *ls = omf_obj->linnums_vec;
-	// 	void **lit;
-	// 	ut16 index = 0;
-	//
-	// 	binfile->o->lines = RZ_NEW0(RzBinSourceLineInfo);
-	// 	size_t lc = rz_pvector_len(omf_obj->linnums_vec);
-	// 	binfile->o->lines->samples_count = lc;
-	// 	binfile->o->lines->samples = RZ_NEWS0(RzBinSourceLineSample, lc);
-	//
-	// 	rz_pvector_foreach (ls, lit) {
-	// 		OMF_linnums *linnum = (OMF_linnums *)*lit;
-	// 		RzBinSourceLineSample *sample = &binfile->o->lines->samples[index];
-	// 		sample->address = linnum->address;
-	// 		sample->line = linnum->LineNumber;
-	// 		sample->column = 0;
-	// 		sample->file = rz_str_dup(linnum->filename);
-	// 		index++;
-	// 	}
-	// 	rz_str_constpool_init(&binfile->o->lines->filename_pool);
-	// }
+	rz_pvector_sort(luac_obj->line_nums_vec, line_sample_cmp, NULL);
+
+	if (!binfile->o->lines) {
+		RzPVector *ls = luac_obj->line_nums_vec;
+		void **lit;
+		ut16 index = 0;
+
+		binfile->o->lines = RZ_NEW0(RzBinSourceLineInfo);
+		size_t lc = rz_pvector_len(luac_obj->line_nums_vec);
+		binfile->o->lines->samples_count = lc;
+		binfile->o->lines->samples = RZ_NEWS0(RzBinSourceLineSample, lc);
+
+		rz_pvector_foreach (ls, lit) {
+			RzBinSourceLineSample *line_num = (RzBinSourceLineSample *)*lit;
+			RzBinSourceLineSample *sample = &binfile->o->lines->samples[index];
+			sample->address = line_num->address;
+			sample->line = line_num->line;
+			sample->column = 0;
+			sample->file = rz_str_dup(line_num->file);
+			index++;
+		}
+		rz_str_constpool_init(&binfile->o->lines->filename_pool);
+	}
 	return true;
 }
