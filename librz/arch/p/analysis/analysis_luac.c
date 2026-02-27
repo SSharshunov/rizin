@@ -30,44 +30,34 @@ int rz_lua_analysis_op(RzAnalysis *analysis, RzAnalysisOp *op, ut64 addr, const 
 }
 
 static char *get_reg_profile(RzAnalysis *analysis) {
-	const char *p =
-		// "=pc	pc\n"        // Program Counter
-		// "=sp	sp\n"        // Stack Pointer
-		"=A0	r0\n"
-		"=A1	r1\n"
-		"=A2	r2\n"
-		"=A3	r3\n"
-		"gpr	pc	.32	0	0\n"
-		"gpr	sp	.32	4	0\n"
-		"gpr	r0	.32	8	0\n"
-		"gpr	r1	.32	12	0\n"
-		"gpr	r2	.32	16	0\n"
-		"gpr	r3	.32	20	0\n"
-		"gpr	r4	.32	24	0\n"
-		"gpr	r5	.32	28	0\n"
-		"gpr	r6	.32	32	0\n"
-		"gpr	r7	.32	36	0\n"
-		"gpr	r8	.32	40	0\n"
-		"gpr	r9	.32	44	0\n"
-		"gpr	r10	.32	48	0\n"
-		"gpr	r11	.32	52	0\n"
-		"gpr	r12	.32	56	0\n"
-		"gpr	r13	.32	60	0\n"
-		"gpr	r14	.32	64	0\n"
-		"gpr	r15	.32	68	0\n"
-		"gpr	r16	.32	72	0\n"
-		"gpr	r17	.32	76	0\n"
-		"gpr	r18	.32	80	0\n"
-		"gpr	r19	.32	84	0\n"
-		"gpr	r20	.32	88	0\n"
-		"gpr	r21	.32	92	0\n"
-		"gpr	r22	.32	96	0\n"
-		"gpr	r23	.32	100	0\n"
-		"gpr	r24	.32	104	0\n"
-		"gpr	r25	.32	108	0\n"
-		"gpr	r26	.32	112	0\n"
-		"gpr	r27	.32	116	0\n";
-	return rz_str_dup(p);
+	RzStrBuf *sb = rz_strbuf_new("");
+
+	rz_strbuf_append(sb, "=PC pc\n"); ///< Program Counter
+	rz_strbuf_append(sb, "=SP sp\n"); ///< Stack Pointer
+	rz_strbuf_append(sb, "gpr pc .32 0 0\n");
+	rz_strbuf_append(sb, "gpr sp .32 4 0\n");
+	rz_strbuf_append(sb, "=A0	r0\n");
+	rz_strbuf_append(sb, "=A1	r1\n");
+	rz_strbuf_append(sb, "=A2	r2\n");
+	rz_strbuf_append(sb, "=A3	r3\n");
+
+	///< Stack slots (Registers R0-R255)
+	///< Use offset +8 (after pc and sp)
+	for (int i = 0; i < 256; i++) {
+		rz_strbuf_appendf(sb, "gpr r%d .32 %d 0\n", i, 8 + (i * 4));
+	}
+
+	///< Upvalues (U0-U127)
+	///< Use offset after all R-regs: 8 + (256 * 4) = 1032
+	for (int i = 0; i < 128; i++) {
+		rz_strbuf_appendf(sb, "gpr u%d .32 %d 0\n", i, 1032 + (i * 4));
+	}
+
+	for (int i = 0; i < 128; i++) {
+		rz_strbuf_appendf(sb, "gpr k%d .32 %d 0\n", i, 1544 + (i * 4));
+	}
+
+	return rz_strbuf_drain(sb);
 }
 
 static int archinfo(RzAnalysis *a, RzAnalysisInfoType query) {
@@ -87,6 +77,22 @@ static int archinfo(RzAnalysis *a, RzAnalysisInfoType query) {
 	}
 }
 
+static bool init(void **user) {
+	AnalysisLuacContext *ctx = RZ_NEW0(AnalysisLuacContext);
+	if (!ctx) {
+		return false;
+	}
+	*user = ctx;
+	return true;
+}
+
+static bool fini(void *user) {
+	rz_return_val_if_fail(user, false);
+	AnalysisLuacContext *ctx = (AnalysisLuacContext *)user;
+	free(ctx);
+	return true;
+}
+
 RzAnalysisPlugin rz_analysis_plugin_luac = {
 	.name = "luac",
 	.desc = "Lua bytecode analysis plugin",
@@ -96,6 +102,8 @@ RzAnalysisPlugin rz_analysis_plugin_luac = {
 	.get_reg_profile = &get_reg_profile,
 	.op = &rz_lua_analysis_op,
 	.archinfo = archinfo,
+	.init = &init,
+	.fini = &fini,
 	.esil = false
 };
 

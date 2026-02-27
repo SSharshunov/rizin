@@ -12,6 +12,8 @@
 #define LUA_MAX_ARGS0            3
 #define LUA_MAX_ARGS4            4
 
+#define print_isk isk ? "k" : ""
+
 #define load_args0 \
 	for (int i = 0; i < arg_num; ++i) { \
 		const int delta_offset = lua_load_next_arg_start(arg_start, buffer); \
@@ -25,6 +27,8 @@
 			return LUA_INVALID_INSNTRUCTION; \
 		} \
 	}
+
+#define MAX_ARGS 10
 
 #define load_args4 \
 	for (int i = 0; i < arg_num; ++i) { \
@@ -367,6 +371,10 @@ typedef ut32 LuaInstruction;
 typedef double LUA_NUMBER;
 typedef ut64 LUA_INTEGER;
 typedef ut32 LUA_INT;
+
+typedef struct analysis_luac_context_t {
+	ut32 prev_inst; ///< Previous instruction
+} AnalysisLuacContext;
 
 /* opcode names */
 typedef char **LuaOpNameList;

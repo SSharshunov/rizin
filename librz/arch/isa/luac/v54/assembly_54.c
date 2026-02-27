@@ -3,15 +3,50 @@
 // SPDX-FileCopyrightText: 2025-2026 Sergey Sharshunov <s.sharshunov@gmail.com>
 
 #include "arch_54.h"
+bool parse_args2(const char *s, int *args, int max_size) {
+	int count = 0;
+	bool k_flag = false;
+	int i = 0;
+
+	while (s[i] != '\0') {
+		// 1. Если нашли цифру — собираем число целиком (хоть 2, хоть 255)
+		if (s[i] >= '0' && s[i] <= '9') {
+			int val = 0;
+			while (s[i] >= '0' && s[i] <= '9') {
+				val = val * 10 + (s[i] - '0');
+				i++;
+			}
+			if (count < max_size) {
+				args[count++] = val;
+			}
+			continue;
+		}
+
+		// 2. Если встретили 'k', проверяем не флаг ли это в конце строки
+		if (s[i] == 'k') {
+			int next = i + 1;
+			while (s[next] == ' ' || s[next] == '\t' || s[next] == '\r' || s[next] == '\n') next++;
+
+			if (s[next] == '\0') {
+				k_flag = true;
+			}
+		}
+		i++;
+	}
+	return k_flag;
+}
 
 static LuaInstruction encode_instruction(const ut8 opcode, const char *arg_start, ut16 flag, ut8 arg_num) {
 	rz_return_val_if_fail((arg_num > 0) && (arg_num <= LUA_MAX_ARGS4), LUA_INVALID_INSNTRUCTION);
 	LuaInstruction instruction = 0;
 	int args[LUA_MAX_ARGS4];
-	char buffer[64]; // buffer for digits
 	int cur_cnt = 0;
 
-	load_args4;
+	const bool isK = parse_args2(arg_start, args, LUA_MAX_ARGS4);
+
+	if (isK) {
+		SETARG_k(instruction, 1);
+	}
 
 	SET_OPCODE54(instruction, opcode);
 	if (has_param_flag(flag, PARAM_A)) {
@@ -68,12 +103,6 @@ static LuaInstruction encode_instruction(const ut8 opcode, const char *arg_start
 			return instruction;
 		}
 	}
-	if (has_param_flag(flag, PARAM_k)) {
-		SETARG_k(instruction, args[cur_cnt++]);
-		if (cur_cnt >= arg_num) {
-			return instruction;
-		}
-	}
 	rz_return_val_if_fail(cur_cnt == arg_num, LUA_INVALID_INSNTRUCTION);
 	return instruction;
 }
@@ -124,9 +153,6 @@ bool lua54_assembly(const char *input, st32 input_size, LuaInstruction *instruct
 	case OP_BORK:
 	case OP_BXORK:
 	case OP_GETFIELD:
-		instruction = encode_instruction(opcode, arg_start,
-			PARAM_A | PARAM_B | PARAM_C, 3);
-		break;
 	// iABC k instruction
 	case OP_TAILCALL:
 	case OP_RETURN:
@@ -135,26 +161,20 @@ bool lua54_assembly(const char *input, st32 input_size, LuaInstruction *instruct
 	case OP_SETI:
 	case OP_SETFIELD:
 	case OP_SELF:
-		instruction = encode_instruction(opcode, arg_start,
-			PARAM_A | PARAM_B | PARAM_C, 3);
-		break;
 	case OP_NEWTABLE:
 	case OP_SETLIST:
 	case OP_MMBINK:
-		instruction = encode_instruction(opcode, arg_start,
-			PARAM_A | PARAM_B | PARAM_C | PARAM_k, 4);
+		instruction = encode_instruction(opcode, arg_start, PARAM_A | PARAM_B | PARAM_C, 3);
 		break;
 	// AsBC k instruction
 	case OP_MMBINI:
-		instruction = encode_instruction(opcode, arg_start,
-			PARAM_A | PARAM_sB | PARAM_C | PARAM_k, 4);
+		instruction = encode_instruction(opcode, arg_start, PARAM_A | PARAM_sB | PARAM_C, 3);
 		break;
 	// ABsC
 	case OP_ADDI:
 	case OP_SHRI:
 	case OP_SHLI:
-		instruction = encode_instruction(opcode, arg_start,
-			PARAM_A | PARAM_B | PARAM_sC, 3);
+		instruction = encode_instruction(opcode, arg_start, PARAM_A | PARAM_B | PARAM_sC, 3);
 		break;
 	// AB
 	case OP_MOVE:
@@ -166,17 +186,13 @@ bool lua54_assembly(const char *input, st32 input_size, LuaInstruction *instruct
 	case OP_LOADNIL:
 	case OP_GETUPVAL:
 	case OP_SETUPVAL:
-		instruction = encode_instruction(opcode, arg_start,
-			PARAM_A | PARAM_B, 2);
-		break;
 	// AB with k
 	case OP_EQ:
 	case OP_LT:
 	case OP_LE:
 	case OP_TESTSET:
 	case OP_EQK:
-		instruction = encode_instruction(opcode, arg_start,
-			PARAM_A | PARAM_B | PARAM_k, 3);
+		instruction = encode_instruction(opcode, arg_start, PARAM_A | PARAM_B, 2);
 		break;
 	// AsB with k
 	case OP_EQI:
@@ -184,8 +200,7 @@ bool lua54_assembly(const char *input, st32 input_size, LuaInstruction *instruct
 	case OP_LEI:
 	case OP_GTI:
 	case OP_GEI:
-		instruction = encode_instruction(opcode, arg_start,
-			PARAM_A | PARAM_sB | PARAM_k, 3);
+		instruction = encode_instruction(opcode, arg_start, PARAM_A | PARAM_sB, 2);
 		break;
 	// AC
 	case OP_TFORCALL:
@@ -202,9 +217,6 @@ bool lua54_assembly(const char *input, st32 input_size, LuaInstruction *instruct
 	case OP_TBC:
 	case OP_RETURN1:
 	case OP_VARARGPREP:
-		instruction = encode_instruction(opcode, arg_start,
-			PARAM_A, 1);
-		break;
 	// A with k
 	case OP_TEST:
 		instruction = encode_instruction(opcode, arg_start,

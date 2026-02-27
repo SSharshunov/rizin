@@ -58,11 +58,11 @@ static bool load_buffer(RzBinFile *bf, RzBinObject *obj, RzBuffer *buf, Sdb *sdb
 	int i = 0;
 	rz_pvector_foreach (bin_info_obj->section_vec, iter) {
 		bin_sec = *iter;
-		ut64 vaddr = i * 0x1000;
+		ut64 vaddr = PROTO_VADDRESS(i);
 		char *proto_name = NULL;
 		if (bin_sec->is_data) {
 			proto_name = rz_str_newf("fcn.proto%d.const", i);
-			vaddr = i * 0x1000 + 0x800;
+			vaddr = vaddr + CONST_OFFSET;
 			i++;
 		} else {
 			proto_name = rz_str_newf("fcn.proto%d.code", i);

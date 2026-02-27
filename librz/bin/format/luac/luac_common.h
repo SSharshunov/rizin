@@ -14,6 +14,13 @@
 
 /* Macros for bin_luac.c */
 
+#define PROTO_VBASE 0x1000
+#define PROTO_VBANK 0x1000
+#define CONST_OFFSET 0x800
+#define PROTO_VADDRESS(index) ((index * PROTO_VBANK) + PROTO_VBASE)
+#define CHILD_VADDRESS(addr, b) (addr & ~0xFFF) + PROTO_VADDRESS(b);
+#define K_VADDRESS(proto_index, index) PROTO_VADDRESS(proto_index) + CONST_OFFSET + (index * 16);
+
 #define PF_VAHID 1 /* function has hidden vararg arguments */
 #define PF_VATAB 2 /* function has vararg table */
 #define PF_FIXED 4 /* prototype has parts in fixed memory */
@@ -237,7 +244,7 @@ void lua_free_proto_entry(LuaProto *);
  * Common Operation to RzBinInfo
  * Implemented in 'bin/format/luac/luac_bin.c'
  * ======================================================== */
-void luac_add_section(RzPVector /*<RzBinSection *>*/ *section_vec, char *name, ut64 offset, ut32 size, bool is_func);
+void luac_add_section(RzPVector /*<RzBinSection *>*/ *section_vec, char *name, ut64 poffset, ut64 voffset, ut32 size, bool is_func);
 void luac_add_symbol(RzList /*<RzBinSymbol *>*/ *symbol_list, char *name, ut64 poffset, ut64 voffset, ut64 size, const char *type);
 void luac_add_entry(RzPVector /*<RzBinAddr *>*/ *entry_vec, ut64 offset, int entry_type);
 void luac_add_string(RzList /*<RzBinString *>*/ *string_list, char *string, ut64 poffset, ut64 voffset, ut64 size);

@@ -6,17 +6,15 @@
 #include <luac/luac_common.h>
 
 char *get_const_string(RzAnalysis *analysis, ut64 addr, ut32 index) {
-	LuacBinInfo *lbi = getLuacBinInfo(analysis);
-	ut64 proto_base = (addr & ~0xFFF) >> 12; ///< eq `/ 0x1000`
-	LuaProto *proto = (LuaProto *)rz_pvector_at(lbi->protos_vec, proto_base);
-	rz_warn_if_fail(proto);
-	rz_warn_if_fail(proto->const_entries);
-	const size_t proto_len = rz_pvector_len(lbi->protos_vec);
-	const size_t len = rz_pvector_len(proto->const_entries);
-	rz_warn_if_fail(proto_len && len);
+	const LuacBinInfo *lbi = getLuacBinInfo(analysis);
+	rz_return_val_if_fail(lbi, NULL);
+	const ut64 proto_base = ((addr - PROTO_VBASE) & ~0xFFF) >> 12; ///< eq `/ 0x1000`
+	const LuaProto *proto = (LuaProto *)rz_pvector_at(lbi->protos_vec, proto_base);
+	rz_return_val_if_fail(proto && proto->const_entries, NULL);
 
-	LuaConstEntry *cnst = (LuaConstEntry *)rz_pvector_at(proto->const_entries, index);
-	return (char *)cnst->data;
+	LuaConstEntry *const_entrie = (LuaConstEntry *)rz_pvector_at(proto->const_entries, index);
+	rz_return_val_if_fail(const_entrie, NULL);
+	return (const_entrie->tag & 0xF) == LUA_TSTRING ? (char *)const_entrie->data : NULL;
 }
 
 LuacBinInfo *getLuacBinInfo(RzAnalysis *analysis) {
@@ -29,13 +27,6 @@ LuacBinInfo *getLuacBinInfo(RzAnalysis *analysis) {
 	LuacBinInfo *obj = (LuacBinInfo *)bo->bin_obj;
 	return obj;
 }
-
-ut64 get_k_vaddr(RzAnalysis *analysis, ut64 addr, int k_idx) {
-	ut64 proto_base = addr & ~0xFFF;
-	return proto_base + 0x800 + (k_idx * 16);
-}
-
-#define print_isk isk ? "k" : ""
 
 LuaInstruction lua_build_instruction(const ut8 *buf) {
 	LuaInstruction ret = 0;

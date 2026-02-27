@@ -4,7 +4,7 @@
 
 #include "luac_common.h"
 
-void luac_add_section(RzPVector /*<RzBinSection *>*/ *section_vec, char *name, ut64 offset, ut32 size, bool is_func) {
+void luac_add_section(RzPVector /*<RzBinSection *>*/ *section_vec, char *name, ut64 poffset, ut64 voffset, ut32 size, bool is_func) {
 	if (size == 0)
 		return;
 	RzBinSection *bin_sec = RZ_NEW0(RzBinSection);
@@ -12,8 +12,8 @@ void luac_add_section(RzPVector /*<RzBinSection *>*/ *section_vec, char *name, u
 		free(bin_sec);
 		return;
 	}
-	bin_sec->vaddr = offset;
-	bin_sec->paddr = offset;
+	bin_sec->vaddr = voffset;
+	bin_sec->paddr = poffset;
 	bin_sec->size = size;
 	bin_sec->vsize = size;
 	bin_sec->is_data = is_func ? false : true;
@@ -127,6 +127,18 @@ void luac_build_info_free(LuacBinInfo *bin_info) {
 	free(bin_info);
 }
 
+static void free_line_nums(RzBinSourceLineSample *ln) {
+	if (!ln) {
+		return;
+	}
+
+	if (ln->file) {
+		RZ_FREE(ln->file);
+	}
+
+	RZ_FREE(ln);
+}
+
 LuacBinInfo *luac_build_info(RZ_NONNULL LuaProto *proto) {
 	if (!proto) {
 		RZ_LOG_ERROR("Invalid luac file\n");
@@ -140,7 +152,7 @@ LuacBinInfo *luac_build_info(RZ_NONNULL LuaProto *proto) {
 	ret->entry_vec = rz_pvector_new((RzPVectorFree)free_rz_addr);
 	ret->symbol_list = rz_list_newf((RzListFree)rz_bin_symbol_free);
 	ret->section_vec = rz_pvector_new((RzPVectorFree)free_rz_section);
-	ret->line_nums_vec = rz_pvector_new((RzPVectorFree)rz_bin_source_line_info_free);
+	ret->line_nums_vec = rz_pvector_new((RzPVectorFree)free_line_nums);
 	ret->string_list = rz_list_newf((RzListFree)free_rz_string);
 
 	if (!(ret->entry_vec && ret->symbol_list && ret->section_vec && ret->string_list)) {
@@ -154,17 +166,8 @@ LuacBinInfo *luac_build_info(RZ_NONNULL LuaProto *proto) {
 	_luac_build_info(proto, ret);
 
 	// add entry of main
-	ut64 main_entry_offset = 0x0;
+	ut64 main_entry_offset = 0x0 + PROTO_VBASE;
 	luac_add_entry(ret->entry_vec, main_entry_offset, RZ_BIN_ENTRY_TYPE_PROGRAM);
-
-	size_t paddr = proto->code_offset+proto->code_skipped;
-	RzBinSymbol *msym = rz_bin_symbol_new("main", paddr, main_entry_offset);
-	msym->type = RZ_BIN_TYPE_FUNC_STR;
-	msym->bind = RZ_BIN_BIND_GLOBAL_STR;
-	msym->size = proto->code_size; // section->size;
-	msym->paddr = paddr;
-	rz_list_append(ret->symbol_list, msym);
-	// rz_analysis_create_function(analysis, flag_name, offset, RZ_ANALYSIS_FCN_TYPE_FCN);
 
 	return ret;
 }
@@ -263,16 +266,16 @@ void _luac_build_info(LuaProto *proto, LuacBinInfo *info) {
 	current_size = proto->code_size;
 	proto_name = rz_str_newf("fcn.%08llx", current_offset);
 	section_name = rz_str_newf("%s.code", proto_name);
-	luac_add_section(info->section_vec, section_name, current_offset, current_size, true);
+	luac_add_section(info->section_vec, section_name, current_offset, PROTO_VADDRESS(proto->index), current_size, true);
 
-	// const char *p = rz_str_newf("proto%d", proto->index);
-	// RzBinSymbol *proto_sym = rz_bin_symbol_new(p, current_offset, proto->index * 0x1000);
-	// proto_sym->bind = RZ_BIN_BIND_GLOBAL_STR;
-	// proto_sym->type = RZ_BIN_TYPE_FUNC_STR;
-	// proto_sym->bits = 32;
-	// proto_sym->size = current_size;
-	// rz_list_append(info->symbol_list, proto_sym);
-	// RZ_FREE(p);
+	const char *p = proto->line_defined == 0 ? rz_str_dup("main") : rz_str_newf("proto%d", proto->index);
+	RzBinSymbol *proto_sym = rz_bin_symbol_new(p, current_offset, PROTO_VADDRESS(proto->index));
+	proto_sym->bind = RZ_BIN_BIND_GLOBAL_STR;
+	proto_sym->type = RZ_BIN_TYPE_FUNC_STR;
+	proto_sym->bits = 32;
+	proto_sym->size = current_size;
+	rz_list_append(info->symbol_list, proto_sym);
+	RZ_FREE(p);
 	RZ_FREE(section_name);
 
 	// 1.3 set const section
@@ -280,7 +283,7 @@ void _luac_build_info(LuaProto *proto, LuacBinInfo *info) {
 	current_size = proto->const_size;
 
 	section_name = rz_str_newf("%s.const", proto_name);
-	luac_add_section(info->section_vec, section_name, current_offset, current_size, false);
+	luac_add_section(info->section_vec, section_name, current_offset, PROTO_VADDRESS(proto->index) + CONST_OFFSET, current_size, false);
 	RZ_FREE(section_name);
 
 	LuaLineinfoEntry *line_info_entry;

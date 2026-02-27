@@ -14,25 +14,33 @@ int lua54_disasm(RzAsmOp *op, const ut8 *buf, int len, LuaOpNameList opnames) {
 	LuaOpCode54 opcode = GET_OPCODE54(instruction);
 
 	/* Pre-fetch arguments */
-	int a = GETARG_A4(instruction);
-	int b = GETARG_B4(instruction);
-	int c = GETARG_C4(instruction);
-	int ax = GETARG_Ax4(instruction);
-	int bx = GETARG_Bx4(instruction);
-	int sb = GETARG_sB(instruction);
-	int sc = GETARG_sC(instruction);
-	int sbx = GETARG_sBx4(instruction);
-	int isk = GETARG_k4(instruction);
-	int sj = GETARG_sJ(instruction);
+	const int a = GETARG_A4(instruction);
+	const int b = GETARG_B4(instruction);
+	const int c = GETARG_C4(instruction);
+	const int ax = GETARG_Ax4(instruction);
+	const int bx = GETARG_Bx4(instruction);
+	const int sb = GETARG_sB(instruction);
+	const int sc = GETARG_sC(instruction);
+	const int sbx = GETARG_sBx4(instruction);
+	const int isk = GETARG_k4(instruction);
+	const int sj = GETARG_sJ(instruction);
 
 	char *asm_string;
 
 	switch (opcode) {
 		/* iABC Instruction */
 	case OP_GETI: /*	A B C	R[A] := R[B][C]					*/
+		asm_string = rz_str_newf("%s r%" PFMT32d " %" PFMT32d " %" PFMT32d, opnames[opcode], a, b, c);
+		break;
 	case OP_MMBIN: /*	A B C	call C metamethod over R[A] and R[B]		*/
+		asm_string = rz_str_newf("%s r%" PFMT32d " r%" PFMT32d " k%" PFMT32d, opnames[opcode], a, b, c);
+		break;
 	case OP_GETTABUP: /*	A B C	R[A] := UpValue[B][K[C]:string]			*/
+		asm_string = rz_str_newf("%s r%" PFMT32d " u%" PFMT32d " k%" PFMT32d, opnames[opcode], a, b, c);
+		break;
 	case OP_CALL: /*	A B C	R[A], ... ,R[A+C-2] := R[A](R[A+1], ... ,R[A+B-1]) */
+		asm_string = rz_str_newf("%s r%" PFMT32d " %" PFMT32d " %" PFMT32d, opnames[opcode], a, b, c);
+		break;
 	case OP_GETTABLE: /*	A B C	R[A] := R[B][R[C]]				*/
 	case OP_ADD: /*	        A B C	R[A] := R[B] + R[C]				*/
 	case OP_SUB: /*	        A B C	R[A] := R[B] - R[C]				*/
@@ -46,6 +54,8 @@ int lua54_disasm(RzAsmOp *op, const ut8 *buf, int len, LuaOpNameList opnames) {
 	case OP_BXOR: /*	A B C	R[A] := R[B] ~ R[C]				*/
 	case OP_SHL: /*	        A B C	R[A] := R[B] << R[C]				*/
 	case OP_SHR: /*	        A B C	R[A] := R[B] >> R[C]				*/
+		asm_string = rz_str_newf("%s r%" PFMT32d " r%" PFMT32d " r%" PFMT32d, opnames[opcode], a, b, c);
+		break;
 	case OP_ADDK: /*	A B C	R[A] := R[B] + K[C]				*/
 	case OP_SUBK: /*	A B C	R[A] := R[B] - K[C]				*/
 	case OP_MULK: /*	A B C	R[A] := R[B] * K[C]				*/
@@ -57,20 +67,32 @@ int lua54_disasm(RzAsmOp *op, const ut8 *buf, int len, LuaOpNameList opnames) {
 	case OP_BORK: /*	A B C	R[A] := R[B] | K[C]:integer			*/
 	case OP_BXORK: /*	A B C	R[A] := R[B] ~ K[C]:integer			*/
 	case OP_GETFIELD: /*	A B C	R[A] := R[B][K[C]:string]			*/
-		asm_string = luaop_new_str_3arg(opnames[opcode], a, b, c);
+		asm_string = rz_str_newf("%s r%" PFMT32d " r%" PFMT32d " k%" PFMT32d, opnames[opcode], a, b, c);
 		break;
 		/* iABC - k instructions */
 	case OP_TAILCALL: /*	A B C k	return R[A](R[A+1], ... ,R[A+B-1])		*/
 	case OP_RETURN: /*	A B C k	return R[A], ... ,R[A+B-2]	(see note)	*/
+		asm_string = luaop_new_str_3arg_ex(opnames[opcode], a, b, c, isk);
+		break;
 	case OP_NEWTABLE: /*	A B C k	R[A] := {}					*/
+		asm_string = rz_str_newf("%s r%" PFMT32d " %" PFMT32d " %" PFMT32d " %s", opnames[opcode], a, b, c, print_isk);
+		break;
 	case OP_SETLIST: /*	A B C k	R[A][C+i] := R[A+i], 1 <= i <= B		*/
 	case OP_MMBINK: /*	A B C k		call C metamethod over R[A] and K[B]	*/
+		asm_string = luaop_new_str_3arg_ex(opnames[opcode], a, b, c, isk);
+		break;
 	case OP_SETTABUP: /*	A B C	UpValue[A][K[B]:string] := RK(C)		*/
+		asm_string = rz_str_newf("%s u%" PFMT32d " k%" PFMT32d " k%" PFMT32d " %s", opnames[opcode], a, b, c, print_isk);
+		break;
 	case OP_SETTABLE: /*	A B C	R[A][R[B]] := RK(C)				*/
 	case OP_SETI: /*	A B C	R[A][B] := RK(C)				*/
-	case OP_SETFIELD: /*	A B C	R[A][K[B]:string] := RK(C)			*/
-	case OP_SELF: /*	A B C	R[A+1] := R[B]; R[A] := R[B][RK(C):string]	*/
 		asm_string = luaop_new_str_3arg_ex(opnames[opcode], a, b, c, isk);
+		break;
+	case OP_SETFIELD: /*	A B C	R[A][K[B]:string] := RK(C)			*/
+		asm_string = rz_str_newf("%s r%" PFMT32d " k%" PFMT32d " k%" PFMT32d " %s", opnames[opcode], a, b, c, print_isk);
+		break;
+	case OP_SELF: /*	A B C	R[A+1] := R[B]; R[A] := R[B][RK(C):string]	*/
+		asm_string = rz_str_newf("%s r%" PFMT32d " r%" PFMT32d " %" PFMT32d " %s", opnames[opcode], a, b, c, print_isk);
 		break;
 		/* iABC - signed B with k instruction */
 	case OP_MMBINI: /*	A sB C k	call C metamethod over R[A] and sB	*/
@@ -91,10 +113,11 @@ int lua54_disasm(RzAsmOp *op, const ut8 *buf, int len, LuaOpNameList opnames) {
 	case OP_CONCAT: /*	A B	R[A] := R[A].. ... ..R[A + B - 1]		*/
 	case OP_LOADNIL: /*	A B	R[A], R[A+1], ..., R[A+B] := nil		*/
 	case OP_GETUPVAL: /*	A B	R[A] := UpValue[B]				*/
+		asm_string = rz_str_newf("%s r%" PFMT32d " r%" PFMT32d, opnames[opcode], a, b);
+		break;
 	case OP_SETUPVAL: /*	A B	UpValue[B] := R[A]				*/
 		asm_string = luaop_new_str_2arg(opnames[opcode], a, b);
 		break;
-
 		/* iABC - A & B with k instructions */
 	case OP_EQ: /*	        A B k	if ((R[A] == R[B]) ~= k) then pc++		*/
 	case OP_LT: /*	        A B k	if ((R[A] <  R[B]) ~= k) then pc++		*/
@@ -111,13 +134,11 @@ int lua54_disasm(RzAsmOp *op, const ut8 *buf, int len, LuaOpNameList opnames) {
 	case OP_GEI: /*	        A sB k	if ((R[A] >= sB) ~= k) then pc++		*/
 		asm_string = luaop_new_str_2arg_ex_ki(opnames[opcode], a, sb, isk);
 		break;
-
 		/* iABC - A & C instructions */
 	case OP_TFORCALL: /*	A C	R[A+4], ... ,R[A+3+C] := R[A](R[A+1], R[A+2]);	*/
 	case OP_VARARG: /*	A C	R[A], R[A+1], ..., R[A+C-2] = vararg		*/
-		asm_string = luaop_new_str_2arg(opnames[opcode], a, c);
+		asm_string = rz_str_newf("%s r%" PFMT32d " %" PFMT32d, opnames[opcode], a, c);
 		break;
-
 		/* iABC - single A instructions */
 	case OP_LOADKX: /*	A	R[A] := K[extra arg] */
 	case OP_LOADFALSE: /*	A	R[A] := false					*/
@@ -129,43 +150,44 @@ int lua54_disasm(RzAsmOp *op, const ut8 *buf, int len, LuaOpNameList opnames) {
 	case OP_VARARGPREP: /*  A	(adjust vararg parameters)			*/
 		asm_string = luaop_new_str_1arg(opnames[opcode], a);
 		break;
-
 		/* iABC - special instructions */
 	case OP_TEST: /*	A k	if (not R[A] == k) then pc++			*/
-		asm_string = luaop_new_str_1arg_ex(opnames[opcode], a, isk);
+		asm_string = rz_str_newf("%s r%" PFMT32d " %s", opnames[opcode], a, print_isk);
 		break;
-
 	case OP_RETURN0: /*		return						*/
 		asm_string = rz_str_dup(opnames[opcode]);
 		break;
-
 		/* iABx instructions */
 	case OP_LOADK: /*	A Bx	R[A] := K[Bx]					*/
+		asm_string = rz_str_newf("%s r%" PFMT32d " k%" PFMT32d, opnames[opcode], a, bx);
+		break;
 	case OP_FORLOOP: /*	A Bx	update counters; if loop continues then pc-=Bx; */
+		asm_string = rz_str_newf("%s %" PFMT32d " %" PFMT32d, opnames[opcode], a, bx);
+		break;
 	case OP_FORPREP: /*	A Bx	<check values and prepare counters>;
 		     if not to run then pc+=Bx+1;			*/
 	case OP_TFORPREP: /*	A Bx	create upvalue for R[A + 3]; pc+=Bx		*/
 	case OP_TFORLOOP: /*	A Bx	if R[A+2] ~= nil then { R[A]=R[A+2]; pc -= Bx }	*/
-	case OP_CLOSURE: /*	A Bx	R[A] := closure(KPROTO[Bx])			*/
 		asm_string = luaop_new_str_2arg(opnames[opcode], a, bx);
 		break;
-
+	case OP_CLOSURE: /*	A Bx	R[A] := closure(KPROTO[Bx])			*/
+		asm_string = rz_str_newf("%s r%" PFMT32d " %" PFMT32d, opnames[opcode], a, bx);
+		break;
 		/* iAsBx instructions */
 	case OP_LOADI: /*	A sBx	R[A] := sBx					*/
+		asm_string = rz_str_newf("%s r%" PFMT32d " %" PFMT32d, opnames[opcode], a, sbx);
+		break;
 	case OP_LOADF: /*	A sBx	R[A] := (lua_Number)sBx				*/
 		asm_string = luaop_new_str_2arg(opnames[opcode], a, sbx);
 		break;
-
 		/* iAx instructions */
 	case OP_EXTRAARG: /*	Ax	extra (larger) argument for previous opcode	*/
 		asm_string = luaop_new_str_1arg(opnames[opcode], ax);
 		break;
-
 		/* isJ instructions */
 	case OP_JMP: /*	        sJ	pc += sJ					*/
 		asm_string = luaop_new_str_1arg(opnames[opcode], sj);
 		break;
-
 	default:
 		asm_string = rz_str_newf("invalid");
 	}

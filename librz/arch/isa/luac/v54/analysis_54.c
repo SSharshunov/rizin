@@ -38,6 +38,8 @@ int lua54_analysis_op(RzAnalysis *analysis, RzAnalysisOp *op, ut64 addr, const u
 		return 0;
 	}
 
+	AnalysisLuacContext *ctx = (AnalysisLuacContext *)analysis->plugin_data;
+
 	memset(op, 0, sizeof(RzAnalysisOp));
 	LuaInstruction instruction = lua_build_instruction(data);
 
@@ -54,6 +56,7 @@ int lua54_analysis_op(RzAnalysis *analysis, RzAnalysisOp *op, ut64 addr, const u
 		op->size = 2;
 		op->eob = true;
 		op->mnemonic = rz_str_dup("invalid");
+		ctx->prev_inst = instruction;
 		return op->size;
 	}
 	int a = GETARG_A4(instruction);
@@ -94,7 +97,7 @@ int lua54_analysis_op(RzAnalysis *analysis, RzAnalysisOp *op, ut64 addr, const u
 		op->type = RZ_ANALYSIS_OP_TYPE_LOAD;
 		op->jump = addr + 4;
 
-		op->ptr = get_k_vaddr(analysis, addr, bx);
+		op->ptr = (st64)CHILD_VADDRESS(addr, bx);
 
 		op->dst = rz_analysis_value_new();
 		if (op->dst) {
@@ -133,19 +136,19 @@ int lua54_analysis_op(RzAnalysis *analysis, RzAnalysisOp *op, ut64 addr, const u
 	{
 		///< read EXTRAARG
 		ut32 next_inst = *(ut32 *)(data + 4);
-		int ax = GETARG_Ax4(next_inst);
+		int ax_prev = GETARG_Ax4(next_inst);
 
 		op->type = RZ_ANALYSIS_OP_TYPE_LOAD;
 		op->size = 8; ///< 2 instructions (4+4 bytes)
 
-		op->ptr = get_k_vaddr(analysis, addr, ax);
+		op->ptr = (st64)CHILD_VADDRESS(addr, ax_prev);
 
 		op->dst = rz_analysis_value_new();
 		if (op->dst) {
 			op->dst->reg = new_reg_item(analysis, "r%d", a);
 		}
-		mnemonic = rz_str_newf("loadkx r%d, k%d", a, ax);
-		comment = rz_str_newf("r%d = constants[%d]", a, ax);
+		mnemonic = rz_str_newf("loadkx r%d, k%d", a, ax_prev);
+		comment = rz_str_newf("r%d = constants[%d]", a, ax_prev);
 	} break;
 	case OP_LFALSESKIP: /*A	R[A] := false; pc++				*/ {
 		op->type = RZ_ANALYSIS_OP_TYPE_MOV;
@@ -185,7 +188,7 @@ int lua54_analysis_op(RzAnalysis *analysis, RzAnalysisOp *op, ut64 addr, const u
 		op->type = RZ_ANALYSIS_OP_TYPE_LOAD;
 		op->jump = addr + 4;
 
-		op->ptr = get_k_vaddr(analysis, addr, c);
+		op->ptr = (st64)CHILD_VADDRESS(addr, c);
 
 		op->dst = rz_analysis_value_new();
 		op->dst->reg = new_reg_item(analysis, "r%d", a);
@@ -237,7 +240,7 @@ int lua54_analysis_op(RzAnalysis *analysis, RzAnalysisOp *op, ut64 addr, const u
 				op->src[0]->reg = new_reg_item(analysis, "r%d", c);
 			} else {
 				int k_idx = c & 0xFF;
-				op->src[0]->imm = get_k_vaddr(analysis, addr, k_idx);
+				op->src[0]->imm = CHILD_VADDRESS(addr, k_idx);
 				op->src[0]->memref = 1;
 			}
 		}
@@ -253,7 +256,7 @@ int lua54_analysis_op(RzAnalysis *analysis, RzAnalysisOp *op, ut64 addr, const u
 		op->type = RZ_ANALYSIS_OP_TYPE_LOAD;
 		op->jump = addr + 4;
 
-		op->ptr = get_k_vaddr(analysis, addr, c);
+		op->ptr = (st64)CHILD_VADDRESS(addr, c);
 
 		op->dst = rz_analysis_value_new();
 		op->dst->reg = new_reg_item(analysis, "r%d", a);
@@ -272,7 +275,7 @@ int lua54_analysis_op(RzAnalysis *analysis, RzAnalysisOp *op, ut64 addr, const u
 		op->type = RZ_ANALYSIS_OP_TYPE_STORE;
 		op->jump = addr + 4;
 
-		op->ptr = get_k_vaddr(analysis, addr, b);
+		op->ptr = (st64)CHILD_VADDRESS(addr, b);
 
 		op->dst = rz_analysis_value_new();
 		op->dst->reg = new_reg_item(analysis, "r%d", a);
@@ -284,7 +287,7 @@ int lua54_analysis_op(RzAnalysis *analysis, RzAnalysisOp *op, ut64 addr, const u
 				op->src[0]->reg = new_reg_item(analysis, "r%d", c);
 			} else {
 				int k_idx = c & 0xFF;
-				op->src[0]->imm = get_k_vaddr(analysis, addr, k_idx);
+				op->src[0]->imm = CHILD_VADDRESS(addr, k_idx);
 				op->src[0]->memref = 1;
 			}
 		}
@@ -323,7 +326,7 @@ int lua54_analysis_op(RzAnalysis *analysis, RzAnalysisOp *op, ut64 addr, const u
 				op->src[0]->reg = new_reg_item(analysis, "r%d", c);
 			} else {
 				int k_idx = c & 0xFF;
-				op->src[0]->imm = get_k_vaddr(analysis, addr, k_idx);
+				op->src[0]->imm = CHILD_VADDRESS(addr, k_idx);
 				op->src[0]->memref = 1;
 			}
 		}
@@ -340,7 +343,7 @@ int lua54_analysis_op(RzAnalysis *analysis, RzAnalysisOp *op, ut64 addr, const u
 		op->type = RZ_ANALYSIS_OP_TYPE_STORE;
 		op->jump = addr + 4;
 
-		op->ptr = get_k_vaddr(analysis, addr, b);
+		op->ptr = (st64)CHILD_VADDRESS(addr, b);
 		op->dst = rz_analysis_value_new();
 		op->dst->reg = new_reg_item(analysis, "r%d", a);
 		op->src[0] = rz_analysis_value_new();
@@ -355,22 +358,13 @@ int lua54_analysis_op(RzAnalysis *analysis, RzAnalysisOp *op, ut64 addr, const u
 		mnemonic = rz_str_newf("setfield r%d, k%d, r%d", a, b, c);
 		comment = rz_str_newf("table r%d['%s'] = r%d", a, constant_name, c);
 
-		// 1. Читаем предыдущую инструкцию (адрес - 4)
-		ut8 prev_buf[4];
-		if (analysis->iob.read_at(analysis->iob.io, addr - 4, prev_buf, 4)) {
-			ut32 prev_inst = rz_read_le32(prev_buf);
-			int prev_opcode = prev_inst & 0x7f; // Маска опкода для Lua 5.4
+		if (ctx->prev_inst) {
+			int prev_opcode = ctx->prev_inst & 0x7f; // Opcode mask for Lua 5.4
 
-			// 2. Проверяем, был ли это OP_CLOSURE (0x51)
 			if (prev_opcode == OP_CLOSURE) {
-				int bx = GETARG_Bx4(prev_inst);
+				int bx = GETARG_Bx4(ctx->prev_inst);
 
-				ut64 proto_base = (addr - 4) & ~0xFFF;
-				ut64 child_vaddr = proto_base + ((bx + 1) * 0x1000);
-				// ut64 child_vaddr = proto_base + ((bx + 1));
-
-				// printf("child_vaddr: %08llx\n", proto_base);
-				// printf("child_vaddr: 0x%llx\n", child_vaddr);
+				ut64 child_vaddr = CHILD_VADDRESS((addr - 4), (bx + 1));
 
 				// Устанавливаем новый красивый флаг
 				char *flag_name = rz_str_newf("method.%s", constant_name);
@@ -381,6 +375,7 @@ int lua54_analysis_op(RzAnalysis *analysis, RzAnalysisOp *op, ut64 addr, const u
 				if (analysis->binb.bin && analysis->binb.bin->cur && analysis->binb.bin->cur->o) {
 					RzBinObject *obj = analysis->binb.bin->cur->o;
 					bool exists = false;
+					(void)exists;
 					void **it;
 					size_t size = 0;
 					RzBinSection *section = NULL;
@@ -390,46 +385,65 @@ int lua54_analysis_op(RzAnalysis *analysis, RzAnalysisOp *op, ut64 addr, const u
 						if (section->vaddr == child_vaddr) {
 							exists = true;
 							size = section->size;
-
+							(void)size;
 							break;
 						}
 					}
 
-					exists = false;
+					// exists = false;
 					rz_pvector_foreach (obj->symbols, it) {
 					     RzBinSymbol *s = (RzBinSymbol *)*it;
+						// printf("s->name: %s, s->paddr: 0x%llx, s->vaddr: 0x%llx, s->size: %d\n", s->name, s->paddr, s->vaddr, s->size);
+
 						if (s->vaddr == child_vaddr) {
+							// free(s->name);
+							// s->name = rz_str_dup(flag_name);
 							exists = true;
 							break;
 						}
 					}
-					if (!exists) {
-						RzBinSymbol *msym = rz_bin_symbol_new(flag_name, section->paddr, child_vaddr);
-						msym->type = RZ_BIN_TYPE_FUNC_STR;
-						msym->bind = RZ_BIN_BIND_GLOBAL_STR;
-						msym->size = section->size;
-						// msym->paddr = section->paddr;
-						rz_pvector_push(obj->symbols, msym);
-						// rz_analysis_create_function(analysis, flag_name, child_vaddr, RZ_ANALYSIS_FCN_TYPE_FCN);
+					// printf("======================================\n\n");
+					// if (!exists) {
+					// 	RzBinSymbol *msym = rz_bin_symbol_new(flag_name, section->paddr, child_vaddr);
+					// 	msym->type = RZ_BIN_TYPE_FUNC_STR;
+					// 	msym->bind = RZ_BIN_BIND_GLOBAL_STR;
+					// 	msym->size = section->size;
+					// 	// msym->paddr = section->paddr;
+					// 	rz_pvector_push(obj->symbols, msym);
+					// 	// rz_analysis_create_function(analysis, flag_name, child_vaddr, RZ_ANALYSIS_FCN_TYPE_FCN);
+					//
+					// 	// rz_bin_symbol_free(msym);
+					// }
+					// RzList /*<RzAnalysisFunction *>*/ *rz_analysis_get_functions_in(RzAnalysis *analysis, ut64 addr);
+					// RzList *xxx = rz_analysis_get_functions_in(analysis, child_vaddr);
+					// RzList *xxx = rz_analysis_get_functions_in(analysis, 0x0);
+					// RzAnalysisFunction *var = NULL;
+					// RzListIter *iter = NULL;
+					// rz_list_foreach (xxx, iter, var) {
+					// 	printf("var->addr: 0x%llx, var->name: %s\n", var->addr, var->name);
+					// }
+					// RzAnalysisFunction *fcn = rz_analysis_get_function_at(analysis, child_vaddr);
+					// if (!fcn) {
+					// 	// Создаем функцию.
+					// 	// Четвертый параметр часто - тип функции, используй RZ_ANALYSIS_FCN_TYPE_FCN
+					// 	// analysis->flb.unset_off(analysis->flb.f, child_vaddr);
+					// 	fcn = rz_analysis_create_function(analysis, flag_name, child_vaddr, RZ_ANALYSIS_FCN_TYPE_FCN);
+					// 	// fcn->
+					//
+					// 	if (fcn) {
+					// 		// ОЧЕНЬ ВАЖНО: задать размер.
+					// 		// Если размер 0 или 1, Rizin может "потерять" её при перерисовке графа.
+					// 		// fcn->size = 4; // Как минимум одна инструкция
+					// 		printf("Create function at 0x%08"PFMT64x"\n", child_vaddr);
+					// 	}
+					// 	if (!fcn) {
+					// 		eprintf("Failed to create function at 0x%08"PFMT64x"\n", child_vaddr);
+					// 	}
+					// } else {
+					// 	printf("Function at 0x%08"PFMT64x" = %s\n", child_vaddr, fcn->name);
+					// }
 
-						// rz_bin_symbol_free(msym);
-					}
-					RzAnalysisFunction *fcn = rz_analysis_get_function_at(analysis, child_vaddr);
-					if (!fcn) {
-						// Создаем функцию.
-						// Четвертый параметр часто - тип функции, используй RZ_ANALYSIS_FCN_TYPE_FCN
-						analysis->flb.unset_off(analysis->flb.f, child_vaddr);
-						fcn = rz_analysis_create_function(analysis, flag_name, child_vaddr, RZ_ANALYSIS_FCN_TYPE_FCN);
 
-						if (fcn) {
-							// ОЧЕНЬ ВАЖНО: задать размер.
-							// Если размер 0 или 1, Rizin может "потерять" её при перерисовке графа.
-							// fcn->size = 4; // Как минимум одна инструкция
-						}
-						if (!fcn) {
-							eprintf("Failed to create function at 0x%08"PFMT64x"\n", child_vaddr);
-						}
-					}
 					// else {
 					// 	rz_bin_symbol_free(msym);
 					// }
@@ -457,19 +471,19 @@ int lua54_analysis_op(RzAnalysis *analysis, RzAnalysisOp *op, ut64 addr, const u
 					// rz_pvector_push(obj->symbols, msym);
 					// rz_list_append(obj->symbols, msym);
 
-					RzFlagItem *flag = analysis->flb.get_at(analysis->flb.f, child_vaddr, false);
-					if (flag && flag->name) {
-						// printf("flag: %s\n", flag->name);
-						// Если флаг содержит мусор "str.ount...", чистим его
-						// char *real_name = clean_lua_string(flag->name);
-						//
-						// char *new_flag = rz_str_newf("flg.%s", flag_name);
-						// analysis->flb.set(analysis->flb.f, new_flag, child_vaddr, 1);
-						analysis->flb.set(analysis->flb.f, flag_name, child_vaddr, size);
-
-						// free(new_flag);
-						// free(real_name);
-					}
+					// RzFlagItem *flag = analysis->flb.get_at(analysis->flb.f, child_vaddr, false);
+					// if (flag && flag->name) {
+					// 	// printf("flag: %s\n", flag->name);
+					// 	// Если флаг содержит мусор "str.ount...", чистим его
+					// 	// char *real_name = clean_lua_string(flag->name);
+					// 	//
+					// 	// char *new_flag = rz_str_newf("flg.%s", flag_name);
+					// 	// analysis->flb.set(analysis->flb.f, new_flag, child_vaddr, 1);
+					// 	analysis->flb.set(analysis->flb.f, flag_name, child_vaddr, size);
+					//
+					// 	// free(new_flag);
+					// 	// free(real_name);
+					// }
 				}
 
 				free(flag_name);
@@ -515,7 +529,7 @@ int lua54_analysis_op(RzAnalysis *analysis, RzAnalysisOp *op, ut64 addr, const u
 	{
 		op->type = RZ_ANALYSIS_OP_TYPE_LOAD;
 		op->jump = addr + 4;
-		op->ptr = get_k_vaddr(analysis, addr, c);
+		op->ptr = (st64)CHILD_VADDRESS(addr, c);
 
 		op->dst = rz_analysis_value_new();
 		op->dst->reg = new_reg_item(analysis, "r%d", a);
@@ -559,6 +573,16 @@ int lua54_analysis_op(RzAnalysis *analysis, RzAnalysisOp *op, ut64 addr, const u
 	case OP_SUBK: /*	A B C	R[A] := R[B] - K[C]				*/
 	case OP_SUB: /*	A B C	R[A] := R[B] - R[C]				*/
 		op->type = RZ_ANALYSIS_OP_TYPE_SUB;
+
+		op->dst = rz_analysis_value_new();
+		op->dst->reg = new_reg_item(analysis, "r%d", a);
+
+		op->src[0] = rz_analysis_value_new();
+		op->src[0]->reg = new_reg_item(analysis, "r%d", b);
+
+		op->src[1] = rz_analysis_value_new();
+		op->src[1]->reg = new_reg_item(analysis, "r%d", c);
+		comment = rz_str_newf("r%d = r%d - r%d", a, b, c);
 		break;
 	case OP_MULK: /*	A B C	R[A] := R[B] * K[C]				*/
 	case OP_MUL: /*	A B C	R[A] := R[B] * R[C]				*/
@@ -612,8 +636,28 @@ int lua54_analysis_op(RzAnalysis *analysis, RzAnalysisOp *op, ut64 addr, const u
 		op->src[1] = rz_analysis_value_new();
 		op->src[1]->reg = new_reg_item(analysis, "r%d", b);
 
-		op->val = (ut64)c;
+		// op->val = (ut64)c;
+		op->jump = addr + 4;
 		op->fail = addr + 4;
+
+		if (c >= 0 && c < 15) {
+			// const char *flag_name = get_lua54_tagnames(c);
+			// RzFlagItem *flag = analysis->flb.get_at(analysis->flb.f, child_vaddr, false);
+			// if (flag && flag->name) {
+			// 	// printf("flag: %s\n", flag->name);
+			// 	// Если флаг содержит мусор "str.ount...", чистим его
+			// 	// char *real_name = clean_lua_string(flag->name);
+			// 	//
+			// 	// char *new_flag = rz_str_newf("flg.%s", flag_name);
+			// 	// analysis->flb.set(analysis->flb.f, new_flag, child_vaddr, 1);
+			// 	analysis->flb.set(analysis->flb.f, flag_name, child_vaddr, size);
+			//
+			// 	// free(new_flag);
+			// 	// free(real_name);
+			// }
+			comment = rz_str_newf("call metamethod %s(r%d, r%d)", get_lua54_tagnames(c), a, b);
+		}
+
 		break;
 	case OP_MMBINI: /*	A sB C k	call C metamethod over R[A] and sB	*/
 		op->type = RZ_ANALYSIS_OP_TYPE_CALL;
@@ -694,14 +738,14 @@ int lua54_analysis_op(RzAnalysis *analysis, RzAnalysisOp *op, ut64 addr, const u
 		op->src[0] = rz_analysis_value_new();
 		op->src[0]->reg = new_reg_item(analysis, "r%d", a);
 
-		// op->ptr = c * 0x1000;
-		op->ptr = c * 0x1000;
+		op->ptr = PROTO_VADDRESS(c);
 		// op->jump = op->ptr;
 		// op->jump = addr + 4;
 		// op->jump = op->ptr;
-		op->jump = c * 0x1000;
-		// op->jump = 0x1000;
+		op->jump = PROTO_VADDRESS(c);
+		// op->jump = PROTO_VADDRESS(c);
 		op->fail = addr + 4;
+		rz_analysis_xrefs_set(analysis, addr, PROTO_VADDRESS(c), RZ_ANALYSIS_XREF_TYPE_CALL);
 		// op->fail = UT64_MAX;
 		// rz_analysis_xrefs_set(analysis, op->addr, op->ptr+0x1000, RZ_ANALYSIS_XREF_TYPE_CALL);
 
@@ -792,10 +836,9 @@ int lua54_analysis_op(RzAnalysis *analysis, RzAnalysisOp *op, ut64 addr, const u
 		op->type = RZ_ANALYSIS_OP_TYPE_LOAD;
 		op->datatype = RZ_ANALYSIS_DATATYPE_OBJECT;
 
-		ut64 proto_base = addr & ~0xFFF;
-		ut64 child_vaddr = proto_base + ((bx + 1) * 0x1000);
+		ut64 child_vaddr = CHILD_VADDRESS((addr - 4), (bx + 1));
 
-		op->ptr = child_vaddr;
+		op->ptr = (st64)child_vaddr;
 		op->jump = child_vaddr;
 
 		op->fail = UT64_MAX;
@@ -876,5 +919,6 @@ int lua54_analysis_op(RzAnalysis *analysis, RzAnalysisOp *op, ut64 addr, const u
 		rz_meta_set(analysis, RZ_META_TYPE_COMMENT, addr, 4, comment);
 		RZ_FREE(comment);
 	}
+	ctx->prev_inst = instruction;
 	return op->size;
 }

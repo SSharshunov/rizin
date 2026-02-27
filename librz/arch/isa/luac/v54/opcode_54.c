@@ -211,3 +211,35 @@ ut8 get_lua54_opcode_by_name(const char *name, int limit) {
 
 	return OP_EXTRAARG + 1; // invalid
 }
+
+char *get_lua54_tagnames(LuaTMS54 tms) {
+	switch (tms) {
+	case TM_INDEX: return "__index";
+	case TM_NEWINDEX: return "__newindex";
+	case TM_GC: return "__gc";
+	case TM_MODE: return "__mode";
+	case TM_LEN: return "__len";
+	case TM_EQ: return "__eq";  /* last tag method with fast access */
+	case TM_ADD: return "__add";
+	case TM_SUB: return "__sub";
+	case TM_MUL: return "__mul";
+	case TM_MOD: return "__mod";
+	case TM_POW: return "__pow";
+	case TM_DIV: return "__div";
+	case TM_IDIV: return "__idiv";
+	case TM_BAND: return "__band";
+	case TM_BOR: return "__bor";
+	case TM_BXOR: return "__bxor";
+	case TM_SHL: return "__shl";
+	case TM_SHR: return "__shr";
+	case TM_UNM: return "__unm";
+	case TM_BNOT: return "__bnot";
+	case TM_LT: return "__lt";
+	case TM_LE: return "__le";
+	case TM_CONCAT: return "__concat";
+	case TM_CALL: return "__call";
+	case TM_CLOSE: return "__close";
+	case TM_N: return NULL;
+	}
+	return NULL;
+}

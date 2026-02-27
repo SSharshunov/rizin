@@ -148,13 +148,13 @@ RZ_API bool rz_core_bin_apply_luac_debug(RzCore *core, RzBinFile *binfile) {
 	LuacBinInfo *luac_obj = (LuacBinInfo *)binfile->o->bin_obj;
 	luac_obj->typedb = core->analysis->typedb;
 
-	rz_type_db_purge(core->analysis->typedb);
-	char *types_dir = rz_path_system(core->sys_path, RZ_SDB_TYPES);
-	if (!types_dir) {
-		return false;
-	}
-	rz_type_db_reload(core->analysis->typedb, types_dir);
-	free(types_dir);
+	// rz_type_db_purge(core->analysis->typedb);
+	// char *types_dir = rz_path_system(core->sys_path, RZ_SDB_TYPES);
+	// if (!types_dir) {
+	// 	return false;
+	// }
+	// rz_type_db_reload(core->analysis->typedb, types_dir);
+	// free(types_dir);
 
 	(void)create_new_function;
 

@@ -241,7 +241,7 @@ static ut64 lua_parse_const_entry(const LuaProto *proto, RzBuffer *buffer, int i
 	int data_len = 0;
 
 	LuaConstEntry *current_entry = lua_new_const_entry();
-	ut64 k_vaddr = (proto->index * 0x1000) + 0x800 + (index * 16); // Шаг 16 байт для надежности
+	ut64 k_vaddr = K_VADDRESS(proto->index, index);
 	current_entry->offset = offset;
 	current_entry->voffset = k_vaddr;
 	ut64 base_offset = offset;
@@ -433,7 +433,7 @@ static ut64 lua_parse_debug(LuaProto *proto, RzBuffer *buffer, ut64 offset, ut64
 	for (int i = 0; i < entries_cnt; ++i) {
 		LuaLineinfoEntry *info_entry = lua_new_lineinfo_entry();
 		if (minor > 3) {
-			ut64 ad = proto->index * 0x1000;
+			ut64 ad = PROTO_VADDRESS(proto->index);
 			READ8(buffer, offset, info_entry->info_data);
 			info_entry->info_data = line_num += DEBUG_LINE_OFFSET(info_entry->info_data);
 			info_entry->offset = ad += i * 4;

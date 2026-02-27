@@ -1,4 +1,4 @@
-ad "settabup 0 0 1k" 0f800001
+ad "settabup 0 0 1 k" 0f800001
 ad "lti 0 50 0" 3e00b100
 ad "jmp 5" 38020080
 ad "addi 0 0 1" 15000080
@@ -6,14 +6,14 @@ ad "mmbini 0 1 6" 2f008006
 ad "loadk 1 10" 83000500
 ad "jmp 4" b8010080
 ad "call 0 2 1" 44000201
-ad "test 0k" 42800000
+ad "test 0 k" 42800000
 ad "gti 0 40 0" 4000a700
 ad "add 4 4 3" 22020403
 ad "eqi 0 0 0" 3d007f00
 ad "forprep 0 4" 4a000200
 ad "closure 0 1" 4f800000
 ad "newtable 2 2 0" 13010200
-ad "setfield 2 44 21k" 12812c15
+ad "setfield 2 44 21 k" 12812c15
 
 # official luac -l
 ad "varargprep 0" 51000000
@@ -28,12 +28,12 @@ ad "setfield 0 2 1" 12000201
 ad "gettabup 0 0 3" 0b000003
 ad "closure 1 1" cf800000
 ad "setfield 0 4 1" 12000401
-ad "self 0 0 2k" 14800002
+ad "self 0 0 2 k" 14800002
 ad "loadi 2 1000" 0181f381
 ad "call 0 3 2" 44000302
 ad "settabup 0 5 0" 0f000500
 ad "gettabup 0 0 5" 0b000005
-ad "self 0 0 4k" 14800004
+ad "self 0 0 4 k" 14800004
 ad "loadi 2 100" 01813180
 ad "call 0 3 1" 44000301
 ad "return 0 1 1" 46000101
