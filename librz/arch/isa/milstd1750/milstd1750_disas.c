@@ -474,17 +474,25 @@ int disassemble(RzAsm *a, RzAsmOp *op, const ut8 *buf, int len) {
 
 	ut16 w1 = rz_read_be16(buf);
 
-	// ut8 short_opcode = w1 >> 8;
-	// for (size_t i = 0; i < RZ_ARRAY_SIZE(mil1750_inst_tab); ++i) {
-
-	// }
-
-	ut8 long_opcode = w1 >> 8;
+	// Three opcode masks used for matching:
+	// Mask    Pattern         Formats               Example
+	// 0xFF00  8-bit opcode    R, ICR, IM, S, D/DX   XIO
+	// 0xFCF0  6-bit + Op.Ex.  BX                    DSTX
+	// 0xFC00  6-bit opcode    B (base-relative)     DLB
+	//
+	// Special/Extended instructions SHOULD have unique upper 8 bits,
+	// so they match via 0xFF00 like any other 8-bit opcode.
+	ut8 candidates[] = [w1 & 0xFF00, w1 & 0xFCF0, w1 & 0xFC00];
+	
 	for (size_t i = 0; i < RZ_ARRAY_SIZE(mil1750_inst_tab); ++i) {
-		if (mil1750_inst_tab[i].opcode != long_opcode) {
-			continue;
+		for (size_t k = 0; k < RZ_ARRAY_SIZE(candidates); ++k) {
+			if (mil1750_inst_tab[i].opcode == candidates[k]) {
+				goto found;
+			}
 		}
-
+		continue;
+		
+	found:
 		char *result = NULL;
 		switch (mil1750_inst_tab[i].w_size) {
 		case OneWord:
