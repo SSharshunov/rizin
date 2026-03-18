@@ -1,3 +1,24 @@
+/**
+ * @file milstd1750_disas.c
+ * @author your name (you@domain.com)
+ * @brief
+ * 	Standart define the folowing instruction formats:
+	- Register-to-Register:  [8-bit op | 4-bit RA | 4-bit RB]
+	- IC-Relative:           [8-bit op | 8-bit disp]
+	- Base Relative:         [6-bit op | 2-bit BR | 8-bit disp]
+	- Base Rel Indexed:      [6-bit op | 2-bit BR | 4-bit opex | 4-bit RX]
+	- Long Direct:           [8-bit op | 4-bit RA | 4-bit RX | 16-bit addr]
+	- Long Direct (no RX):   [8-bit op | 4-bit RA | 4-bit opex | 16-bit addr]
+	- Immediate:             [8-bit op | 4-bit RA | 4-bit opex | 16-bit imm]
+	- Special:               [8-bit op | 8-bit opex]
+	- XIO:                   [8-bit op | 4-bit RA | 4-bit RX | 16-bit cmd]
+ * @version 0.1
+ * @date 2026-03-18
+ *
+ * @copyright Copyright (c) 2026
+ *
+ */
+
 #include "mil1750_disas.h"
 #include <rz_types.h>
 
@@ -15,18 +36,6 @@ typedef struct {
 	WSize w_size;
 	void *handler;
 } Mil1750LongInstruction;
-
-// Define the instruction formats
-typedef enum {
-	MIL1750_FMT_R, // Register-to-Register:  [8-bit op | 4-bit RA | 4-bit RB]
-	MIL1750_FMT_ICR, // IC-Relative:           [8-bit op | 8-bit disp]
-	MIL1750_FMT_B, // Base Relative:         [6-bit op | 2-bit BR | 8-bit disp]
-	MIL1750_FMT_BX, // Base Rel Indexed:      [6-bit op | 2-bit BR | 4-bit opex | 4-bit RX]
-	MIL1750_FMT_D, // Long Direct:           [8-bit op | 4-bit RA | 4-bit RX | 16-bit addr]
-	MIL1750_FMT_DX, // Long Direct (no RX):   [8-bit op | 4-bit RA | 4-bit opex | 16-bit addr]
-	MIL1750_FMT_IM, // Immediate:             [8-bit op | 4-bit RA | 4-bit opex | 16-bit imm]
-	MIL1750_FMT_S, // Special:               [8-bit op | 8-bit opex]
-} Mil1750Format;
 
 typedef struct {
 	ut16 opcode;
@@ -164,9 +173,9 @@ static char *parse_xio(ut32 full) {
 
 	char *result;
 	if (RX != 0) {
-		result = rz_str_newf("xio r%d, r%d, %s", RA, RX, cmd_str);
+		result = rz_str_newf("r%d, r%d, %s", RA, RX, cmd_str);
 	} else {
-		result = rz_str_newf("xio r%d, %s", RA, cmd_str);
+		result = rz_str_newf("r%d, %s", RA, cmd_str);
 	}
 	free(cmd_str);
 	return result;
@@ -181,6 +190,13 @@ static char *parse_xio(ut32 full) {
 // { "STE",  0xDC00, as_xmem },
 // { "STZ",  0x9100, as_addr },
 // { "SBBX", 0x4050, as_bx },
+// { "STBX", 0x4020, as_bx },
+// { "SCR",  0x6C00, as_r },
+// { "SAR",  0x6B00, as_r },
+// { "MR",   0xC500, as_r },
+// { "LISN", 0x8300, as_is },
+// { "FABS", 0xAC00, as_r },
+// { "EFLT", 0xEB00, as_r },
 static const Mil1750LongInstruction mil1750_inst_tab[] = {
 	{ 0xA000, "A" },
 	{ 0xA400, "ABS" },
@@ -261,117 +277,117 @@ static const Mil1750LongInstruction mil1750_inst_tab[] = {
 	{ 0x4A06, "DVIM" },
 	{ 0xD100, "DVR" },
 	{ 0x4070, "DBX" },
-	{, "EFIX" },
-	{, "EFC" },
-	{, "EFCR" },
-	{, "EFA" },
-	{, "EFAR" },
-	{, "EFD" },
-	{, "EFDR" },
-	{, "EFL" },
+	{ 0xEA00, "EFIX" },
+	{ 0xFA00, "EFC" },
+	{ 0xFB00, "EFCR" },
+	{ 0xAA00, "EFA" },
+	{ 0xAB00, "EFAR" },
+	{ 0xDA00, "EFD" },
+	{ 0xDB00, "EFDR" },
+	{ 0x8A00, "EFL" },
 	{, "EFLX" },
-	{, "EFM" },
-	{, "EFMR" },
-	{, "EFS" },
-	{, "EFSR" },
-	{, "EFST" },
-	{, "FA" },
-	{, "FAB" },
-	{, "FABX" },
-	{, "FAR" },
+	{ 0xCA00, "EFM" },
+	{ 0xCB00, "EFMR" },
+	{ 0xBA00, "EFS" },
+	{ 0xBB00, "EFSR" },
+	{ 0x9A00, "EFST" },
+	{ 0xA800, "FA" },
+	{ 0x2000, "FAB" },
+	{ 0x4080, "FABX" },
+	{ 0xA900, "FAR" },
 	{, "FB" },
 	{, "FBX" },
-	{, "FC" },
-	{, "FCB" },
-	{, "FCBX" },
-	{, "FCR" },
-	{, "FD" },
-	{, "FDB" },
-	{, "FDBX" },
-	{, "FDR" },
-	{, "FIX" },
+	{ 0xF800, "FC" },
+	{ 0x3C00, "FCB" },
+	{ 0x40D0, "FCBX" },
+	{ 0xF900, "FCR" },
+	{ 0xD800, "FD" },
+	{ 0x2C00, "FDB" },
+	{ 0x40B0, "FDBX" },
+	{ 0xD900, "FDR" },
+	{ 0xE800, "FIX" },
 	{, "FL" },
-	{, "FLT" },
+	{ 0xE900, "FLT" },
 	{, "FLX" },
-	{, "FM" },
-	{, "FMB" },
-	{, "FMBX" },
-	{, "FMR" },
-	{, "FNEG" },
-	{, "FS" },
-	{, "FSB" },
-	{, "FSBX" },
-	{, "FSR" },
+	{ 0xC800, "FM" },
+	{ 0x2800, "FMB" },
+	{ 0x40A0, "FMBX" },
+	{ 0xC900, "FMR" },
+	{ 0xBC00, "FNEG" },
+	{ 0xB800, "FS" },
+	{ 0x2400, "FSB" },
+	{ 0x4090, "FSBX" },
+	{ 0xB900, "FSR" },
 	{, "GO" },
 	{, "IMM" },
 	{, "IMML" },
-	{, "INCM" },
+	{ 0xA300, "INCM" },
 	{, "INR" },
 	{, "ITA" },
 	{, "ITB" },
-	{, "J" },
-	{, "JC" },
-	{, "JCI" },
-	{, "JEZ" },
-	{, "JGE" },
-	{, "JGT" },
-	{, "JLE" },
-	{, "JLT" },
-	{, "JNZ" },
-	{, "JS" },
-	{, "L" },
-	{, "LB" },
+	// { 0x7400, "J" },
+	// { 0x7000, "JC" },
+	// { 0x7100, "JCI" },
+	// { 0x7500, "JEZ" },
+	// { 0x7B00, "JGE" },
+	// { 0x7900, "JGT" },
+	// { 0x7800, "JLE" },
+	// { 0x7600, "JLT" },
+	// { 0x7A00, "JNZ" },
+	// { 0x7200, "JS" },
+	{ 0x8000, "L" },
+	{ 0x0000, "LB" },
 	{, "LBI" },
-	{, "LBX" },
-	{, "LE" },
-	{, "LI" },
-	{, "LIM" },
-	{, "LISP" },
-	{, "LLB" },
-	{, "LLBI" },
-	{, "LM" },
+	{ 0x4000, "LBX" },
+	{ 0xDE00, "LE" },
+	{ 0x8400, "LI" },
+	{ 0x8500, "LIM" },
+	{ 0x8200, "LISP" },
+	{ 0x8C00, "LLB" },
+	{ 0x8E00, "LLBI" },
+	{ 0x8900, "LM" },
 	{, "LMP" },
-	{, "LR" },
+	{ 0x8100, "LR" },
 	{, "LRI" },
-	{, "LSTI" },
-	{, "LST" },
-	{, "LUB" },
-	{, "LUBI" },
-	{, "M" },
-	{, "MB" },
-	{, "MBX" },
-	{, "MISN" },
-	{, "MISP" },
-	{, "MIM" },
-	{, "MOV" },
+	{ 0x7C00, "LSTI" },
+	{ 0x7D00, "LST" },
+	{ 0x8B00, "LUB" },
+	{ 0x8D00, "LUBI" },
+	{ 0xC400, "M" },
+	{ 0x1800, "MB" },
+	{ 0x4060, "MBX" },
+	{ 0xC300, "MISN" },
+	{ 0xC200, "MISP" },
+	{ 0x4A03, "MIM" },
+	{ 0x9300, "MOV" },
 	{, "MOVC" },
 	{, "MOVB" },
 	{, "MPEN" },
-	{, "MS" },
-	{, "MSIM" },
-	{, "MSR" },
+	{ 0xC000, "MS" },
+	{ 0x4A04, "MSIM" },
+	{ 0xC100, "MSR" },
 	{, "MULS" },
-	{, "N" },
-	{, "NEG" },
-	{, "NIM" },
-	{, "NOP" },
-	{, "NR" },
+	{ 0xE600, "N" },
+	{ 0xB400, "NEG" },
+	{ 0x4A0B, "NIM" },
+	{ 0xFF00, "NOP" },
+	{ 0xE700, "NR" },
 	{, "OD" },
-	{, "OR" },
-	{, "ORB" },
-	{, "ORBX" },
-	{, "ORIM" },
-	{, "ORR" },
+	{ 0xE000, "OR" },
+	{ 0x3000, "ORB" },
+	{ 0x40F0, "ORBX" },
+	{ 0x4A08, "ORIM" },
+	{ 0xE100, "ORR" },
 	{, "OTA" },
 	{, "OTB" },
 	{, "OTR" },
 	{, "POP" },
-	{, "POPM" },
+	{ 0x8F00, "POPM" },
 	{, "PUSH" },
-	{, "PSHM" },
-	{, "RB" },
-	{, "RBI" },
-	{, "RBR" },
+	{ 0x9F00, "PSHM" },
+	{ 0x5300, "RB" },
+	{ 0x5500, "RBI" },
+	{ 0x5400, "RBR" },
 	{, "RCS" },
 	{, "RCFR" },
 	{, "RDI" },
@@ -387,34 +403,34 @@ static const Mil1750LongInstruction mil1750_inst_tab[] = {
 	{, "RPIR" },
 	{, "RPI" },
 	{, "RSW" },
-	{, "RVBR" },
-	{, "S" },
-	{, "SB" },
-	{, "SBB" },
-	{, "SBR" },
-	{ 0x5200, "SBI" },
+	{ 0x5C00, "RVBR" },
+	{ 0xB000, "S" },
+	{ 0x5000, "SB", TwoWord },
+	{ 0x1400, "SBB" },
+	{ 0x5100, "SBR", OneWord },
+	{ 0x5200, "SBI", TwoWord },
 	{ 0x9500, "SFBS" },
-	{, "SIM" },
-	{, "SISP" },
-	{, "SJS" },
+	{ 0x4A02, "SIM" },
+	{ 0xB200, "SISP" },
+	{ 0x7E00, "SJS" },
 	{, "SL" },
-	{, "SLC" },
-	{, "SLL" },
-	{, "SLR" },
+	{ 0x6300, "SLC" },
+	{ 0x6000, "SLL" },
+	{ 0x6A00, "SLR" },
 	{, "SM" },
 	{, "SMK" },
-	{, "SOJ" },
+	{ 0x7300, "SOJ" },
 	{, "SPI" },
-	{, "SR" },
-	{, "SRA" },
+	{ 0xB100, "SR" },
+	{ 0x6200, "SRA" },
 	{ 0x9700, "SRM" },
-	{, "SRL" },
-	{, "ST" },
+	{ 0x6100, "SRL" },
+	{ 0x9000, "ST" },
 	{, "STA" },
-	{, "STC" },
+	{ 0x9100, "STC" },
 	{ 0x9200, "STCI" },
 	{ 0x9400, "STI" },
-	{, "STB" },
+	{ 0x0800, "STB" },
 	{ 0x9C00, "STLB" },
 	{ 0x9900, "STM" },
 	{, "STR" },
@@ -423,7 +439,7 @@ static const Mil1750LongInstruction mil1750_inst_tab[] = {
 	{, "SUB" },
 	{, "SUBB" },
 	{ 0x9D00, "SUBI" },
-	{, "SVBR" },
+	{ 0x5A00, "SVBR" },
 	{, "SWAB" },
 	{, "TA" },
 	{, "TAH" },
@@ -431,9 +447,8 @@ static const Mil1750LongInstruction mil1750_inst_tab[] = {
 	{ 0x5600, "TB" },
 	{, "TBH" },
 	{ 0x5700, "TBR" },
-	{, "TBS" },
+	{ 0x5900, "TBS" },
 	{ 0x5E00, "TVBR" },
-	{, "TPIO" },
 	{ 0x5900, "TSB" },
 	{ 0xAE00, "UA" },
 	{ 0xAD00, "UAR" },
@@ -458,11 +473,15 @@ int disassemble(RzAsm *a, RzAsmOp *op, const ut8 *buf, int len) {
 	}
 
 	ut16 w1 = rz_read_be16(buf);
-	ut8 opcode = w1 >> 8;
-	// TODO: six bit opcode
 
+	// ut8 short_opcode = w1 >> 8;
+	// for (size_t i = 0; i < RZ_ARRAY_SIZE(mil1750_inst_tab); ++i) {
+
+	// }
+
+	ut8 long_opcode = w1 >> 8;
 	for (size_t i = 0; i < RZ_ARRAY_SIZE(mil1750_inst_tab); ++i) {
-		if (mil1750_inst_tab[i].opcode != opcode) {
+		if (mil1750_inst_tab[i].opcode != long_opcode) {
 			continue;
 		}
 
@@ -470,8 +489,8 @@ int disassemble(RzAsm *a, RzAsmOp *op, const ut8 *buf, int len) {
 		switch (mil1750_inst_tab[i].w_size) {
 		case OneWord:
 			char *operands = ((WHandle)mil1750_inst_tab[i].handler)(w1);
-			result = rz_str_newf("%s %s", mil1750_inst_tab[i].mnemonic, operands);
-			free(operand);
+			result = rz_str_newf("%s(%s)", mil1750_inst_tab[i].mnemonic, operands);
+			free(operands);
 
 			op->size = 2;
 			break;
@@ -482,8 +501,8 @@ int disassemble(RzAsm *a, RzAsmOp *op, const ut8 *buf, int len) {
 			ut16 w2 = rz_read_be16(buf + 2);
 			ut32 full = ((ut32)w1 << 16) | w2;
 			char *operands = ((TwoWHandle)mil1750_inst_tab[i].handler)(full);
-			result = rz_str_newf("%s %s", mil1750_inst_tab[i].mnemonic, operands);
-			free(operand);
+			result = rz_str_newf("%s(%s)", mil1750_inst_tab[i].mnemonic, operands);
+			free(operands);
 
 			op->size = 4;
 			break;
