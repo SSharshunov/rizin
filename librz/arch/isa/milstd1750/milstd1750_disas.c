@@ -180,85 +180,79 @@ static char *as_xio(ut32 full) {
 	return result;
 }
 
-static char* as_mem() {
-	
+static char *as_mem(ut32 full) {
 }
 
-static char* as_im_ocx() {
-	
+static char *as_im_ocx(ut32 full) {
 }
 
-static char* as_r() {
-
+static char *as_r(ut16 full) {
 }
 
-static char* as_sr() {
-
+static char *as_sr(ut16 full) {
 }
 
-static char* as_im_0_15() {
-
+static char *as_im_0_15(ut32 full) {
 }
 
-static char* as_imm_r() {
-
+static char *as_imm_r(ut16 full) {
 }
 
-static char* as_xmem() {
-
+static char *as_xmem(ut32 full) {
 }
 
-static char* as_bx() {
-
+static char *as_bx(ut16 full) {
 }
 
-static char* as_b() {
-
+static char *as_b(ut16 full) {
 }
 
-static char* as_r_imm() {
-
+static char *as_r_imm(ut16 full) {
 }
 
-static char* as_is() {
-
+static char *as_is(ut16 full) {
 }
 
-static char* as_none() {
-
+static char *as_none(ut16 full) {
 }
 
-static char* as_addr() {
-
+static char *as_addr() {
 }
 
-static char* as_im_1_16() {
+static char *as_im_1_16(ut32 full) {
+}
 
+static char *as_icr(ut16 full) {
+}
+
+static char *as_s(ut16 full) {
 }
 
 static WSize accepted_word_size(ptr *void) {
-	void* tword_size_acceptor[] = {
+	void *tword_size_acceptor[] = {
 		as_xio,
 		as_mem,
 		as_im_ocx,
 		as_mem,
 		as_im_0_15,
 		as_xmem,
-		as_addr, 
+		as_addr,
 		as_im_1_16,
 	};
 	// Exclusion, one word size:
-	// as_r
-	// as_sr
-	// as_imm_r
-	// as_bx
-	// as_b
-	// as_r_imm
-	// as_is
-	// as_none
+	// - as_r
+	// - as_sr
+	// - as_imm_r
+	// - as_bx
+	// - as_b
+	// - as_r_imm
+	// - as_is
+	// - as_none
+	// - as_icr
+	// - as_s
 
 	for (size_t i = 0; i < RZ_ARRAY_SIZE(tword_size_acceptor); ++i) {
-		if(tword_size_acceptor[i] == ptr) {
+		if (tword_size_acceptor[i] == ptr) {
 			return TwoWord;
 		}
 	}
@@ -266,264 +260,1039 @@ static WSize accepted_word_size(ptr *void) {
 	return OneWord;
 }
 
+/**
+ * \note Some instructions are mentioned but not FULL defined:
+ * BRX, CALL, CISP, CISM, CIM, CLC, CMP, CR, DMAD, DMAE,
+ * DSUR, EFLX, FB, FBX, FL, FLX, GO, IMM, IMML, INR, ITA,
+ * ITB, LBI, LMP, LRI, MOVC, MOVB, MPEN, MULS, OD, OTA,
+ * OTB, OTR, POP, PUSH, SL, SM, SMK, SPI, STA, STR, STRI,
+ * SUB, SUBB, SWAB, TA
+ */
 static const Mil1750LongInstruction mil1750_inst_tab[] = {
 	{ 0x4040, "ABX", as_bx },
 	{ 0x40E0, "ANDX", as_bx },
 	{ 0xA000, "A", as_mem },
-	{ 0xA400, "ABS", as_r, },
-	{, "ADD" },
-	{, "ADDC" },
-	{, "ADDU" },
-	{ 0x4A01, "AIM", as_im_ocx, },
-	{ 0xA200, "AISP", as_is, },
-	{ 0xE200, "AND", as_mem, },
-	{ 0x3400, "ANDB", as_b, },
-	{ 0x4A07, "ANDM", as_im_ocx, },
-	{ 0xE300, "ANDR", as_r, },
-	{ 0xA100, "AR", as_r, },
-	{ 0x1000, "AB", as_b, },
-	{ 0xA000, "A", as_mem, },
-	{ 0x7700, "BEX", as_s, },
-	{ 0x7500, "BEZ", as_icr, },
-	{ 0x7B00, "BGE", as_icr, },
-	{ 0x7900, "BGT", as_icr, },
-	{ 0x4F00, "BIF", as_s, },
-	{ 0x7800, "BLE", as_icr, },
-	{ 0x7600, "BLT", as_icr, },
-	{ 0x7A00, "BNZ", as_icr, },
-	{ 0xFFFF, "BPT", as_none, },
-	{ 0x7400, "BR", as_icr, },
-	{, "BRX" },
-	{ 0xF000, "C", as_mem, },
-	{, "CALL" },
-	{ 0x3800, "CB", as_b, },
-	{ 0xF400, "CBL", as_mem, },
-	{ 0x40C0, "CBX", as_bx, },
-	{ 0xF300, "CISN", as_is, },
-	{, "CISP" },
-	{, "CISM" },
-	{, "CIM" },
-	{, "CLC" },
-	{, "CMP" },
-	{, "CR" },
-	{ 0xD700, "DDR", as_r, },
-	{ 0xD600, "DD", as_mem, },
-	{ 0xD400, "D", as_mem, },
-	{ 0xA600, "DA", as_mem, },
-	{ 0xA500, "DABS", as_r, },
-	{ 0xA700, "DAR", as_r, },
-	{ 0x1C00, "DB", as_b, },
-	{ 0xF600, "DC", as_mem, },
-	{ 0xF700, "DCR", as_r, },
-	{ 0xB300, "DECM", as_im_1_16, },
-	{ 0x4A05, "DIM", as_im_ocx, },
-	{ 0xD300, "DISN", as_is, },
-	{ 0xD200, "DISP", as_is, },
-	{ 0x8600, "DL", as_mem, },
-	{ 0x0400, "DLB", as_b, },
-	{ 0x4010, "DLBX", as_bx, },
-	{ 0xDF00, "DLE", as_xmem, },
-	{ 0x8800, "DLI", as_mem, },
-	{ 0x8700, "DLR", as_r, },
-	{ 0xC600, "DM", as_mem, },
-	{, "DMAD" },
-	{, "DMAE" },
-	{ 0xC700, "DMR", as_r, },
-	{ 0xB500, "DNEG", as_r, },
-	{ 0xD500, "DR", as_r, },
-	{ 0xB600, "DS", as_mem, },
-	{ 0x6E00, "DSAR", as_r, },
-	{ 0x6F00, "DSCR", as_r, },
-	{ 0x6500, "DSLL", as_r_imm, },
-	{ 0x6800, "DSLC", as_r_imm, },
-	{ 0x6D00, "DSLR", as_r, },
-	{ 0x6700, "DSRA", as_r_imm, },
-	{ 0x6600, "DSRL", as_r_imm, },
-	{ 0xB700, "DSR", as_r, },
-	{ 0x9600, "DST", as_mem, },
-	{ 0x0C00, "DSTB", as_b, },
-	{ 0x9800, "DSTI", as_mem, },
-	{ 0xDD00, "DSTE", as_xmem, },
-	{ 0x4030, "DSTX", as_bx, },
-	{, "DSUR" },
-	{ 0xD000, "DV", as_mem, },
-	{ 0x4A06, "DVIM", as_im_ocx, },
-	{ 0xD100, "DVR", as_r, },
-	{ 0x4070, "DBX", as_bx, },
-	{ 0xEB00, "EFLT", as_r, },
-	{ 0xEA00, "EFIX", as_r, },
-	{ 0xFA00, "EFC", as_mem, },
-	{ 0xFB00, "EFCR", as_r, },
-	{ 0xAA00, "EFA", as_mem, },
-	{ 0xAB00, "EFAR", as_r, },
-	{ 0xDA00, "EFD", as_mem, },
-	{ 0xDB00, "EFDR", as_r, },
-	{ 0x8A00, "EFL", as_mem, },
-	{, "EFLX" },
-	{ 0xCA00, "EFM", as_mem, },
-	{ 0xCB00, "EFMR", as_r, },
-	{ 0xBA00, "EFS", as_mem, },
-	{ 0xBB00, "EFSR", as_r, },
-	{ 0x9A00, "EFST", as_mem, },
-	{ 0xAC00, "FABS", as_r, },
-	{ 0xA800, "FA", as_mem, },
-	{ 0x2000, "FAB", as_b, },
-	{ 0x4080, "FABX", as_bx, },
-	{ 0xA900, "FAR", as_r, },
-	{, "FB" },
-	{, "FBX" },
-	{ 0xF800, "FC", as_mem, },
-	{ 0x3C00, "FCB", as_b, },
-	{ 0x40D0, "FCBX", as_bx, },
-	{ 0xF900, "FCR", as_r, },
-	{ 0xD800, "FD", as_mem, },
-	{ 0x2C00, "FDB", as_b, },
-	{ 0x40B0, "FDBX", as_bx, },
-	{ 0xD900, "FDR", as_r, },
-	{ 0xE800, "FIX", as_r, },
-	{, "FL" },
-	{ 0xE900, "FLT", as_r, },
-	{, "FLX" },
-	{ 0xC800, "FM", as_mem, },
-	{ 0x2800, "FMB", as_b, },
-	{ 0x40A0, "FMBX", as_bx, },
-	{ 0xC900, "FMR", as_r, },
-	{ 0xBC00, "FNEG", as_r, },
-	{ 0xB800, "FS", as_mem, },
-	{ 0x2400, "FSB", as_b, },
-	{ 0x4090, "FSBX", as_bx, },
-	{ 0xB900, "FSR", as_r, },
-	{, "GO" },
-	{, "IMM" },
-	{, "IMML" },
-	{ 0xA300, "INCM", as_im_1_16, },
-	{, "INR" },
-	{, "ITA" },
-	{, "ITB" },
-	{ 0x7000, "JC", as_jump, },
-	{ 0x7100, "JCI", as_jump, },
-	{ 0x7200, "JS", as_mem, },
-	{ 0x8300, "LISN", as_is, },
-	{ 0x8000, "L", as_mem, },
-	{ 0x0000, "LB", as_b, },
-	{, "LBI" },
-	{ 0x4000, "LBX", as_bx, },
-	{ 0xDE00, "LE", as_xmem, },
-	{ 0x8400, "LI", as_mem, },
-	{ 0x8500, "LIM", as_mem, },
-	{ 0x8200, "LISP", as_is, },
-	{ 0x8C00, "LLB", as_mem, },
-	{ 0x8E00, "LLBI", as_mem, },
-	{ 0x8900, "LM", as_im_0_15, },
-	{, "LMP" },
-	{ 0x8100, "LR", as_r, },
-	{, "LRI" },
-	{ 0x7C00, "LSTI", as_addr, },
-	{ 0x7D00, "LST", as_addr, },
-	{ 0x8B00, "LUB", as_mem, },
-	{ 0x8D00, "LUBI", as_mem, },
-	{ 0xC500, "MR", as_r, },
-	{ 0xC400, "M", as_mem, },
-	{ 0x1800, "MB", as_b, },
-	{ 0x4060, "MBX", as_bx, },
-	{ 0xC300, "MISN", as_is, },
-	{ 0xC200, "MISP", as_is, },
-	{ 0x4A03, "MIM", as_im_ocx, },
-	{ 0x9300, "MOV", as_r, },
-	{, "MOVC" },
-	{, "MOVB" },
-	{, "MPEN" },
-	{ 0xC000, "MS", as_mem, },
-	{ 0x4A04, "MSIM", as_im_ocx, },
-	{ 0xC100, "MSR", as_r, },
-	{, "MULS" },
-	{ 0xE600, "N", as_mem, },
-	{ 0xB400, "NEG", as_r, },
-	{ 0x4A0B, "NIM", as_im_ocx, },
-	{ 0xFF00, "NOP", as_none, },
-	{ 0xE700, "NR", as_r, },
-	{, "OD" },
-	{ 0xE000, "OR", as_mem, },
-	{ 0x3000, "ORB", as_b, },
-	{ 0x40F0, "ORBX", as_bx, },
-	{ 0x4A08, "ORIM", as_im_ocx, },
-	{ 0xE100, "ORR", as_r, },
-	{, "OTA" },
-	{, "OTB" },
-	{, "OTR" },
-	{, "POP" },
-	{ 0x8F00, "POPM", as_r, },
-	{, "PUSH" },
-	{ 0x9F00, "PSHM", as_r, },
-	{ 0x5300, "RB", as_im_0_15, },
-	{ 0x5500, "RBI", as_im_0_15, },
-	{ 0x5400, "RBR", as_imm_r, },
-	{ 0x5C00, "RVBR", as_r, },
-	{ 0x9E00, "SLBI", as_mem, },
-	{ 0x9100, "STZ", as_addr, },
-	{ 0x4050, "SBBX", as_bx, },
-	{ 0x4020, "STBX", as_bx, },
-	{ 0x6C00, "SCR", as_r, },
-	{ 0x6B00, "SAR", as_r, },
-	{ 0xB000, "S", as_mem, },
-	{ 0x5000, "SB", as_im_0_15, },
-	{ 0x1400, "SBB", as_b, },
-	{ 0x5100, "SBR", as_imm_r, },
-	{ 0x5200, "SBI", as_im_0_15, },
-	{ 0x9500, "SFBS", as_r, },
-	{ 0x4A02, "SIM", as_im_ocx, },
-	{ 0xB200, "SISP", as_is, },
-	{ 0x7E00, "SJS", as_mem, },
-	{, "SL" },
-	{ 0x6300, "SLC", as_r_imm, },
-	{ 0x6000, "SLL", as_r_imm, },
-	{ 0x6A00, "SLR", as_r, },
-	{, "SM" },
-	{, "SMK" },
-	{ 0x7300, "SOJ", as_mem, },
-	{, "SPI" },
-	{ 0xB100, "SR", as_r, },
-	{ 0x6200, "SRA", as_r_imm, },
-	{ 0x9700, "SRM", as_mem, },
-	{ 0x6100, "SRL", as_r_imm, },
-	{ 0x9000, "ST", as_mem, },
-	{, "STA" },
-	{ 0x9100, "STC", as_im_0_15, },
-	{ 0x9200, "STCI", as_im_0_15, },
-	{ 0x9400, "STI", as_mem, },
-	{ 0x0800, "STB", as_b, },
-	{ 0x9C00, "STLB", as_mem, },
-	{ 0x9900, "STM", as_im_0_15, },
-	{, "STR" },
-	{, "STRI" },
-	{ 0x9B00, "STUB", as_mem, },
-	{, "SUB" },
-	{, "SUBB", },
-	{ 0x9D00, "SUBI", as_mem, },
-	{ 0x5A00, "SVBR", as_r, },
-	{, "SWAB" },
-	{, "TA" },
-	{ 0x5600, "TB", as_im_0_15, },
-	{ 0xDC00, "STE", as_xmem, },
-	{ 0x5700, "TBR", as_imm_r, },
-	{ 0x5E00, "TVBR", as_r, },
+	{
+		0xA400,
+		"ABS",
+		as_r,
+	},
+	{
+		0x4A01,
+		"AIM",
+		as_im_ocx,
+	},
+	{
+		0xA200,
+		"AISP",
+		as_is,
+	},
+	{
+		0xE200,
+		"AND",
+		as_mem,
+	},
+	{
+		0x3400,
+		"ANDB",
+		as_b,
+	},
+	{
+		0x4A07,
+		"ANDM",
+		as_im_ocx,
+	},
+	{
+		0xE300,
+		"ANDR",
+		as_r,
+	},
+	{
+		0xA100,
+		"AR",
+		as_r,
+	},
+	{
+		0x1000,
+		"AB",
+		as_b,
+	},
+	{
+		0xA000,
+		"A",
+		as_mem,
+	},
+	{
+		0x7700,
+		"BEX",
+		as_s,
+	},
+	{
+		0x7500,
+		"BEZ",
+		as_icr,
+	},
+	{
+		0x7B00,
+		"BGE",
+		as_icr,
+	},
+	{
+		0x7900,
+		"BGT",
+		as_icr,
+	},
+	{
+		0x4F00,
+		"BIF",
+		as_s,
+	},
+	{
+		0x7800,
+		"BLE",
+		as_icr,
+	},
+	{
+		0x7600,
+		"BLT",
+		as_icr,
+	},
+	{
+		0x7A00,
+		"BNZ",
+		as_icr,
+	},
+	{
+		0xFFFF,
+		"BPT",
+		as_none,
+	},
+	{
+		0x7400,
+		"BR",
+		as_icr,
+	},
+	{
+		0xF000,
+		"C",
+		as_mem,
+	},
+	{
+		0x3800,
+		"CB",
+		as_b,
+	},
+	{
+		0xF400,
+		"CBL",
+		as_mem,
+	},
+	{
+		0x40C0,
+		"CBX",
+		as_bx,
+	},
+	{
+		0xF300,
+		"CISN",
+		as_is,
+	},
+	{
+		0xD700,
+		"DDR",
+		as_r,
+	},
+	{
+		0xD600,
+		"DD",
+		as_mem,
+	},
+	{
+		0xD400,
+		"D",
+		as_mem,
+	},
+	{
+		0xA600,
+		"DA",
+		as_mem,
+	},
+	{
+		0xA500,
+		"DABS",
+		as_r,
+	},
+	{
+		0xA700,
+		"DAR",
+		as_r,
+	},
+	{
+		0x1C00,
+		"DB",
+		as_b,
+	},
+	{
+		0xF600,
+		"DC",
+		as_mem,
+	},
+	{
+		0xF700,
+		"DCR",
+		as_r,
+	},
+	{
+		0xB300,
+		"DECM",
+		as_im_1_16,
+	},
+	{
+		0x4A05,
+		"DIM",
+		as_im_ocx,
+	},
+	{
+		0xD300,
+		"DISN",
+		as_is,
+	},
+	{
+		0xD200,
+		"DISP",
+		as_is,
+	},
+	{
+		0x8600,
+		"DL",
+		as_mem,
+	},
+	{
+		0x0400,
+		"DLB",
+		as_b,
+	},
+	{
+		0x4010,
+		"DLBX",
+		as_bx,
+	},
+	{
+		0xDF00,
+		"DLE",
+		as_xmem,
+	},
+	{
+		0x8800,
+		"DLI",
+		as_mem,
+	},
+	{
+		0x8700,
+		"DLR",
+		as_r,
+	},
+	{
+		0xC600,
+		"DM",
+		as_mem,
+	},
+	{
+		0xC700,
+		"DMR",
+		as_r,
+	},
+	{
+		0xB500,
+		"DNEG",
+		as_r,
+	},
+	{
+		0xD500,
+		"DR",
+		as_r,
+	},
+	{
+		0xB600,
+		"DS",
+		as_mem,
+	},
+	{
+		0x6E00,
+		"DSAR",
+		as_r,
+	},
+	{
+		0x6F00,
+		"DSCR",
+		as_r,
+	},
+	{
+		0x6500,
+		"DSLL",
+		as_r_imm,
+	},
+	{
+		0x6800,
+		"DSLC",
+		as_r_imm,
+	},
+	{
+		0x6D00,
+		"DSLR",
+		as_r,
+	},
+	{
+		0x6700,
+		"DSRA",
+		as_r_imm,
+	},
+	{
+		0x6600,
+		"DSRL",
+		as_r_imm,
+	},
+	{
+		0xB700,
+		"DSR",
+		as_r,
+	},
+	{
+		0x9600,
+		"DST",
+		as_mem,
+	},
+	{
+		0x0C00,
+		"DSTB",
+		as_b,
+	},
+	{
+		0x9800,
+		"DSTI",
+		as_mem,
+	},
+	{
+		0xDD00,
+		"DSTE",
+		as_xmem,
+	},
+	{
+		0x4030,
+		"DSTX",
+		as_bx,
+	},
+	{
+		0xD000,
+		"DV",
+		as_mem,
+	},
+	{
+		0x4A06,
+		"DVIM",
+		as_im_ocx,
+	},
+	{
+		0xD100,
+		"DVR",
+		as_r,
+	},
+	{
+		0x4070,
+		"DBX",
+		as_bx,
+	},
+	{
+		0xEB00,
+		"EFLT",
+		as_r,
+	},
+	{
+		0xEA00,
+		"EFIX",
+		as_r,
+	},
+	{
+		0xFA00,
+		"EFC",
+		as_mem,
+	},
+	{
+		0xFB00,
+		"EFCR",
+		as_r,
+	},
+	{
+		0xAA00,
+		"EFA",
+		as_mem,
+	},
+	{
+		0xAB00,
+		"EFAR",
+		as_r,
+	},
+	{
+		0xDA00,
+		"EFD",
+		as_mem,
+	},
+	{
+		0xDB00,
+		"EFDR",
+		as_r,
+	},
+	{
+		0x8A00,
+		"EFL",
+		as_mem,
+	},
+	{
+		0xCA00,
+		"EFM",
+		as_mem,
+	},
+	{
+		0xCB00,
+		"EFMR",
+		as_r,
+	},
+	{
+		0xBA00,
+		"EFS",
+		as_mem,
+	},
+	{
+		0xBB00,
+		"EFSR",
+		as_r,
+	},
+	{
+		0x9A00,
+		"EFST",
+		as_mem,
+	},
+	{
+		0xAC00,
+		"FABS",
+		as_r,
+	},
+	{
+		0xA800,
+		"FA",
+		as_mem,
+	},
+	{
+		0x2000,
+		"FAB",
+		as_b,
+	},
+	{
+		0x4080,
+		"FABX",
+		as_bx,
+	},
+	{
+		0xA900,
+		"FAR",
+		as_r,
+	},
+	{
+		0xF800,
+		"FC",
+		as_mem,
+	},
+	{
+		0x3C00,
+		"FCB",
+		as_b,
+	},
+	{
+		0x40D0,
+		"FCBX",
+		as_bx,
+	},
+	{
+		0xF900,
+		"FCR",
+		as_r,
+	},
+	{
+		0xD800,
+		"FD",
+		as_mem,
+	},
+	{
+		0x2C00,
+		"FDB",
+		as_b,
+	},
+	{
+		0x40B0,
+		"FDBX",
+		as_bx,
+	},
+	{
+		0xD900,
+		"FDR",
+		as_r,
+	},
+	{
+		0xE800,
+		"FIX",
+		as_r,
+	},
+	{
+		0xE900,
+		"FLT",
+		as_r,
+	},
+	{
+		0xC800,
+		"FM",
+		as_mem,
+	},
+	{
+		0x2800,
+		"FMB",
+		as_b,
+	},
+	{
+		0x40A0,
+		"FMBX",
+		as_bx,
+	},
+	{
+		0xC900,
+		"FMR",
+		as_r,
+	},
+	{
+		0xBC00,
+		"FNEG",
+		as_r,
+	},
+	{
+		0xB800,
+		"FS",
+		as_mem,
+	},
+	{
+		0x2400,
+		"FSB",
+		as_b,
+	},
+	{
+		0x4090,
+		"FSBX",
+		as_bx,
+	},
+	{
+		0xB900,
+		"FSR",
+		as_r,
+	},
+	{
+		0xA300,
+		"INCM",
+		as_im_1_16,
+	},
+	{
+		0x7000,
+		"JC",
+		as_jump,
+	},
+	{
+		0x7100,
+		"JCI",
+		as_jump,
+	},
+	{
+		0x7200,
+		"JS",
+		as_mem,
+	},
+	{
+		0x8300,
+		"LISN",
+		as_is,
+	},
+	{
+		0x8000,
+		"L",
+		as_mem,
+	},
+	{
+		0x0000,
+		"LB",
+		as_b,
+	},
+	{
+		0x4000,
+		"LBX",
+		as_bx,
+	},
+	{
+		0xDE00,
+		"LE",
+		as_xmem,
+	},
+	{
+		0x8400,
+		"LI",
+		as_mem,
+	},
+	{
+		0x8500,
+		"LIM",
+		as_mem,
+	},
+	{
+		0x8200,
+		"LISP",
+		as_is,
+	},
+	{
+		0x8C00,
+		"LLB",
+		as_mem,
+	},
+	{
+		0x8E00,
+		"LLBI",
+		as_mem,
+	},
+	{
+		0x8900,
+		"LM",
+		as_im_0_15,
+	},
+	{
+		0x8100,
+		"LR",
+		as_r,
+	},
+	{
+		0x7C00,
+		"LSTI",
+		as_addr,
+	},
+	{
+		0x7D00,
+		"LST",
+		as_addr,
+	},
+	{
+		0x8B00,
+		"LUB",
+		as_mem,
+	},
+	{
+		0x8D00,
+		"LUBI",
+		as_mem,
+	},
+	{
+		0xC500,
+		"MR",
+		as_r,
+	},
+	{
+		0xC400,
+		"M",
+		as_mem,
+	},
+	{
+		0x1800,
+		"MB",
+		as_b,
+	},
+	{
+		0x4060,
+		"MBX",
+		as_bx,
+	},
+	{
+		0xC300,
+		"MISN",
+		as_is,
+	},
+	{
+		0xC200,
+		"MISP",
+		as_is,
+	},
+	{
+		0x4A03,
+		"MIM",
+		as_im_ocx,
+	},
+	{
+		0x9300,
+		"MOV",
+		as_r,
+	},
+	{
+		0xC000,
+		"MS",
+		as_mem,
+	},
+	{
+		0x4A04,
+		"MSIM",
+		as_im_ocx,
+	},
+	{
+		0xC100,
+		"MSR",
+		as_r,
+	},
+	{
+		0xE600,
+		"N",
+		as_mem,
+	},
+	{
+		0xB400,
+		"NEG",
+		as_r,
+	},
+	{
+		0x4A0B,
+		"NIM",
+		as_im_ocx,
+	},
+	{
+		0xFF00,
+		"NOP",
+		as_none,
+	},
+	{
+		0xE700,
+		"NR",
+		as_r,
+	},
+	{
+		0xE000,
+		"OR",
+		as_mem,
+	},
+	{
+		0x3000,
+		"ORB",
+		as_b,
+	},
+	{
+		0x40F0,
+		"ORBX",
+		as_bx,
+	},
+	{
+		0x4A08,
+		"ORIM",
+		as_im_ocx,
+	},
+	{
+		0xE100,
+		"ORR",
+		as_r,
+	},
+	{
+		0x8F00,
+		"POPM",
+		as_r,
+	},
+	{
+		0x9F00,
+		"PSHM",
+		as_r,
+	},
+	{
+		0x5300,
+		"RB",
+		as_im_0_15,
+	},
+	{
+		0x5500,
+		"RBI",
+		as_im_0_15,
+	},
+	{
+		0x5400,
+		"RBR",
+		as_imm_r,
+	},
+	{
+		0x5C00,
+		"RVBR",
+		as_r,
+	},
+	{
+		0x9E00,
+		"SLBI",
+		as_mem,
+	},
+	{
+		0x9100,
+		"STZ",
+		as_addr,
+	},
+	{
+		0x4050,
+		"SBBX",
+		as_bx,
+	},
+	{
+		0x4020,
+		"STBX",
+		as_bx,
+	},
+	{
+		0x6C00,
+		"SCR",
+		as_r,
+	},
+	{
+		0x6B00,
+		"SAR",
+		as_r,
+	},
+	{
+		0xB000,
+		"S",
+		as_mem,
+	},
+	{
+		0x5000,
+		"SB",
+		as_im_0_15,
+	},
+	{
+		0x1400,
+		"SBB",
+		as_b,
+	},
+	{
+		0x5100,
+		"SBR",
+		as_imm_r,
+	},
+	{
+		0x5200,
+		"SBI",
+		as_im_0_15,
+	},
+	{
+		0x9500,
+		"SFBS",
+		as_r,
+	},
+	{
+		0x4A02,
+		"SIM",
+		as_im_ocx,
+	},
+	{
+		0xB200,
+		"SISP",
+		as_is,
+	},
+	{
+		0x7E00,
+		"SJS",
+		as_mem,
+	},
+	{
+		0x6300,
+		"SLC",
+		as_r_imm,
+	},
+	{
+		0x6000,
+		"SLL",
+		as_r_imm,
+	},
+	{
+		0x6A00,
+		"SLR",
+		as_r,
+	},
+	{
+		0x7300,
+		"SOJ",
+		as_mem,
+	},
+	{
+		0xB100,
+		"SR",
+		as_r,
+	},
+	{
+		0x6200,
+		"SRA",
+		as_r_imm,
+	},
+	{
+		0x9700,
+		"SRM",
+		as_mem,
+	},
+	{
+		0x6100,
+		"SRL",
+		as_r_imm,
+	},
+	{
+		0x9000,
+		"ST",
+		as_mem,
+	},
+	{
+		0x9100,
+		"STC",
+		as_im_0_15,
+	},
+	{
+		0x9200,
+		"STCI",
+		as_im_0_15,
+	},
+	{
+		0x9400,
+		"STI",
+		as_mem,
+	},
+	{
+		0x0800,
+		"STB",
+		as_b,
+	},
+	{
+		0x9C00,
+		"STLB",
+		as_mem,
+	},
+	{
+		0x9900,
+		"STM",
+		as_im_0_15,
+	},
+	{
+		0x9B00,
+		"STUB",
+		as_mem,
+	},
+	{
+		0x9D00,
+		"SUBI",
+		as_mem,
+	},
+	{
+		0x5A00,
+		"SVBR",
+		as_r,
+	},
+	{
+		0x5600,
+		"TB",
+		as_im_0_15,
+	},
+	{
+		0xDC00,
+		"STE",
+		as_xmem,
+	},
+	{
+		0x5700,
+		"TBR",
+		as_imm_r,
+	},
+	{
+		0x5E00,
+		"TVBR",
+		as_r,
+	},
 	{ 0x5800, "TBI", as_im_0_15 },
-	{ 0x5900, "TSB", as_im_0_15, },
-	{ 0xAE00, "UA", as_mem, },
-	{ 0xAD00, "UAR", as_r, },
-	{ 0xFD00, "UC", as_mem, },
-	{ 0xF500, "UCIM", as_im_ocx, },
-	{ 0xFC00, "UCR", as_r, },
-	{ 0x7F00, "URS", as_sr, },
-	{ 0xBE00, "US", as_mem, },
-	{ 0xBD00, "USR", as_r, },
-	{ 0x4900, "VIO", as_mem, },
-	{ 0xEC00, "XBR", as_r, },
-	{ 0x4800, "XIO", as_xio, },
-	{ 0xE400, "XOR", as_mem, },
-	{ 0x4A09, "XORM", as_im_ocx, },
-	{ 0xE500, "XORR", as_r, },
-	{ 0xED00, "XWR", as_r, },
+	{
+		0x5900,
+		"TSB",
+		as_im_0_15,
+	},
+	{
+		0xAE00,
+		"UA",
+		as_mem,
+	},
+	{
+		0xAD00,
+		"UAR",
+		as_r,
+	},
+	{
+		0xFD00,
+		"UC",
+		as_mem,
+	},
+	{
+		0xF500,
+		"UCIM",
+		as_im_ocx,
+	},
+	{
+		0xFC00,
+		"UCR",
+		as_r,
+	},
+	{
+		0x7F00,
+		"URS",
+		as_sr,
+	},
+	{
+		0xBE00,
+		"US",
+		as_mem,
+	},
+	{
+		0xBD00,
+		"USR",
+		as_r,
+	},
+	{
+		0x4900,
+		"VIO",
+		as_mem,
+	},
+	{
+		0xEC00,
+		"XBR",
+		as_r,
+	},
+	{
+		0x4800,
+		"XIO",
+		as_xio,
+	},
+	{
+		0xE400,
+		"XOR",
+		as_mem,
+	},
+	{
+		0x4A09,
+		"XORM",
+		as_im_ocx,
+	},
+	{
+		0xE500,
+		"XORR",
+		as_r,
+	},
+	{
+		0xED00,
+		"XWR",
+		as_r,
+	},
 };
 
 int disassemble(RzAsm *a, RzAsmOp *op, const ut8 *buf, int len) {
@@ -541,8 +1310,8 @@ int disassemble(RzAsm *a, RzAsmOp *op, const ut8 *buf, int len) {
 	//
 	// Special/Extended instructions SHOULD have unique upper 8 bits,
 	// so they match via 0xFF00 like any other 8-bit opcode.
-	ut8 candidates[] = [w1 & 0xFF00, w1 & 0xFCF0, w1 & 0xFC00];
-	
+	ut8 candidates[] = [ w1 & 0xFF00, w1 & 0xFCF0, w1 & 0xFC00 ];
+
 	for (size_t i = 0; i < RZ_ARRAY_SIZE(mil1750_inst_tab); ++i) {
 		for (size_t k = 0; k < RZ_ARRAY_SIZE(candidates); ++k) {
 			if (mil1750_inst_tab[i].opcode == candidates[k]) {
@@ -553,7 +1322,7 @@ int disassemble(RzAsm *a, RzAsmOp *op, const ut8 *buf, int len) {
 
 	found:
 		char *result = NULL;
-		
+
 		WSize wsize = accepted_word_size(mil1750_inst_tab[i].handler);
 		switch (wsize) {
 		case OneWord:
