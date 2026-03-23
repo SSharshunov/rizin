@@ -1,27 +1,9 @@
-/**
- * @file milstd1750_disas.c
- * @author your name (you@domain.com)
- * @brief
- * 	Standart define the folowing instruction formats:
-	- Register-to-Register:  [8-bit op | 4-bit RA | 4-bit RB]
-	- IC-Relative:           [8-bit op | 8-bit disp]
-	- Base Relative:         [6-bit op | 2-bit BR | 8-bit disp]
-	- Base Rel Indexed:      [6-bit op | 2-bit BR | 4-bit opex | 4-bit RX]
-	- Long Direct:           [8-bit op | 4-bit RA | 4-bit RX | 16-bit addr]
-	- Long Direct (no RX):   [8-bit op | 4-bit RA | 4-bit opex | 16-bit addr]
-	- Immediate:             [8-bit op | 4-bit RA | 4-bit opex | 16-bit imm]
-	- Special:               [8-bit op | 8-bit opex]
-	- XIO:                   [8-bit op | 4-bit RA | 4-bit RX | 16-bit cmd]
- * @version 0.1
- * @date 2026-03-18
- *
- * @copyright Copyright (c) 2026
- *
- */
+// SPDX-FileCopyrightText: 2025 godcodehunter
+// SPDX-License-Identifier: LGPL-3.0-only
 
 // TODO: А я не забыл в коде что-то вроде таблицы трансляции номера регистра в имя регистра?
 
-#include "mil1750_disas.h"
+#include "milstd1750_disas.h"
 #include <rz_types.h>
 
 typedef char *(*WHandle)(ut16 w1);
@@ -36,14 +18,14 @@ typedef struct {
 	ut8 opcode;
 	const char *mnemonic;
 	void *handler;
-} Mil1750LongInstruction;
+} MilStd1750LongInstruction;
 
 typedef struct {
 	ut16 opcode;
 	const char *mnemonic;
-} Mil1750XioCommand;
+} MilStd1750XioCommand;
 
-static const Mil1750XioCommand mil1750_xio_commands[] = {
+static const MilStd1750XioCommand milstd1750_xio_commands[] = {
 	{ 0x2000, "SMK" },
 	{ 0x2001, "CLIR" },
 	{ 0x2002, "ENBL" },
@@ -152,9 +134,9 @@ static char *parse_xio_commands(ut16 cmd) {
 		return rz_str_newf("ROPR { %d, %d }", X, Y);
 	}
 
-	for (size_t i = 0; i < RZ_ARRAY_SIZE(mil1750_xio_commands); ++i) {
-		if (mil1750_xio_commands[i].opcode == cmd) {
-			return rz_str_dup(mil1750_xio_commands[i].mnemonic);
+	for (size_t i = 0; i < RZ_ARRAY_SIZE(milstd1750_xio_commands); ++i) {
+		if (milstd1750_xio_commands[i].opcode == cmd) {
+			return rz_str_dup(milstd1750_xio_commands[i].mnemonic);
 		}
 	}
 
@@ -250,38 +232,30 @@ static char *as_bx(ut16 full) {
 }
 
 static char *as_b(ut16 full) {
-
 }
 
 static char *as_r_imm(ut16 full) {
-
 }
 
 static char *as_is(ut16 full) {
-
 }
 
 static char *as_none(ut16 full) {
-
 }
 
 static char *as_addr(ut32 full) {
-
 }
 
 static char *as_im_1_16(ut32 full) {
-
 }
 
 static char *as_icr(ut16 full) {
-
 }
 
 static char *as_s(ut16 full) {
-
 }
 
-static WSize accepted_word_size(ptr *void) {
+static WSize accepted_word_size(void *ptr) {
 	void *tword_size_acceptor[] = {
 		as_xio,
 		as_mem,
@@ -321,7 +295,7 @@ static WSize accepted_word_size(ptr *void) {
  * OTB, OTR, POP, PUSH, SL, SM, SMK, SPI, STA, STR, STRI,
  * SUB, SUBB, SWAB, TA
  */
-static const Mil1750LongInstruction mil1750_inst_tab[] = {
+static const MilStd1750LongInstruction milstd1750_inst_tab[] = {
 	{ 0x4040, "ABX", as_bx },
 	{ 0x40E0, "ANDX", as_bx },
 	{ 0xA000, "A", as_mem },
@@ -1365,9 +1339,9 @@ int disassemble(RzAsm *a, RzAsmOp *op, const ut8 *buf, int len) {
 	// so they match via 0xFF00 like any other 8-bit opcode.
 	ut8 candidates[] = [ w1 & 0xFF00, w1 & 0xFCF0, w1 & 0xFC00 ];
 
-	for (size_t i = 0; i < RZ_ARRAY_SIZE(mil1750_inst_tab); ++i) {
+	for (size_t i = 0; i < RZ_ARRAY_SIZE(milstd1750_inst_tab); ++i) {
 		for (size_t k = 0; k < RZ_ARRAY_SIZE(candidates); ++k) {
-			if (mil1750_inst_tab[i].opcode == candidates[k]) {
+			if (milstd1750_inst_tab[i].opcode == candidates[k]) {
 				goto found;
 			}
 		}
@@ -1376,11 +1350,11 @@ int disassemble(RzAsm *a, RzAsmOp *op, const ut8 *buf, int len) {
 	found:
 		char *result = NULL;
 
-		WSize wsize = accepted_word_size(mil1750_inst_tab[i].handler);
+		WSize wsize = accepted_word_size(milstd1750_inst_tab[i].handler);
 		switch (wsize) {
 		case OneWord:
-			char *operands = ((WHandle)mil1750_inst_tab[i].handler)(w1);
-			result = rz_str_newf("%s(%s)", mil1750_inst_tab[i].mnemonic, operands);
+			char *operands = ((WHandle)milstd1750_inst_tab[i].handler)(w1);
+			result = rz_str_newf("%s(%s)", milstd1750_inst_tab[i].mnemonic, operands);
 			free(operands);
 
 			op->size = 2;
@@ -1391,8 +1365,8 @@ int disassemble(RzAsm *a, RzAsmOp *op, const ut8 *buf, int len) {
 			}
 			ut16 w2 = rz_read_be16(buf + 2);
 			ut32 full = ((ut32)w1 << 16) | w2;
-			char *operands = ((TwoWHandle)mil1750_inst_tab[i].handler)(full);
-			result = rz_str_newf("%s(%s)", mil1750_inst_tab[i].mnemonic, operands);
+			char *operands = ((TwoWHandle)milstd1750_inst_tab[i].handler)(full);
+			result = rz_str_newf("%s(%s)", milstd1750_inst_tab[i].mnemonic, operands);
 			free(operands);
 
 			op->size = 4;
