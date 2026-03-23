@@ -1,6 +1,22 @@
 // SPDX-FileCopyrightText: 2025 godcodehunter
 // SPDX-License-Identifier: LGPL-3.0-only
 
+/**
+ * \file Disassembler for the MIL-STD-1750A instruction set architecture.
+ *
+ * MIL-STD-1750A is a 16-bit military standard ISA originally developed by
+ * the US Department of Defense for airborne embedded computers. It features
+ * 16 general-purpose registers (R0-R15), 16-bit word-addressable memory,
+ * and a mix of one-word (16-bit) and two-word (32-bit) instructions.
+ *
+ * References:
+ * - MIL-STD-1750A Military Standard Sixteen-Bit Computer Instruction Set Architecture
+ * - UT1750AR RadHard RISC Microprocessor data sheet
+ * - https://github.com/okellogg/milstd1750tools/blob/master/as1750/as1750.c#L947
+ * - https://github.com/EtchedPixels/sim1750a
+ * - https://github.com/WarlockD/Mil-std-1750A-Emulator-C20/tree/master/instructions
+ */
+
 // TODO: А я не забыл в коде что-то вроде таблицы трансляции номера регистра в имя регистра?
 
 #include "milstd1750_disas.h"
