@@ -18,6 +18,7 @@
  */
 
 // TODO: А я не забыл в коде что-то вроде таблицы трансляции номера регистра в имя регистра?
+// TODO: test/db/format и test/db/cmd
 
 #include "milstd1750_disas.h"
 #include <rz_types.h>
@@ -79,12 +80,6 @@ static const MilStd1750XioCommand milstd1750_xio_commands[] = {
 	{ 0xC001, "RCS" },
 	{ 0xC00A, "ITA" },
 	{ 0xC00E, "ITB" },
-	{ 0x5000, "LMP" },
-	{ 0x5100, "WIPR" },
-	{ 0x5200, "WOPR" },
-	{ 0xD000, "RMP" },
-	{ 0xD100, "RIPR" },
-	{ 0xD200, "ROPR" },
 };
 
 static char *parse_xio_commands(ut16 cmd) {
@@ -184,7 +179,7 @@ static char *as_xio(ut32 full) {
 static char *as_mem(ut32 full) {
 	ut8 RA = (full >> 20) & 0xF;
 	ut8 RX = (full >> 16) & 0xF;
-	ut8 ADDR = full & 0xFFFF;
+	ut16 ADDR = full & 0xFFFF;
 
 	if (RX) {
 		return rz_str_newf("r%d, 0x%04x, r%d", RA, ADDR, RX);
@@ -222,19 +217,24 @@ static char *as_im_0_15(ut32 full) {
 	ut8 RX = (full >> 16) & 0xF;
 	ut16 ADDR = full & 0xFFFF;
 
-	return rz_str_newf("%d, r%d, 0x%04x", N, RX, ADDR);
+	return rz_str_newf("%d, 0x%04x, r%d", N, ADDR, RX);
 }
 
 // Immediate & Register: [8-bit op | 4-bit N imm | 4-bit RB]
 static char *as_imm_r(ut16 full) {
-	ut8 N = (full);
+	ut8 N = (full >> 4) & 0xF;
 	ut8 RB = full & 0xF;
 
 	return rz_str_newf("%d, r%d", N, RB);
 }
 
+// Extended memory: [8-bit op | 4-bit RA | 0x0 | 4-bit AS | 12-bit addr]
 static char *as_xmem(ut32 full) {
-	// TODO
+	ut8 RA = (full >> 20) & 0xF;
+	ut8 AS = (full >> 12) & 0xF;
+	ut16 ADDR = full & 0x0FFF;
+
+	return rz_str_newf("r%d, 0x%x:0x%03x", RA, AS, ADDR);
 }
 
 // Base Rel Indexed: [6-bit op | 2-bit BR | 4-bit opex | 4-bit RX]
@@ -277,20 +277,44 @@ static char *as_is(ut16 full) {
 	return rz_str_newf("r%d, %d", RA, N);
 }
 
+// Short None: [8-bit op | 0x00 ]
 static char *as_none(ut16 full) {
+	return rz_str_dup("");
 }
 
+// Direct Address: [8-bit op | 0x0 | 4-bit RX | 16-bit addr]
 static char *as_addr(ut32 full) {
+	ut8 RX = (full >> 16) & 0xF;
+	ut16 ADDR = full & 0xFFFF;
+
+	return rz_str_newf("0x%04x, r%d", ADDR, RX);
 }
 
+// Immediate 0-15: [8-bit op | 4-bit N-1 imm | 4-bit RX | 16-bit addr]
 static char *as_im_1_16(ut32 full) {
+	ut8 N = (full >> 20) & 0xF; 
+	ut8 RX = (full >> 16) & 0xF;
+	ut16 ADDR = full & 0xFFFF;
+
+	return rz_str_newf("%d, 0x%04x, r%d", N, ADDR, RX);
 }
 
+//  Instruction Counter Relative: [8-bit op | 8-bit addr]
 static char *as_icr(ut16 full) {
+	ut8 ADDR = full & 0xFF;
+
+	return rz_str_newf("0x%04x", ADDR);
 }
 
 //
 static char *as_s(ut16 full) {
+	
+}
+
+static char* as_jump(ut32 full) {
+	ut8 C = ;
+	ut8 RX = ;
+
 }
 
 static WSize accepted_word_size(void *ptr) {
@@ -303,6 +327,7 @@ static WSize accepted_word_size(void *ptr) {
 		as_xmem,
 		as_addr,
 		as_im_1_16,
+		as_jump,
 	};
 	// Exclusion, one word size:
 	// - as_r
