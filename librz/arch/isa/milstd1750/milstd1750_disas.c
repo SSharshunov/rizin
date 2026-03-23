@@ -19,6 +19,8 @@
  *
  */
 
+// TODO: А я не забыл в коде что-то вроде таблицы трансляции номера регистра в имя регистра?
+
 #include "mil1750_disas.h"
 #include <rz_types.h>
 
@@ -180,52 +182,103 @@ static char *as_xio(ut32 full) {
 	return result;
 }
 
+// Long Direct: [8-bit op | 4-bit RA | 4-bit RX | 16-bit addr]
 static char *as_mem(ut32 full) {
+	ut8 RA = (full >> 20) & 0xF;
+	ut8 RX = (full >> 16) & 0xF;
+	ut8 ADDR = full & 0xFFFF;
+
+	if (RX) {
+		return rz_str_newf("r%d, 0x%04x, r%d", RA, ADDR, RX);
+	}
+
+	return rz_str_newf("r%d, 0x%04x", RA, ADDR);
 }
 
+// Immediate:  [8-bit op | 4-bit RA | 4-bit opex | 16-bit imm]
 static char *as_im_ocx(ut32 full) {
+	ut8 RA = (full >> 20) & 0xF;
+	ut16 DATA = full & 0xFFFF;
+
+	return rz_str_newf("r%d, 0x%04x", RA, DATA);
 }
 
+// Register-to-Register:  [8-bit op | 4-bit RA | 4-bit RB]
 static char *as_r(ut16 full) {
+	ut8 RA = (full >> 4) & 0xF;
+	ut8 RB = full & 0xF;
+
+	return rz_str_newf("r%d, r%d", RA, RB);
 }
 
+// Single Register:  [8-bit op | 4-bit RA | 0x0 ]
 static char *as_sr(ut16 full) {
+	ut8 RA = (full >> 4) & 0xF;
+
+	return rz_str_newf("r%d", RA);
 }
 
+// Immediate 0-15: [8-bit op | 4-bit N imm | 4-bit RX | 16-bit addr]
 static char *as_im_0_15(ut32 full) {
+	ut8 N = (full >> 20) & 0xF;
+	ut8 RX = (full >> 16) & 0xF;
+	ut16 ADDR = full & 0xFFFF;
+
+	return rz_str_newf("%d, r%d, 0x%04x", N, RX, ADDR);
 }
 
+// Immediate & Register: [8-bit op | 4-bit N imm | 4-bit RB]
 static char *as_imm_r(ut16 full) {
+	ut8 N = (full);
+	ut8 RB = full & 0xF;
+
+	return rz_str_newf("%d, r%d", N, RB);
 }
 
 static char *as_xmem(ut32 full) {
+	// TODO
 }
 
+// Base Rel Indexed: [6-bit op | 2-bit BR | 4-bit opex | 4-bit RX]
 static char *as_bx(ut16 full) {
+	ut8 BR = (full >> 8) & 0x3;
+	ut8 RX = full & 0xF;
+
+	BR += 12;
+
+	return rz_str_newf("r%d, r%d", BR, RX);
 }
 
 static char *as_b(ut16 full) {
+
 }
 
 static char *as_r_imm(ut16 full) {
+
 }
 
 static char *as_is(ut16 full) {
+
 }
 
 static char *as_none(ut16 full) {
+
 }
 
-static char *as_addr() {
+static char *as_addr(ut32 full) {
+
 }
 
 static char *as_im_1_16(ut32 full) {
+
 }
 
 static char *as_icr(ut16 full) {
+
 }
 
 static char *as_s(ut16 full) {
+
 }
 
 static WSize accepted_word_size(ptr *void) {
