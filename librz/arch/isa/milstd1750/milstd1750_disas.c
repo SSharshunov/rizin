@@ -247,13 +247,34 @@ static char *as_bx(ut16 full) {
 	return rz_str_newf("r%d, r%d", BR, RX);
 }
 
+// Base Relative: [6-bit op | 2-bit BR | 8-bit disp]
 static char *as_b(ut16 full) {
+	ut8 BR = (full >> 8) & 0x3;
+	ut8 DISP = full & 0xFF;
+
+	BR += 12;
+
+	return rz_str_newf("r%d, %d", BR, DISP);
 }
 
+// Immediate Register: [8-bit op | 4-bit N-1 imm | 4-bit RB]
 static char *as_r_imm(ut16 full) {
+	ut8 RB = full & 0xF;
+	ut8 N = (full >> 4) & 0xF;
+
+	N++;
+
+	return rz_str_newf("r%d, %d", RB, N);
 }
 
+// Immediate Short: [8-bit op | 4-bit RA | 4-bit (N-1) imm]
 static char *as_is(ut16 full) {
+	ut8 RA = (full >> 4) & 0xF;
+	ut8 N = full & 0xF;
+
+	N++;
+
+	return rz_str_newf("r%d, %d", RA, N);
 }
 
 static char *as_none(ut16 full) {
@@ -268,6 +289,7 @@ static char *as_im_1_16(ut32 full) {
 static char *as_icr(ut16 full) {
 }
 
+//
 static char *as_s(ut16 full) {
 }
 
