@@ -303,7 +303,7 @@ static char* as_xmem(ut16 full) {
 
 //
 static char *as_s(ut16 full) {
-	
+
 }
 
 // Jump on Condition: [8-bit op | 4-bit C | 4-bit RX | 16-bit addr]
@@ -617,6 +617,8 @@ int disassemble(RzAsm *a, RzAsmOp *op, const ut8 *buf, int len) {
 
 			op->size = 4;
 			break;
+		default:
+			rz_warn_if_reached();
 		}
 
 		rz_strbuf_set(&op->buf_asm, result);
