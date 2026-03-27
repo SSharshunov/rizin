@@ -296,9 +296,22 @@ static char *as_icr(ut16 full) {
 	return rz_str_newf("0x%04x", ADDR);
 }
 
-//
+// Special: [8-bit op | 8-bit special]
 static char *as_s(ut16 full) {
+	ut8 OC = full >> 8;
 
+	switch (OC)
+	{
+	case 0x7700: // "BEX"
+		ut8 N = full & 0xF;
+		return rz_str_newf("%d", N);
+	case 0x4F00: // "BIF"
+		ut8 OE  = full & 0xFF;
+		return rz_str_newf("0x%02x", OE);
+	default:
+		rz_warn_if_reached();
+		break;
+	}
 }
 
 // Jump on Condition: [8-bit op | 4-bit C | 4-bit RX | 16-bit addr]
