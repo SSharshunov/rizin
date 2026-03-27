@@ -296,11 +296,6 @@ static char *as_icr(ut16 full) {
 	return rz_str_newf("0x%04x", ADDR);
 }
 
-// 
-static char* as_xmem(ut16 full) {
-
-}
-
 //
 static char *as_s(ut16 full) {
 
@@ -324,7 +319,6 @@ static WSize accepted_word_size(void *ptr) {
 		as_addr,
 		as_im_1_16,
 		as_jump,
-		as_xmem,
 	};
 	// Exclusion, one word size:
 	// - as_r
@@ -401,7 +395,7 @@ static const MilStd1750LongInstruction milstd1750_inst_tab[] = {
 	{ 0x8600, "DL", as_mem, },
 	{ 0x0400, "DLB", as_b, },
 	{ 0x4010, "DLBX", as_bx, },
-	{ 0xDF00, "DLE", as_xmem, },
+	{ 0xDF00, "DLE", as_mem, },
 	{ 0x8800, "DLI", as_mem, },
 	{ 0x8700, "DLR", as_r, },
 	{ 0xC600, "DM", as_mem, },
@@ -420,7 +414,7 @@ static const MilStd1750LongInstruction milstd1750_inst_tab[] = {
 	{ 0x9600, "DST", as_mem, },
 	{ 0x0C00, "DSTB", as_b, },
 	{ 0x9800, "DSTI", as_mem, },
-	{ 0xDD00, "DSTE", as_xmem, },
+	{ 0xDD00, "DSTE", as_mem, },
 	{ 0x4030, "DSTX", as_bx, },
 	{ 0xD000, "DV", as_mem, },
 	{ 0x4A06, "DVIM", as_im_ocx, },
@@ -472,7 +466,7 @@ static const MilStd1750LongInstruction milstd1750_inst_tab[] = {
 	{ 0x8000, "L", as_mem, },
 	{ 0x0000, "LB", as_b, },
 	{ 0x4000, "LBX", as_bx, },
-	{ 0xDE00, "LE", as_xmem, },
+	{ 0xDE00, "LE", as_mem, },
 	{ 0x8400, "LI", as_mem, },
 	{ 0x8500, "LIM", as_mem, },
 	{ 0x8200, "LISP", as_is, },
@@ -545,7 +539,7 @@ static const MilStd1750LongInstruction milstd1750_inst_tab[] = {
 	{ 0x9D00, "SUBI", as_mem, },
 	{ 0x5A00, "SVBR", as_r, },
 	{ 0x5600, "TB", as_im_0_15, },
-	{ 0xDC00, "STE", as_xmem, },
+	{ 0xDC00, "STE", as_mem, },
 	{ 0x5700, "TBR", as_imm_r, },
 	{ 0x5E00, "TVBR", as_r, },
 	{ 0x5800, "TBI", as_im_0_15, },
