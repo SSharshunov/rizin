@@ -312,7 +312,7 @@ static char *as_jump(ut32 full) {
 	ut8 RX = (full >> 16) & 0xF;
 	ut16 ADDR = full & 0xFFFF;
 
-	return rz_str_newf("%d, 0x%04x, r%d", C, ADDR, RX);
+	return rz_str_newf("0x%x, 0x%04x, r%d", C, ADDR, RX);
 }
 
 static WSize accepted_word_size(void *ptr) {
