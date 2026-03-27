@@ -589,7 +589,7 @@ int rz_milstd1750_disasm(RzAsm *a, RzAsmOp *op, const ut8 *buf, int len) {
 	//
 	// Special/Extended instructions SHOULD have unique upper 8 bits,
 	// so they match via 0xFF00 like any other 8-bit opcode.
-	ut8 candidates[] = [ w1 & 0xFF00, w1 & 0xFCF0, w1 & 0xFC00 ];
+	ut8 candidates[] = { w1 & 0xFF00, w1 & 0xFCF0, w1 & 0xFC00 };
 
 	for (size_t i = 0; i < RZ_ARRAY_SIZE(milstd1750_inst_tab); ++i) {
 		for (size_t k = 0; k < RZ_ARRAY_SIZE(candidates); ++k) {
