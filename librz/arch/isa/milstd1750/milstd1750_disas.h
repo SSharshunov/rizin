@@ -3,4 +3,4 @@
 
 #include <rz_asm.h>
 
-int disassemble(RzAsm *a, RzAsmOp *op, const ut8 *buf, int len);
+int rz_milstd1750_disasm(RzAsm *a, RzAsmOp *op, const ut8 *buf, int len);

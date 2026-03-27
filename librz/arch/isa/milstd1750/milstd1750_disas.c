@@ -300,13 +300,12 @@ static char *as_icr(ut16 full) {
 static char *as_s(ut16 full) {
 	ut8 OC = full >> 8;
 
-	switch (OC)
-	{
+	switch (OC) {
 	case 0x7700: // "BEX"
 		ut8 N = full & 0xF;
 		return rz_str_newf("%d", N);
 	case 0x4F00: // "BIF"
-		ut8 OE  = full & 0xFF;
+		ut8 OE = full & 0xFF;
 		return rz_str_newf("0x%02x", OE);
 	default:
 		rz_warn_if_reached();
@@ -575,7 +574,7 @@ static const MilStd1750LongInstruction milstd1750_inst_tab[] = {
 };
 // clang-format on
 
-int disassemble(RzAsm *a, RzAsmOp *op, const ut8 *buf, int len) {
+int rz_milstd1750_disasm(RzAsm *a, RzAsmOp *op, const ut8 *buf, int len) {
 	if (len < 2) {
 		return -1;
 	}
