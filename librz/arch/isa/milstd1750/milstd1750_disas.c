@@ -17,8 +17,6 @@
  * - https://github.com/WarlockD/Mil-std-1750A-Emulator-C20/tree/master/instructions
  */
 
-// TODO: test/db/format и test/db/cmd
-
 #include "milstd1750_disas.h"
 #include <rz_types.h>
 
@@ -31,7 +29,7 @@ typedef enum {
 } WSize;
 
 typedef struct {
-	ut8 opcode;
+	ut16 opcode;
 	const char *mnemonic;
 	void *handler;
 } MilStd1750LongInstruction;
@@ -301,15 +299,17 @@ static char *as_s(ut16 full) {
 	ut8 OC = full >> 8;
 
 	switch (OC) {
-	case 0x7700: // "BEX"
+	case 0x77: { // "BEX"
 		ut8 N = full & 0xF;
 		return rz_str_newf("%d", N);
-	case 0x4F00: // "BIF"
+	}
+	case 0x4F: { // "BIF"
 		ut8 OE = full & 0xFF;
 		return rz_str_newf("0x%02x", OE);
+	}
 	default:
 		rz_warn_if_reached();
-		break;
+		return rz_str_dup("invalid");
 	}
 }
 
@@ -589,7 +589,7 @@ int rz_milstd1750_disasm(RzAsm *a, RzAsmOp *op, const ut8 *buf, int len) {
 	//
 	// Special/Extended instructions SHOULD have unique upper 8 bits,
 	// so they match via 0xFF00 like any other 8-bit opcode.
-	ut8 candidates[] = { w1 & 0xFF00, w1 & 0xFCF0, w1 & 0xFC00 };
+	ut16 candidates[] = { w1 & 0xFF00, w1 & 0xFCF0, w1 & 0xFC00 };
 
 	for (size_t i = 0; i < RZ_ARRAY_SIZE(milstd1750_inst_tab); ++i) {
 		for (size_t k = 0; k < RZ_ARRAY_SIZE(candidates); ++k) {
@@ -604,14 +604,15 @@ int rz_milstd1750_disasm(RzAsm *a, RzAsmOp *op, const ut8 *buf, int len) {
 
 		WSize wsize = accepted_word_size(milstd1750_inst_tab[i].handler);
 		switch (wsize) {
-		case OneWord:
+		case OneWord: {
 			char *operands = ((WHandle)milstd1750_inst_tab[i].handler)(w1);
 			result = rz_str_newf("%s(%s)", milstd1750_inst_tab[i].mnemonic, operands);
 			free(operands);
 
 			op->size = 2;
 			break;
-		case TwoWord:
+		}
+		case TwoWord: {
 			if (len < 4) {
 				return -1;
 			}
@@ -623,6 +624,7 @@ int rz_milstd1750_disasm(RzAsm *a, RzAsmOp *op, const ut8 *buf, int len) {
 
 			op->size = 4;
 			break;
+		}
 		default:
 			rz_warn_if_reached();
 		}
