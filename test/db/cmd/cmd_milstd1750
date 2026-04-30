@@ -1,4 +1,4 @@
-# 17 cmd tests for MIL-STD-1750A via rizin: each instruction format
+# cmd tests for MIL-STD-1750A via rizin: each instruction format
 # verified through pi, including sequential multi-instruction disassembly
 
 NAME=milstd1750: disasm NOP

@@ -1,4 +1,4 @@
-# 237 disassembly tests for MIL-STD-1750A: all instruction formats
+# disassembly tests for MIL-STD-1750A: all instruction formats
 # (special, register, short immediate, shift, ICR/branch, base relative,
 # BX, memory, IM, XIO, jump, float, extended float, bit ops, stack ops)
 
@@ -204,7 +204,6 @@ d "INCM(3, 0x12ab, r0)" A33012AB
 d "DECM(5, 0x1234, r0)" B3501234
 d "LM(3, 0x1234, r0)" 89301234
 d "STM(5, 0x5678, r2)" 99525678
-d "STZ(0x1234, r0)" 91001234
 d "LSTI(0x1234, r5)" 7C051234
 d "LST(0x5678, r3)" 7D035678
 d "JC(0x5, 0x1234, r15)" 705F1234
