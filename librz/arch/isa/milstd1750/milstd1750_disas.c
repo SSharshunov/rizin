@@ -581,31 +581,38 @@ int rz_milstd1750_disasm(RzAsm *a, RzAsmOp *op, const ut8 *buf, int len) {
 
 	ut16 w1 = rz_read_be16(buf);
 
-	// Three opcode masks used for matching:
-	// Mask    Pattern         Formats               Example
-	// 0xFF00  8-bit opcode    R, ICR, IM, S, D/DX   XIO
-	// 0xFCF0  6-bit + Op.Ex.  BX                    DSTX
-	// 0xFC00  6-bit opcode    B (base-relative)     DLB
-	//
-	// Special/Extended instructions SHOULD have unique upper 8 bits,
-	// so they match via 0xFF00 like any other 8-bit opcode.
-	ut16 candidates[] = { w1 & 0xFF00, w1 & 0xFCF0, w1 & 0xFC00 };
+	// Each handler implies a specific opcode mask based on instruction format:
+	//   as_bx      → 0xFCF0  (6-bit op + 4-bit opex, BX format)
+	//   as_b       → 0xFC00  (6-bit op, B format)
+	//   as_im_ocx  → 0xFF0F  (8-bit op + 4-bit opex, IM format)
+	//   others     → 0xFF00  (8-bit op)
+	// No cross-format collisions because opcode ranges are disjoint.
 
 	for (size_t i = 0; i < RZ_ARRAY_SIZE(milstd1750_inst_tab); ++i) {
-		for (size_t k = 0; k < RZ_ARRAY_SIZE(candidates); ++k) {
-			if (milstd1750_inst_tab[i].opcode == candidates[k]) {
-				goto found;
-			}
+		void *handler = milstd1750_inst_tab[i].handler;
+		ut16 mask;
+		if (handler == as_none) {
+			mask = 0xFFFF;
+		} else if (handler == as_bx) {
+			mask = 0xFCF0;
+		} else if (handler == as_b) {
+			mask = 0xFC00;
+		} else if (handler == as_im_ocx) {
+			mask = 0xFF0F;
+		} else {
+			mask = 0xFF00;
 		}
-		continue;
 
-	found:
+		if (milstd1750_inst_tab[i].opcode != (w1 & mask)) {
+			continue;
+		}
+
 		char *result = NULL;
 
-		WSize wsize = accepted_word_size(milstd1750_inst_tab[i].handler);
+		WSize wsize = accepted_word_size(handler);
 		switch (wsize) {
 		case OneWord: {
-			char *operands = ((WHandle)milstd1750_inst_tab[i].handler)(w1);
+			char *operands = ((WHandle)handler)(w1);
 			result = rz_str_newf("%s(%s)", milstd1750_inst_tab[i].mnemonic, operands);
 			free(operands);
 
@@ -618,7 +625,7 @@ int rz_milstd1750_disasm(RzAsm *a, RzAsmOp *op, const ut8 *buf, int len) {
 			}
 			ut16 w2 = rz_read_be16(buf + 2);
 			ut32 full = ((ut32)w1 << 16) | w2;
-			char *operands = ((TwoWHandle)milstd1750_inst_tab[i].handler)(full);
+			char *operands = ((TwoWHandle)handler)(full);
 			result = rz_str_newf("%s(%s)", milstd1750_inst_tab[i].mnemonic, operands);
 			free(operands);
 
