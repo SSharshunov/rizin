@@ -572,20 +572,14 @@ static const MilStd1750LongInstruction milstd1750_inst_tab[] = {
 };
 // clang-format on
 
-int rz_milstd1750_disasm(RzAsm *a, RzAsmOp *op, const ut8 *buf, int len) {
-	if (len < 2) {
-		return -1;
-	}
-
-	ut16 w1 = rz_read_be16(buf);
-
-	// Each handler implies a specific opcode mask based on instruction format:
-	//   as_bx      → 0xFCF0  (6-bit op + 4-bit opex, BX format)
-	//   as_b       → 0xFC00  (6-bit op, B format)
-	//   as_im_ocx  → 0xFF0F  (8-bit op + 4-bit opex, IM format)
-	//   others     → 0xFF00  (8-bit op)
-	// No cross-format collisions because opcode ranges are disjoint.
-
+// Each handler implies a specific opcode mask based on instruction format:
+//   as_bx      → 0xFCF0  (6-bit op + 4-bit opex, BX format)
+//   as_b       → 0xFC00  (6-bit op, B format)
+//   as_im_ocx  → 0xFF0F  (8-bit op + 4-bit opex, IM format)
+//   as_none    → 0xFFFF  (full match — distinguishes BPT from NOP)
+//   others     → 0xFF00  (8-bit op)
+// No cross-format collisions because opcode ranges are disjoint.
+static const MilStd1750LongInstruction *match_instruction(ut16 w1) {
 	for (size_t i = 0; i < RZ_ARRAY_SIZE(milstd1750_inst_tab); ++i) {
 		void *handler = milstd1750_inst_tab[i].handler;
 		ut16 mask;
@@ -601,44 +595,68 @@ int rz_milstd1750_disasm(RzAsm *a, RzAsmOp *op, const ut8 *buf, int len) {
 			mask = 0xFF00;
 		}
 
-		if (milstd1750_inst_tab[i].opcode != (w1 & mask)) {
-			continue;
+		if (milstd1750_inst_tab[i].opcode == (w1 & mask)) {
+			return &milstd1750_inst_tab[i];
 		}
+	}
+	return NULL;
+}
 
-		char *result = NULL;
+int rz_milstd1750_op_size(const ut8 *buf, int len) {
+	if (len < 2) {
+		return -1;
+	}
+	ut16 w1 = rz_read_be16(buf);
+	const MilStd1750LongInstruction *m = match_instruction(w1);
+	if (!m) {
+		return -1;
+	}
+	int size = (accepted_word_size(m->handler) == TwoWord) ? 4 : 2;
+	if (len < size) {
+		return -1;
+	}
+	return size;
+}
 
-		WSize wsize = accepted_word_size(handler);
-		switch (wsize) {
-		case OneWord: {
-			char *operands = ((WHandle)handler)(w1);
-			result = rz_str_newf("%s(%s)", milstd1750_inst_tab[i].mnemonic, operands);
-			free(operands);
-
-			op->size = 2;
-			break;
-		}
-		case TwoWord: {
-			if (len < 4) {
-				return -1;
-			}
-			ut16 w2 = rz_read_be16(buf + 2);
-			ut32 full = ((ut32)w1 << 16) | w2;
-			char *operands = ((TwoWHandle)handler)(full);
-			result = rz_str_newf("%s(%s)", milstd1750_inst_tab[i].mnemonic, operands);
-			free(operands);
-
-			op->size = 4;
-			break;
-		}
-		default:
-			rz_warn_if_reached();
-		}
-
-		rz_strbuf_set(&op->buf_asm, result);
-		free(result);
-		return op->size;
+int rz_milstd1750_disasm(RzAsm *a, RzAsmOp *op, const ut8 *buf, int len) {
+	if (len < 2) {
+		return -1;
 	}
 
-	rz_strbuf_set(&op->buf_asm, "invalid");
-	return -1;
+	ut16 w1 = rz_read_be16(buf);
+	const MilStd1750LongInstruction *m = match_instruction(w1);
+	if (!m) {
+		rz_strbuf_set(&op->buf_asm, "invalid");
+		return -1;
+	}
+
+	char *result = NULL;
+	WSize wsize = accepted_word_size(m->handler);
+	switch (wsize) {
+	case OneWord: {
+		char *operands = ((WHandle)m->handler)(w1);
+		result = rz_str_newf("%s(%s)", m->mnemonic, operands);
+		free(operands);
+		op->size = 2;
+		break;
+	}
+	case TwoWord: {
+		if (len < 4) {
+			return -1;
+		}
+		ut16 w2 = rz_read_be16(buf + 2);
+		ut32 full = ((ut32)w1 << 16) | w2;
+		char *operands = ((TwoWHandle)m->handler)(full);
+		result = rz_str_newf("%s(%s)", m->mnemonic, operands);
+		free(operands);
+		op->size = 4;
+		break;
+	}
+	default:
+		rz_warn_if_reached();
+	}
+
+	rz_strbuf_set(&op->buf_asm, result);
+	free(result);
+	return op->size;
 }
