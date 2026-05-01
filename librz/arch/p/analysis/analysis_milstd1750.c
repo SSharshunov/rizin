@@ -316,7 +316,7 @@ int rz_milstd1750_analysis_op(RzAnalysis *analysis, RzAnalysisOp *op, ut64 addr,
 
 RzAnalysisPlugin rz_analysis_plugin_milstd1750 = {
 	.name = "milstd1750",
-	.desc = "milstd1750 analysis plugin",
+	.desc = "MIL-STD 1750 ISA analysis plugin",
 	.license = "MIT",
 	.arch = "milstd1750",
 	.bits = 16,

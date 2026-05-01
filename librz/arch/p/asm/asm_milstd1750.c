@@ -9,7 +9,7 @@ RzAsmPlugin rz_asm_plugin_milstd1750 = {
 	.arch = "milstd1750",
 	.license = "MIT",
 	.bits = 8,
-	.desc = "milstd1750 disassembler",
+	.desc = "MIL-STD 1750 ISA disassembler",
 	.disassemble = &rz_milstd1750_disasm,
 };
 
