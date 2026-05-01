@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2025 godcodehunter
+// SPDX-FileCopyrightText: 2026 godcodehunter
 // SPDX-License-Identifier: LGPL-3.0-only
 #include <deprecated_arch_helper.h>
 
