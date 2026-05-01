@@ -91,3 +91,333 @@ BR(0x0010)
 BPT()
 EOF
 RUN
+
+NAME=milstd1750: analysis BR (unconditional ICR jump)
+FILE=malloc://1024
+CMDS=<<EOF
+e asm.arch=milstd1750
+e asm.bits=8
+s 0x100
+wx 7410
+ao~type,size,jump
+EOF
+EXPECT=<<EOF
+size: 2
+type: jmp
+jump: 0x00000122
+EOF
+RUN
+
+NAME=milstd1750: analysis BR with negative displacement
+FILE=malloc://1024
+CMDS=<<EOF
+e asm.arch=milstd1750
+e asm.bits=8
+s 0x100
+wx 74F8
+ao~type,size,jump
+EOF
+EXPECT=<<EOF
+size: 2
+type: jmp
+jump: 0x000000f2
+EOF
+RUN
+
+NAME=milstd1750: analysis BEZ/BLT/BLE/BGT/BNZ/BGE (conditional ICR branches)
+FILE=malloc://1024
+CMDS=<<EOF
+e asm.arch=milstd1750
+e asm.bits=8
+s 0x100
+wx 7505 7610 7820 7930 7A40 7B50
+ao 6~type,size,jump,fail
+EOF
+EXPECT=<<EOF
+size: 2
+type: cjmp
+jump: 0x0000010c
+fail: 0x00000102
+size: 2
+type: cjmp
+jump: 0x00000124
+fail: 0x00000104
+size: 2
+type: cjmp
+jump: 0x00000146
+fail: 0x00000106
+size: 2
+type: cjmp
+jump: 0x00000168
+fail: 0x00000108
+size: 2
+type: cjmp
+jump: 0x0000018a
+fail: 0x0000010a
+size: 2
+type: cjmp
+jump: 0x000001ac
+fail: 0x0000010c
+EOF
+RUN
+
+NAME=milstd1750: analysis JC (conditional memory jump)
+FILE=malloc://1024
+CMDS=<<EOF
+e asm.arch=milstd1750
+e asm.bits=8
+s 0x100
+wx 705F1234
+ao~type,size,jump,fail
+EOF
+EXPECT=<<EOF
+size: 4
+type: cjmp
+jump: 0x00001234
+fail: 0x00000104
+EOF
+RUN
+
+NAME=milstd1750: analysis JS (call)
+FILE=malloc://1024
+CMDS=<<EOF
+e asm.arch=milstd1750
+e asm.bits=8
+s 0x100
+wx 72005678
+ao~type,size,jump
+EOF
+EXPECT=<<EOF
+size: 4
+type: call
+jump: 0x00005678
+EOF
+RUN
+
+NAME=milstd1750: analysis SJS (call)
+FILE=malloc://1024
+CMDS=<<EOF
+e asm.arch=milstd1750
+e asm.bits=8
+s 0x100
+wx 7E001234
+ao~type,size,jump
+EOF
+EXPECT=<<EOF
+size: 4
+type: call
+jump: 0x00001234
+EOF
+RUN
+
+NAME=milstd1750: analysis SOJ (subtract one and jump)
+FILE=malloc://1024
+CMDS=<<EOF
+e asm.arch=milstd1750
+e asm.bits=8
+s 0x100
+wx 73003000
+ao~type,size,jump,fail
+EOF
+EXPECT=<<EOF
+size: 4
+type: cjmp
+jump: 0x00003000
+fail: 0x00000104
+EOF
+RUN
+
+NAME=milstd1750: analysis URS (return)
+FILE=malloc://1024
+CMDS=<<EOF
+e asm.arch=milstd1750
+e asm.bits=8
+s 0x100
+wx 7F00
+ao~type,size
+EOF
+EXPECT=<<EOF
+size: 2
+type: ret
+EOF
+RUN
+
+NAME=milstd1750: analysis BPT (trap) and NOP
+FILE=malloc://1024
+CMDS=<<EOF
+e asm.arch=milstd1750
+e asm.bits=8
+s 0x100
+wx FFFF FF00
+ao 2~type,size
+EOF
+EXPECT=<<EOF
+size: 2
+type: trap
+size: 2
+type: nop
+EOF
+RUN
+
+NAME=milstd1750: analysis arithmetic (add/sub/mul/div)
+FILE=malloc://1024
+CMDS=<<EOF
+e asm.arch=milstd1750
+e asm.bits=8
+s 0x100
+wx A112 B112 C512 D112
+ao 4~type,size
+EOF
+EXPECT=<<EOF
+size: 2
+type: add
+size: 2
+type: sub
+size: 2
+type: mul
+size: 2
+type: div
+EOF
+RUN
+
+NAME=milstd1750: analysis logical (and/or/xor)
+FILE=malloc://1024
+CMDS=<<EOF
+e asm.arch=milstd1750
+e asm.bits=8
+s 0x100
+wx E312 E134 E556 E712
+ao 4~type,size
+EOF
+EXPECT=<<EOF
+size: 2
+type: and
+size: 2
+type: or
+size: 2
+type: xor
+size: 2
+type: not
+EOF
+RUN
+
+NAME=milstd1750: analysis shifts
+FILE=malloc://1024
+CMDS=<<EOF
+e asm.arch=milstd1750
+e asm.bits=8
+s 0x100
+wx 6043 6121 6232
+ao 3~type,size
+EOF
+EXPECT=<<EOF
+size: 2
+type: shl
+size: 2
+type: shr
+size: 2
+type: shr
+EOF
+RUN
+
+NAME=milstd1750: analysis load/store
+FILE=malloc://1024
+CMDS=<<EOF
+e asm.arch=milstd1750
+e asm.bits=8
+s 0x100
+wx 80501234 90301234 0005 0805
+ao 4~type,size
+EOF
+EXPECT=<<EOF
+size: 4
+type: load
+size: 4
+type: store
+size: 2
+type: load
+size: 2
+type: store
+EOF
+RUN
+
+NAME=milstd1750: analysis stack (push/pop)
+FILE=malloc://1024
+CMDS=<<EOF
+e asm.arch=milstd1750
+e asm.bits=8
+s 0x100
+wx 8F35 9F35
+ao 2~type,size
+EOF
+EXPECT=<<EOF
+size: 2
+type: pop
+size: 2
+type: push
+EOF
+RUN
+
+NAME=milstd1750: analysis IO (XIO/VIO)
+FILE=malloc://1024
+CMDS=<<EOF
+e asm.arch=milstd1750
+e asm.bits=8
+s 0x100
+wx 48302000 49101234
+ao 2~type,size
+EOF
+EXPECT=<<EOF
+size: 4
+type: io
+size: 4
+type: io
+EOF
+RUN
+
+NAME=milstd1750: analysis MOV
+FILE=malloc://1024
+CMDS=<<EOF
+e asm.arch=milstd1750
+e asm.bits=8
+s 0x100
+wx 9312
+ao~type,size
+EOF
+EXPECT=<<EOF
+size: 2
+type: mov
+EOF
+RUN
+
+NAME=milstd1750: analysis CMP
+FILE=malloc://1024
+CMDS=<<EOF
+e asm.arch=milstd1750
+e asm.bits=8
+s 0x100
+wx F0501234 F912
+ao 2~type,size
+EOF
+EXPECT=<<EOF
+size: 4
+type: cmp
+size: 2
+type: cmp
+EOF
+RUN
+
+NAME=milstd1750: analysis invalid instruction
+FILE=malloc://1024
+CMDS=<<EOF
+e asm.arch=milstd1750
+e asm.bits=8
+s 0x100
+wx 4A00
+ao~type,size
+EOF
+EXPECT=<<EOF
+size: 2
+type: ill
+EOF
+RUN
