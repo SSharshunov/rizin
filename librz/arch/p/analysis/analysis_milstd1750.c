@@ -25,11 +25,12 @@ int rz_milstd1750_analysis_op(RzAnalysis *analysis, RzAnalysisOp *op, ut64 addr,
 	ut8 op8 = w1 >> 8;
 	ut16 w2 = (size == 4) ? rz_read_be16(data + 2) : 0;
 
-	// ICR branches use a signed 8-bit displacement relative to the next
-	// instruction. MIL-STD-1750A is word-addressed; rizin uses byte
-	// addresses with bits=8, so multiply the displacement by 2.
+	// MIL-STD-1750A memory is word-addressed (1 unit = 16 bits) but rizin
+	// uses byte addressing (bits=8), so all encoded addresses must be
+	// multiplied by 2 to convert to byte addresses.
 	st8 disp = (st8)(w1 & 0xFF);
 	ut64 icr_target = addr + size + (st64)disp * 2;
+	ut64 abs_target = (ut64)w2 * 2;
 
 	switch (op8) {
 	// Special
@@ -56,10 +57,10 @@ int rz_milstd1750_analysis_op(RzAnalysis *analysis, RzAnalysisOp *op, ut64 addr,
 		op->fail = addr + size;
 		break;
 
-	// Memory-format jumps (4 bytes, absolute target in w2)
+	// Memory-format jumps (4 bytes, absolute word-address target in w2)
 	case 0x70: // JC
 		op->type = RZ_ANALYSIS_OP_TYPE_CJMP;
-		op->jump = w2;
+		op->jump = abs_target;
 		op->fail = addr + size;
 		break;
 	case 0x71: // JCI (indirect)
@@ -69,11 +70,11 @@ int rz_milstd1750_analysis_op(RzAnalysis *analysis, RzAnalysisOp *op, ut64 addr,
 	case 0x72: // JS — call
 	case 0x7E: // SJS — call
 		op->type = RZ_ANALYSIS_OP_TYPE_CALL;
-		op->jump = w2;
+		op->jump = abs_target;
 		break;
 	case 0x73: // SOJ — Subtract One and Jump
 		op->type = RZ_ANALYSIS_OP_TYPE_CJMP;
-		op->jump = w2;
+		op->jump = abs_target;
 		op->fail = addr + size;
 		break;
 	case 0x77: // BEX — branch and exchange
@@ -229,6 +230,8 @@ int rz_milstd1750_analysis_op(RzAnalysis *analysis, RzAnalysisOp *op, ut64 addr,
 	// Compare
 	case 0x38: // CB
 	case 0xF0: // C
+	case 0xF1: // CR
+	case 0xF2: // CISP
 	case 0xF3: // CISN
 	case 0xF4: // CBL
 	case 0xF6: // DC

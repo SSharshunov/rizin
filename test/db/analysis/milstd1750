@@ -167,13 +167,13 @@ CMDS=<<EOF
 e asm.arch=milstd1750
 e asm.bits=8
 s 0x100
-wx 705F1234
+wx 705F0800
 ao~type,size,jump,fail
 EOF
 EXPECT=<<EOF
 size: 4
 type: cjmp
-jump: 0x00001234
+jump: 0x00001000
 fail: 0x00000104
 EOF
 RUN
@@ -184,13 +184,13 @@ CMDS=<<EOF
 e asm.arch=milstd1750
 e asm.bits=8
 s 0x100
-wx 72005678
+wx 72002000
 ao~type,size,jump
 EOF
 EXPECT=<<EOF
 size: 4
 type: call
-jump: 0x00005678
+jump: 0x00004000
 EOF
 RUN
 
@@ -200,13 +200,13 @@ CMDS=<<EOF
 e asm.arch=milstd1750
 e asm.bits=8
 s 0x100
-wx 7E001234
+wx 7E000800
 ao~type,size,jump
 EOF
 EXPECT=<<EOF
 size: 4
 type: call
-jump: 0x00001234
+jump: 0x00001000
 EOF
 RUN
 
@@ -216,13 +216,13 @@ CMDS=<<EOF
 e asm.arch=milstd1750
 e asm.bits=8
 s 0x100
-wx 73003000
+wx 73001500
 ao~type,size,jump,fail
 EOF
 EXPECT=<<EOF
 size: 4
 type: cjmp
-jump: 0x00003000
+jump: 0x00002a00
 fail: 0x00000104
 EOF
 RUN
