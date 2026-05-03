@@ -25,12 +25,36 @@ int rz_milstd1750_analysis_op(RzAnalysis *analysis, RzAnalysisOp *op, ut64 addr,
 	ut8 op8 = w1 >> 8;
 	ut16 w2 = (size == 4) ? rz_read_be16(data + 2) : 0;
 
+	// B-format opcodes (0x00..0x3F) carry the 2-bit BR field in op8's
+	// low bits; mask it off to get the canonical opcode for type lookup.
+	if (op8 < 0x44) {
+		op8 &= 0xFC;
+	}
+
 	// MIL-STD-1750A memory is word-addressed (1 unit = 16 bits) but rizin
 	// uses byte addressing (bits=8), so all encoded addresses must be
 	// multiplied by 2 to convert to byte addresses.
 	st8 disp = (st8)(w1 & 0xFF);
 	ut64 icr_target = addr + size + (st64)disp * 2;
 	ut64 abs_target = (ut64)w2 * 2;
+
+	// IM-format (0x4A): the 4-bit opex in w1's low nibble selects the op
+	if (op8 == 0x4A) {
+		switch (w1 & 0xF) {
+		case 0x1: op->type = RZ_ANALYSIS_OP_TYPE_ADD; break; // AIM
+		case 0x2: op->type = RZ_ANALYSIS_OP_TYPE_SUB; break; // SIM
+		case 0x3: op->type = RZ_ANALYSIS_OP_TYPE_MUL; break; // MIM
+		case 0x4: op->type = RZ_ANALYSIS_OP_TYPE_MUL; break; // MSIM
+		case 0x5: op->type = RZ_ANALYSIS_OP_TYPE_DIV; break; // DIM
+		case 0x6: op->type = RZ_ANALYSIS_OP_TYPE_DIV; break; // DVIM
+		case 0x7: op->type = RZ_ANALYSIS_OP_TYPE_AND; break; // ANDM
+		case 0x8: op->type = RZ_ANALYSIS_OP_TYPE_OR; break;  // ORIM
+		case 0x9: op->type = RZ_ANALYSIS_OP_TYPE_XOR; break; // XORM
+		case 0xA: op->type = RZ_ANALYSIS_OP_TYPE_CMP; break; // CIM
+		case 0xB: op->type = RZ_ANALYSIS_OP_TYPE_NOT; break; // NIM
+		}
+		return op->size;
+	}
 
 	switch (op8) {
 	// Special
