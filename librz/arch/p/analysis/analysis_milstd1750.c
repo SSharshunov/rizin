@@ -48,7 +48,7 @@ int rz_milstd1750_analysis_op(RzAnalysis *analysis, RzAnalysisOp *op, ut64 addr,
 		case 0x5: op->type = RZ_ANALYSIS_OP_TYPE_DIV; break; // DIM
 		case 0x6: op->type = RZ_ANALYSIS_OP_TYPE_DIV; break; // DVIM
 		case 0x7: op->type = RZ_ANALYSIS_OP_TYPE_AND; break; // ANDM
-		case 0x8: op->type = RZ_ANALYSIS_OP_TYPE_OR; break;  // ORIM
+		case 0x8: op->type = RZ_ANALYSIS_OP_TYPE_OR; break; // ORIM
 		case 0x9: op->type = RZ_ANALYSIS_OP_TYPE_XOR; break; // XORM
 		case 0xA: op->type = RZ_ANALYSIS_OP_TYPE_CMP; break; // CIM
 		case 0xB: op->type = RZ_ANALYSIS_OP_TYPE_NOT; break; // NIM
