@@ -104,7 +104,7 @@ EOF
 EXPECT=<<EOF
 size: 2
 type: jmp
-jump: 0x00000122
+jump: 0x00000120
 EOF
 RUN
 
@@ -120,7 +120,7 @@ EOF
 EXPECT=<<EOF
 size: 2
 type: jmp
-jump: 0x000000f2
+jump: 0x000000f0
 EOF
 RUN
 
@@ -136,27 +136,27 @@ EOF
 EXPECT=<<EOF
 size: 2
 type: cjmp
-jump: 0x0000010c
+jump: 0x0000010a
 fail: 0x00000102
 size: 2
 type: cjmp
-jump: 0x00000124
+jump: 0x00000122
 fail: 0x00000104
 size: 2
 type: cjmp
-jump: 0x00000146
+jump: 0x00000144
 fail: 0x00000106
 size: 2
 type: cjmp
-jump: 0x00000168
+jump: 0x00000166
 fail: 0x00000108
 size: 2
 type: cjmp
-jump: 0x0000018a
+jump: 0x00000188
 fail: 0x0000010a
 size: 2
 type: cjmp
-jump: 0x000001ac
+jump: 0x000001aa
 fail: 0x0000010c
 EOF
 RUN
@@ -419,5 +419,117 @@ EOF
 EXPECT=<<EOF
 size: 2
 type: ill
+EOF
+RUN
+
+NAME=milstd1750: analysis JC condition codes (C=0 nop, C=7 unconditional, C=5 cjmp)
+FILE=malloc://1024
+CMDS=<<EOF
+e asm.arch=milstd1750
+e asm.bits=8
+s 0x100
+wx 70000800 70700800 70500800
+ao 3~type,size,jump,fail
+EOF
+EXPECT=<<EOF
+size: 4
+type: nop
+size: 4
+type: jmp
+jump: 0x00001000
+size: 4
+type: cjmp
+jump: 0x00001000
+fail: 0x0000010c
+EOF
+RUN
+
+NAME=milstd1750: analysis JCI condition codes (C=0 nop, C=F mjmp, C=2 indirect cjmp)
+FILE=malloc://1024
+CMDS=<<EOF
+e asm.arch=milstd1750
+e asm.bits=8
+s 0x100
+wx 71000800 71F00800 71200800
+ao 3~type,size,fail
+EOF
+EXPECT=<<EOF
+size: 4
+type: nop
+size: 4
+type: mjmp
+size: 4
+type: cjmp
+fail: 0x0000010c
+EOF
+RUN
+
+NAME=milstd1750: analysis LST/LSTI (memory-indirect jump)
+FILE=malloc://1024
+CMDS=<<EOF
+e asm.arch=milstd1750
+e asm.bits=8
+s 0x100
+wx 7D001234 7C001234
+ao 2~type,size,family
+EOF
+EXPECT=<<EOF
+size: 4
+type: mjmp
+family: priv
+size: 4
+type: mjmp
+family: priv
+EOF
+RUN
+
+NAME=milstd1750: analysis BEX (executive call)
+FILE=malloc://1024
+CMDS=<<EOF
+e asm.arch=milstd1750
+e asm.bits=8
+s 0x100
+wx 7705
+ao~type,size
+EOF
+EXPECT=<<EOF
+size: 2
+type: ucall
+EOF
+RUN
+
+NAME=milstd1750: analysis JS/SJS sets fail to next instruction
+FILE=malloc://1024
+CMDS=<<EOF
+e asm.arch=milstd1750
+e asm.bits=8
+s 0x100
+wx 72002000 7E002000
+ao 2~type,size,jump,fail
+EOF
+EXPECT=<<EOF
+size: 4
+type: call
+jump: 0x00004000
+fail: 0x00000104
+size: 4
+type: call
+jump: 0x00004000
+fail: 0x00000108
+EOF
+RUN
+
+NAME=milstd1750: analysis IO family for XIO/VIO
+FILE=malloc://1024
+CMDS=<<EOF
+e asm.arch=milstd1750
+e asm.bits=8
+s 0x100
+wx 48302000 49101234
+ao 2~family
+EOF
+EXPECT=<<EOF
+family: io
+family: io
 EOF
 RUN

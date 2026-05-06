@@ -5,47 +5,57 @@
 #include <rz_analysis.h>
 #include <milstd1750/milstd1750_disas.h>
 
+static void set_invalid(RzAnalysisOp *op, ut64 addr) {
+	op->family = RZ_ANALYSIS_OP_FAMILY_UNKNOWN;
+	op->type = RZ_ANALYSIS_OP_TYPE_ILL;
+	op->addr = addr;
+	op->size = 2;
+	op->nopcode = 1;
+	op->eob = true;
+}
+
 int rz_milstd1750_analysis_op(RzAnalysis *analysis, RzAnalysisOp *op, ut64 addr, const ut8 *data, int len, RzAnalysisOpMask mask) {
 	if (len < 2) {
+		set_invalid(op, addr);
 		return -1;
 	}
 
 	int size = rz_milstd1750_op_size(data, len);
 	if (size <= 0) {
-		op->size = 2;
-		op->type = RZ_ANALYSIS_OP_TYPE_ILL;
+		set_invalid(op, addr);
 		return -1;
 	}
 
 	op->addr = addr;
 	op->size = size;
+	op->family = RZ_ANALYSIS_OP_FAMILY_CPU;
 	op->type = RZ_ANALYSIS_OP_TYPE_UNK;
 
 	ut16 w1 = rz_read_be16(data);
 	ut8 op8 = w1 >> 8;
 	ut16 w2 = (size == 4) ? rz_read_be16(data + 2) : 0;
 
-	// B-format opcodes (0x00..0x3F) carry the 2-bit BR field in op8's
-	// low bits; mask it off to get the canonical opcode for type lookup.
+	// MIL-STD-1750A: encoded addresses are word indices; rizin uses
+	// byte addresses with bits=8, so multiply by 2.
+	st8 disp = (st8)(w1 & 0xFF);
+	ut64 icr_target = addr + (st64)disp * 2;
+	ut64 abs_target = (ut64)w2 * 2;
+	ut64 next_pc = addr + size;
+
+	// B-format opcodes (0x00..0x3F) encode the 2-bit BR field in op8's
+	// low bits; mask off to get the canonical opcode for type lookup.
 	if (op8 < 0x44) {
 		op8 &= 0xFC;
 	}
 
-	// MIL-STD-1750A memory is word-addressed (1 unit = 16 bits) but rizin
-	// uses byte addressing (bits=8), so all encoded addresses must be
-	// multiplied by 2 to convert to byte addresses.
-	st8 disp = (st8)(w1 & 0xFF);
-	ut64 icr_target = addr + size + (st64)disp * 2;
-	ut64 abs_target = (ut64)w2 * 2;
-
-	// IM-format (0x4A): the 4-bit opex in w1's low nibble selects the op
+	// IM-format (0x4A): 4-bit opex in w1's low nibble selects the op
 	if (op8 == 0x4A) {
 		switch (w1 & 0xF) {
 		case 0x1: op->type = RZ_ANALYSIS_OP_TYPE_ADD; break; // AIM
 		case 0x2: op->type = RZ_ANALYSIS_OP_TYPE_SUB; break; // SIM
-		case 0x3: op->type = RZ_ANALYSIS_OP_TYPE_MUL; break; // MIM
+		case 0x3: // MIM
 		case 0x4: op->type = RZ_ANALYSIS_OP_TYPE_MUL; break; // MSIM
-		case 0x5: op->type = RZ_ANALYSIS_OP_TYPE_DIV; break; // DIM
+		case 0x5: // DIM
 		case 0x6: op->type = RZ_ANALYSIS_OP_TYPE_DIV; break; // DVIM
 		case 0x7: op->type = RZ_ANALYSIS_OP_TYPE_AND; break; // ANDM
 		case 0x8: op->type = RZ_ANALYSIS_OP_TYPE_OR; break; // ORIM
@@ -57,18 +67,25 @@ int rz_milstd1750_analysis_op(RzAnalysis *analysis, RzAnalysisOp *op, ut64 addr,
 	}
 
 	switch (op8) {
-	// Special
+	// --- Special / control flow boundaries ---
 	case 0xFF:
-		op->type = (w1 == 0xFFFF) ? RZ_ANALYSIS_OP_TYPE_TRAP : RZ_ANALYSIS_OP_TYPE_NOP;
+		if (w1 == 0xFFFF) {
+			op->type = RZ_ANALYSIS_OP_TYPE_TRAP; // BPT
+			op->eob = true;
+		} else {
+			op->type = RZ_ANALYSIS_OP_TYPE_NOP;
+		}
 		break;
-	case 0x7F: // URS — unconditional return
+	case 0x7F: // URS — Unstack IC and Return from Subroutine
 		op->type = RZ_ANALYSIS_OP_TYPE_RET;
+		op->eob = true;
 		break;
 
-	// ICR conditional branches
-	case 0x74: // BR (unconditional)
+	// --- ICR branches: target = addr + disp*2 (D = signed 8-bit) ---
+	case 0x74: // BR — unconditional
 		op->type = RZ_ANALYSIS_OP_TYPE_JMP;
 		op->jump = icr_target;
+		op->eob = true;
 		break;
 	case 0x75: // BEZ
 	case 0x76: // BLT
@@ -78,59 +95,87 @@ int rz_milstd1750_analysis_op(RzAnalysis *analysis, RzAnalysisOp *op, ut64 addr,
 	case 0x7B: // BGE
 		op->type = RZ_ANALYSIS_OP_TYPE_CJMP;
 		op->jump = icr_target;
-		op->fail = addr + size;
+		op->fail = next_pc;
 		break;
 
-	// Memory-format jumps (4 bytes, absolute word-address target in w2)
-	case 0x70: // JC
-		op->type = RZ_ANALYSIS_OP_TYPE_CJMP;
-		op->jump = abs_target;
-		op->fail = addr + size;
+	// --- Memory-format jumps: target word in w2 → byte = w2*2 ---
+	case 0x70: { // JC C, LABEL — Jump on Condition (direct)
+		ut8 C = (w1 >> 4) & 0xF;
+		if (C == 0) {
+			op->type = RZ_ANALYSIS_OP_TYPE_NOP;
+		} else if (C == 0x7 || C == 0xF) {
+			op->type = RZ_ANALYSIS_OP_TYPE_JMP;
+			op->jump = abs_target;
+			op->eob = true;
+		} else {
+			op->type = RZ_ANALYSIS_OP_TYPE_CJMP;
+			op->jump = abs_target;
+			op->fail = next_pc;
+		}
 		break;
-	case 0x71: // JCI (indirect)
-		op->type = RZ_ANALYSIS_OP_TYPE_MCJMP;
-		op->fail = addr + size;
+	}
+	case 0x71: { // JCI C, ADDR — Jump on Condition (indirect)
+		ut8 C = (w1 >> 4) & 0xF;
+		if (C == 0) {
+			op->type = RZ_ANALYSIS_OP_TYPE_NOP;
+		} else if (C == 0x7 || C == 0xF) {
+			op->type = RZ_ANALYSIS_OP_TYPE_MJMP; // unconditional indirect
+			op->eob = true;
+		} else {
+			op->type = RZ_ANALYSIS_OP_TYPE_MCJMP;
+			op->fail = next_pc;
+		}
 		break;
-	case 0x72: // JS — call
-	case 0x7E: // SJS — call
+	}
+	case 0x72: // JS — Jump to Subroutine (return addr in RA)
+	case 0x7E: // SJS — Stack IC and Jump to Subroutine
 		op->type = RZ_ANALYSIS_OP_TYPE_CALL;
 		op->jump = abs_target;
+		op->fail = next_pc;
 		break;
-	case 0x73: // SOJ — Subtract One and Jump
+	case 0x73: // SOJ — Subtract One and Jump (cond on RA != 0)
 		op->type = RZ_ANALYSIS_OP_TYPE_CJMP;
 		op->jump = abs_target;
-		op->fail = addr + size;
+		op->fail = next_pc;
 		break;
-	case 0x77: // BEX — branch and exchange
-		op->type = RZ_ANALYSIS_OP_TYPE_JMP;
+	case 0x77: // BEX N — Branch to Executive (interrupt-vectored)
+		op->type = RZ_ANALYSIS_OP_TYPE_UCALL;
+		op->eob = true;
 		break;
-	case 0x4F: // BIF — branch on input flag
+	case 0x4F: // BIF — Branch on Input Flag (target unknown statically)
 		op->type = RZ_ANALYSIS_OP_TYPE_CJMP;
-		op->fail = addr + size;
+		op->fail = next_pc;
 		break;
 
-	// IO
+	// --- LST/LSTI: load (MK,SW,IC) from memory; unconditional indirect jump ---
+	case 0x7C: // LSTI ADDR — indirect load status (also reloads IC)
+	case 0x7D: // LST ADDR — direct load status (also reloads IC)
+		op->type = RZ_ANALYSIS_OP_TYPE_MJMP;
+		op->family = RZ_ANALYSIS_OP_FAMILY_PRIV;
+		op->eob = true;
+		break;
+
+	// --- I/O ---
 	case 0x48: // XIO
 	case 0x49: // VIO
 		op->type = RZ_ANALYSIS_OP_TYPE_IO;
+		op->family = RZ_ANALYSIS_OP_FAMILY_IO;
 		break;
 
-	// Stack
-	case 0x8F: // POPM
-		op->type = RZ_ANALYSIS_OP_TYPE_POP;
-		break;
-	case 0x9F: // PSHM
+	// --- Stack ---
+	case 0x8F: op->type = RZ_ANALYSIS_OP_TYPE_POP; break; // POPM
+	case 0x9F:
 		op->type = RZ_ANALYSIS_OP_TYPE_PUSH;
-		break;
+		break; // PSHM
 
-	// Move
+	// --- Move / exchange ---
 	case 0x93: // MOV
 	case 0xEC: // XBR
 	case 0xED: // XWR
 		op->type = RZ_ANALYSIS_OP_TYPE_MOV;
 		break;
 
-	// Add
+	// --- Add ---
 	case 0x10: // AB
 	case 0xA0: // A
 	case 0xA1: // AR
@@ -149,7 +194,7 @@ int rz_milstd1750_analysis_op(RzAnalysis *analysis, RzAnalysisOp *op, ut64 addr,
 		op->type = RZ_ANALYSIS_OP_TYPE_ADD;
 		break;
 
-	// Sub
+	// --- Sub ---
 	case 0x14: // SBB
 	case 0xB0: // S
 	case 0xB1: // SR
@@ -169,7 +214,7 @@ int rz_milstd1750_analysis_op(RzAnalysis *analysis, RzAnalysisOp *op, ut64 addr,
 		op->type = RZ_ANALYSIS_OP_TYPE_SUB;
 		break;
 
-	// Mul
+	// --- Mul ---
 	case 0x18: // MB
 	case 0xC0: // MS
 	case 0xC1: // MSR
@@ -186,7 +231,7 @@ int rz_milstd1750_analysis_op(RzAnalysis *analysis, RzAnalysisOp *op, ut64 addr,
 		op->type = RZ_ANALYSIS_OP_TYPE_MUL;
 		break;
 
-	// Div
+	// --- Div ---
 	case 0x1C: // DB
 	case 0xD0: // DV
 	case 0xD1: // DVR
@@ -203,33 +248,27 @@ int rz_milstd1750_analysis_op(RzAnalysis *analysis, RzAnalysisOp *op, ut64 addr,
 		op->type = RZ_ANALYSIS_OP_TYPE_DIV;
 		break;
 
-	// AND
+	// --- Logical ---
 	case 0x34: // ANDB
 	case 0xE2: // AND
 	case 0xE3: // ANDR
 		op->type = RZ_ANALYSIS_OP_TYPE_AND;
 		break;
-
-	// OR
 	case 0x30: // ORB
 	case 0xE0: // OR
 	case 0xE1: // ORR
 		op->type = RZ_ANALYSIS_OP_TYPE_OR;
 		break;
-
-	// XOR
 	case 0xE4: // XOR
 	case 0xE5: // XORR
 		op->type = RZ_ANALYSIS_OP_TYPE_XOR;
 		break;
-
-	// NAND/N
 	case 0xE6: // N
 	case 0xE7: // NR
 		op->type = RZ_ANALYSIS_OP_TYPE_NOT;
 		break;
 
-	// Shifts left
+	// --- Shifts ---
 	case 0x60: // SLL
 	case 0x63: // SLC
 	case 0x65: // DSLL
@@ -238,8 +277,6 @@ int rz_milstd1750_analysis_op(RzAnalysis *analysis, RzAnalysisOp *op, ut64 addr,
 	case 0x6D: // DSLR
 		op->type = RZ_ANALYSIS_OP_TYPE_SHL;
 		break;
-
-	// Shifts right
 	case 0x61: // SRL
 	case 0x62: // SRA
 	case 0x66: // DSRL
@@ -251,7 +288,7 @@ int rz_milstd1750_analysis_op(RzAnalysis *analysis, RzAnalysisOp *op, ut64 addr,
 		op->type = RZ_ANALYSIS_OP_TYPE_SHR;
 		break;
 
-	// Compare
+	// --- Compare ---
 	case 0x38: // CB
 	case 0xF0: // C
 	case 0xF1: // CR
@@ -269,11 +306,9 @@ int rz_milstd1750_analysis_op(RzAnalysis *analysis, RzAnalysisOp *op, ut64 addr,
 		op->type = RZ_ANALYSIS_OP_TYPE_CMP;
 		break;
 
-	// Loads
+	// --- Loads ---
 	case 0x00: // LB
 	case 0x04: // DLB
-	case 0x7C: // LSTI
-	case 0x7D: // LST
 	case 0x80: // L
 	case 0x81: // LR
 	case 0x82: // LISP
@@ -294,7 +329,7 @@ int rz_milstd1750_analysis_op(RzAnalysis *analysis, RzAnalysisOp *op, ut64 addr,
 		op->type = RZ_ANALYSIS_OP_TYPE_LOAD;
 		break;
 
-	// Stores
+	// --- Stores ---
 	case 0x08: // STB
 	case 0x0C: // DSTB
 	case 0x90: // ST
@@ -316,7 +351,7 @@ int rz_milstd1750_analysis_op(RzAnalysis *analysis, RzAnalysisOp *op, ut64 addr,
 		op->type = RZ_ANALYSIS_OP_TYPE_STORE;
 		break;
 
-	// Bit set/reset/test
+	// --- Bit set/reset/test ---
 	case 0x50: // SB
 	case 0x51: // SBR
 	case 0x52: // SBI
@@ -341,12 +376,73 @@ int rz_milstd1750_analysis_op(RzAnalysis *analysis, RzAnalysisOp *op, ut64 addr,
 	return op->size;
 }
 
+static char *get_reg_profile(RzAnalysis *analysis) {
+	const char *p =
+		"=PC	ic\n"
+		"=SP	r15\n"
+		"=BP	r14\n"
+		"=A0	r0\n"
+		"=A1	r1\n"
+		"=A2	r2\n"
+		"=A3	r3\n"
+		"=R0	r0\n"
+
+		"gpr	r0	.16	0	0\n"
+		"gpr	r1	.16	2	0\n"
+		"gpr	r2	.16	4	0\n"
+		"gpr	r3	.16	6	0\n"
+		"gpr	r4	.16	8	0\n"
+		"gpr	r5	.16	10	0\n"
+		"gpr	r6	.16	12	0\n"
+		"gpr	r7	.16	14	0\n"
+		"gpr	r8	.16	16	0\n"
+		"gpr	r9	.16	18	0\n"
+		"gpr	r10	.16	20	0\n"
+		"gpr	r11	.16	22	0\n"
+		"gpr	r12	.16	24	0\n"
+		"gpr	r13	.16	26	0\n"
+		"gpr	r14	.16	28	0\n"
+		"gpr	r15	.16	30	0\n"
+
+		"gpr	ic	.16	32	  0\n"
+		"gpr	sw	.16	34	  0\n"
+		"gpr	cf	.1	34.0  0\n"
+		"gpr	pf	.1	34.1  0\n"
+		"gpr	zf	.1	34.2  0\n"
+		"gpr	nf	.1	34.3  0\n"
+		"gpr	ft	.16	36	  0\n"
+		"gpr	mk	.16	38	  0\n"
+		"gpr	pi	.16	40	  0\n";
+
+	return rz_str_dup(p);
+}
+
+static int archinfo(RzAnalysis *analysis, RzAnalysisInfoType query) {
+	switch (query) {
+	case RZ_ANALYSIS_ARCHINFO_MAX_OP_SIZE:
+		return 4;
+	case RZ_ANALYSIS_ARCHINFO_MIN_OP_SIZE:
+	case RZ_ANALYSIS_ARCHINFO_TEXT_ALIGN:
+	case RZ_ANALYSIS_ARCHINFO_DATA_ALIGN:
+		return 2;
+	default:
+		return -1;
+	}
+}
+
+static int address_bits(RzAnalysis *analysis, int bits) {
+	return bits == 8 ? 16 : -1;
+}
+
 RzAnalysisPlugin rz_analysis_plugin_milstd1750 = {
 	.name = "milstd1750",
 	.desc = "MIL-STD 1750 ISA analysis plugin",
 	.license = "MIT",
 	.arch = "milstd1750",
-	.bits = 16,
+	.bits = 8 | 16,
 	.op = &rz_milstd1750_analysis_op,
+	.archinfo = archinfo,
+	.address_bits = address_bits,
+	.get_reg_profile = &get_reg_profile,
 	.esil = false
 };
