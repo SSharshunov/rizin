@@ -621,7 +621,7 @@ int rz_milstd1750_op_size(const ut8 *buf, int len) {
 	return size;
 }
 
-int rz_milstd1750_disasm(RzAsm *a, RzAsmOp *op, const ut8 *buf, int len) {
+int rz_milstd1750_disasm(const RzAsm *a, RzAsmOp *op, const ut8 *buf, int len) {
 	if (len < 2) {
 		return -1;
 	}
