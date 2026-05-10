@@ -15,42 +15,33 @@ static void set_invalid(RzAnalysisOp *op, ut64 addr) {
 }
 
 int rz_milstd1750_analysis_op(RzAnalysis *analysis, RzAnalysisOp *op, ut64 addr, const ut8 *data, int len, RzAnalysisOpMask mask) {
-	if (len < 2) {
-		set_invalid(op, addr);
-		return -1;
-	}
-
-	int size = rz_milstd1750_op_size(data, len);
-	if (size <= 0) {
+	MilStd1750Instruction insn;
+	if (!rz_milstd1750_decode(data, len, &insn)) {
 		set_invalid(op, addr);
 		return -1;
 	}
 
 	op->addr = addr;
-	op->size = size;
+	op->size = insn.size;
 	op->family = RZ_ANALYSIS_OP_FAMILY_CPU;
 	op->type = RZ_ANALYSIS_OP_TYPE_UNK;
 
-	ut16 w1 = rz_read_be16(data);
-	ut8 op8 = w1 >> 8;
-	ut16 w2 = (size == 4) ? rz_read_be16(data + 2) : 0;
-
 	// MIL-STD-1750A: encoded addresses are word indices; rizin uses
 	// byte addresses with bits=8, so multiply by 2.
-	st8 disp = (st8)(w1 & 0xFF);
-	ut64 icr_target = addr + (st64)disp * 2;
-	ut64 abs_target = (ut64)w2 * 2;
-	ut64 next_pc = addr + size;
+	ut64 icr_target = addr + (st64)(st8)insn.imm8 * 2;
+	ut64 abs_target = (ut64)insn.addr * 2;
+	ut64 next_pc = addr + insn.size;
 
-	// B-format opcodes (0x00..0x3F) encode the 2-bit BR field in op8's
-	// low bits; mask off to get the canonical opcode for type lookup.
-	if (op8 < 0x44) {
+	// B-format opcodes encode the 2-bit BR field in the low bits of the
+	// opcode byte; mask off to get the canonical opcode for type lookup.
+	ut8 op8 = insn.raw_w1 >> 8;
+	if (insn.format == MIL_FMT_B) {
 		op8 &= 0xFC;
 	}
 
-	// IM-format (0x4A): 4-bit opex in w1's low nibble selects the op
-	if (op8 == 0x4A) {
-		switch (w1 & 0xF) {
+	// IM-format (0x4A): 4-bit opex selects which immediate op
+	if (insn.format == MIL_FMT_IM_OCX && op8 == 0x4A) {
+		switch (insn.opex) {
 		case 0x1: op->type = RZ_ANALYSIS_OP_TYPE_ADD; break; // AIM
 		case 0x2: op->type = RZ_ANALYSIS_OP_TYPE_SUB; break; // SIM
 		case 0x3: // MIM
@@ -69,7 +60,7 @@ int rz_milstd1750_analysis_op(RzAnalysis *analysis, RzAnalysisOp *op, ut64 addr,
 	switch (op8) {
 	// --- Special / control flow boundaries ---
 	case 0xFF:
-		if (w1 == 0xFFFF) {
+		if (insn.raw_w1 == 0xFFFF) {
 			op->type = RZ_ANALYSIS_OP_TYPE_TRAP; // BPT
 			op->eob = true;
 		} else {
@@ -99,11 +90,10 @@ int rz_milstd1750_analysis_op(RzAnalysis *analysis, RzAnalysisOp *op, ut64 addr,
 		break;
 
 	// --- Memory-format jumps: target word in w2 → byte = w2*2 ---
-	case 0x70: { // JC C, LABEL — Jump on Condition (direct)
-		ut8 C = (w1 >> 4) & 0xF;
-		if (C == 0) {
+	case 0x70: // JC C, LABEL — Jump on Condition (direct)
+		if (insn.cond == 0) {
 			op->type = RZ_ANALYSIS_OP_TYPE_NOP;
-		} else if (C == 0x7 || C == 0xF) {
+		} else if (insn.cond == 0x7 || insn.cond == 0xF) {
 			op->type = RZ_ANALYSIS_OP_TYPE_JMP;
 			op->jump = abs_target;
 			op->eob = true;
@@ -113,12 +103,10 @@ int rz_milstd1750_analysis_op(RzAnalysis *analysis, RzAnalysisOp *op, ut64 addr,
 			op->fail = next_pc;
 		}
 		break;
-	}
-	case 0x71: { // JCI C, ADDR — Jump on Condition (indirect)
-		ut8 C = (w1 >> 4) & 0xF;
-		if (C == 0) {
+	case 0x71: // JCI C, ADDR — Jump on Condition (indirect)
+		if (insn.cond == 0) {
 			op->type = RZ_ANALYSIS_OP_TYPE_NOP;
-		} else if (C == 0x7 || C == 0xF) {
+		} else if (insn.cond == 0x7 || insn.cond == 0xF) {
 			op->type = RZ_ANALYSIS_OP_TYPE_MJMP; // unconditional indirect
 			op->eob = true;
 		} else {
@@ -126,7 +114,6 @@ int rz_milstd1750_analysis_op(RzAnalysis *analysis, RzAnalysisOp *op, ut64 addr,
 			op->fail = next_pc;
 		}
 		break;
-	}
 	case 0x72: // JS — Jump to Subroutine (return addr in RA)
 	case 0x7E: // SJS — Stack IC and Jump to Subroutine
 		op->type = RZ_ANALYSIS_OP_TYPE_CALL;
