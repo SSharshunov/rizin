@@ -19,6 +19,7 @@
  * - https://github.com/okellogg/milstd1750tools/blob/master/as1750/as1750.c#L947
  * - https://github.com/EtchedPixels/sim1750a
  * - https://github.com/WarlockD/Mil-std-1750A-Emulator-C20/tree/master/instructions
+ * - binutils for mil-std-1750 https://github.com/okellogg/binutilstd1750
  */
 
 #include "milstd1750_disas.h"

@@ -651,6 +651,9 @@ static RzBinInfo *coff_info(RzBinFile *bf) {
 			break;
 		}
 		break;
+	case COFF_FILE_MACHINE_MIL1750:
+		ret->arch = rz_str_dup("milstd1750");
+		break;
 	default:
 		ret->machine = rz_str_newf("unknown 0x%08x", obj->hdr.f_magic);
 		break;
