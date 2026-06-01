@@ -7,6 +7,7 @@
 #include <analysis_private.h>
 #include <rz_analysis.h>
 #include <rz_util/rz_str_util.h>
+#include "c166/c166_il.h"
 
 #include "librz/arch/isa/c166/c166_disas.h"
 
@@ -1311,6 +1312,17 @@ static int c166_op(RzAnalysis *analysis, RzAnalysisOp *op, ut64 addr, const ut8 
 	if (!state) {
 		RZ_LOG_FATAL("C166State was NULL.");
 	}
+	if (!state->inited) {
+		rz_reg_setv(analysis->reg, "DPP0", 0x0);
+		rz_reg_setv(analysis->reg, "DPP1", 0x1);
+		rz_reg_setv(analysis->reg, "DPP2", 0x2);
+		rz_reg_setv(analysis->reg, "DPP3", 0x3);
+		rz_reg_setv(analysis->reg, "SP", 0xFC00);
+		rz_reg_setv(analysis->reg, "CP", 0xFC00);
+		rz_reg_setv(analysis->reg, "STKOV", 0xFA00);
+		rz_reg_setv(analysis->reg, "STKUN", 0xFC00);
+		state->inited = true;
+	}
 	C166_Inst instr = { 0 };
 	instr.addr = (ut32)addr;
 
@@ -1348,6 +1360,10 @@ static int c166_op(RzAnalysis *analysis, RzAnalysisOp *op, ut64 addr, const ut8 
 			instr.instr, RZ_STR_ISNOTEMPTY(instr.operands) ? " " : "", instr.operands);
 	}
 
+	// set RzIL
+	if (mask & RZ_ANALYSIS_OP_MASK_IL) {
+		rz_c166_il_opcode(analysis, op, addr, buf);
+	}
 	c166_op_set_type(&instr, analysis, op, buf);
 	return op->size;
 }
@@ -1681,6 +1697,7 @@ RzAnalysisPlugin rz_analysis_plugin_c166 = {
 	.op = &c166_op,
 	.archinfo = &archinfo,
 	.get_reg_profile = &get_reg_profile,
+	.il_config = rz_c166_il_config,
 	.init = &c16x_init,
 	.fini = &c16x_fini,
 };

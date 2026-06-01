@@ -6,8 +6,8 @@
 #ifndef C166_DISAS_H
 #define C166_DISAS_H
 
-#include <rz_vector.h>
 #include <rz_types.h>
+#include "c166/c166_common.h"
 
 #define C166_INSTR_MAXLEN    (16 + 16) // ?
 #define C166_OPERANDS_MAXLEN 32
@@ -49,54 +49,6 @@
 #define FMT8      "%s, #0x%04x"
 #define FMT9      "%s, %s"
 #define FMT10     "%s, #%i"
-
-// Core Special Function Registers (CSFR)
-#define BASE_GPR_ADDR    0xFE10 ///< Base address for calculate GPR phisical address (also REG_CP)
-#define BASE_SFR_ADDR    0xFE00 ///< Base address for calculate SFR phisical address (also REG_DPP0)
-#define BASE_ESFR_ADDR   0xF000 ///< Base address for calculate ESFR phisical address
-#define BASE_RAM_B_ADDR  0xFD00 ///< Base address for calculate RAM phisical address (bit)
-#define BASE_SFR_B_ADDR  0xFF00 ///< Base address for calculate SFR phisical address (bit)
-#define BASE_ESFR_B_ADDR 0xF100 ///< Base address for calculate ESFR phisical address (bit)
-
-#define QX0   0xF000 ///< MAC Offset Register X0 (ESFRs)
-#define QX1   0xF002 ///< MAC Offset Register X1 (ESFRs)
-#define QR0   0xF004 ///< MAC Offset Register R0 (ESFRs)
-#define QR1   0xF006 ///< MAC Offset Register R1 (ESFRs)
-#define CPUID 0xF00C ///< CPU Identification Register (ESFRs)
-
-#define REG_PSW 0xFF10 ///< Processor Status Word
-
-#define REG_DPP0    (BASE_SFR_ADDR + 0x00) ///< CPU Data Page Pointer 0 Register (10 bits)
-#define REG_DPP1    (BASE_SFR_ADDR + 0x02) ///< CPU Data Page Pointer 1 Register (10 bits)
-#define REG_DPP2    (BASE_SFR_ADDR + 0x04) ///< CPU Data Page Pointer 2 Register (10 bits)
-#define REG_DPP3    (BASE_SFR_ADDR + 0x06) ///< CPU Data Page Pointer 3 Register (10 bits)
-#define REG_CSP     (BASE_SFR_ADDR + 0x08) ///< Code Segment Pointer
-#define REG_MDH     (BASE_SFR_ADDR + 0x0c) ///< Multiply Divide High Word
-#define REG_MDL     (BASE_SFR_ADDR + 0x0e) ///< Multiply Divide Low Word
-#define REG_CP      (BASE_SFR_ADDR + 0x10) ///< CPU Context Pointer Register
-#define REG_SP      (BASE_SFR_ADDR + 0x12) ///< Stack Pointer Register
-#define REG_STKOV   (BASE_SFR_ADDR + 0x14) ///< Stack Overflow Pointer
-#define REG_STKUN   (BASE_SFR_ADDR + 0x16) ///< Stack Underflow Pointer
-#define REG_CPUCON1 (BASE_SFR_ADDR + 0x18) ///< Core Control Register
-#define REG_CPUCON2 (BASE_SFR_ADDR + 0x1A) ///< Core Control Register
-#define REG_MAL     (BASE_SFR_ADDR + 0x5C) ///< MAC Accumulator – Low Word
-#define REG_MAH     (BASE_SFR_ADDR + 0x5E) ///< MAC Accumulator – High Word
-
-#define IDX0   0xFF08 ///< Address Pointer IDX0
-#define IDX1   0xFF0A ///< Address Pointer IDX1
-#define SPSEG  0xFF0C ///< Stack Pointer Segment Register
-#define MDC    0xFF0E ///< (Bit addressable) Multiply Divide Control Register
-#define PSW    0xFF10 ///< (Bit addressable) Program Status Word
-#define VECSEG 0xFF12 ///< (Bit addressable) Vector Table Segment Register
-#define ZEROS  0xFF1C ///< (Bit addressable) Constant Value 0s Register (read only)
-#define ONES   0xFF1E ///< (Bit addressable) Constant Value 1s Register (read only)
-#define TFR    0xFFAC ///< (Bit addressable) Trap Flag Register
-#define MRW    0xFFDA ///< (Bit addressable) MAC Repeat Word
-#define MCW    0xFFDC ///< (Bit addressable) MAC Control Word
-#define MSW    0xFFDE ///< (Bit addressable) MAC Status Word
-
-#define REG_ASC0_TIC 0xFF6C ///< Serial Channel 0 Transmit Interrupt Control Register
-#define REG_ASC0_RIC 0xFF6E ///< Serial Channel 0 Receive Interrupt Control Register
 
 #define SHORT_TO_LONG_ADDR(base, ind) ((base) + (2 * (ind))) ///< [0..15] -> 0xFXXX
 #define REG_R(n)                      SHORT_TO_LONG_ADDR(BASE_GPR_ADDR, n)
@@ -647,119 +599,6 @@ typedef enum {
 	C166_BSET_bitoff15 = 0xFF, ///< <b>[0xFF]</b> Set direct bit (x.15) <b>(2 bytes)</b>
 } c166_opcodes;
 
-/*!
- * \brief C166 Branch Condition Codes
- *
- * Defines condition codes used for conditional branching instructions
- * Datasheet page 39
- * (*) Only usable with the JMPA and CALLA instructions
- */
-// clang-format off
-typedef enum {
-	C166_CC_UC = 0x00,	///< CCNc = 0x00; [0D] Unconditional
-	C166_CC_NET = 0x02,	///< CCNc = 0x01; [1D] Not equal AND not end of table
-	// C166_CC_Z = 0x04,	///< CCNc = 0x02; [2D] Zero
-	C166_CC_EQ = 0x04,	///< CCNc = 0x02; [2D] Equal
-	// C166_CC_NZ = 0x06,	///< CCNc = 0x03; [3D] Not zero
-	C166_CC_NE = 0x06,	///< CCNc = 0x03; [3D] Not equal
-	C166_CC_V = 0x08,	///< CCNc = 0x04; [4D] Overflow
-	C166_CC_NV = 0x0A,	///< CCNc = 0x05; [5D] No overflow
-	C166_CC_N = 0x0C,	///< CCNc = 0x06; [6D] Negative
-	C166_CC_NN = 0x0E,	///< CCNc = 0x07; [7D] Not negative
-	C166_CC_C = 0x10,	///< CCNc = 0x08; [8D] Carry
-	// C166_CC_ULT = 0x10,	///< CCNc = 0x08; [8D] Unsigned less than
-	C166_CC_NC = 0x12,	///< CCNc = 0x09; [9D] No carry
-	// C166_CC_UGE = 0x12,	///< CCNc = 0x09; [9D] Unsigned greater than or equal
-	C166_CC_SGT = 0x14,	///< CCNc = 0x0A; [AD] Signed greater than
-	C166_CC_SLE = 0x16,	///< CCNc = 0x0B; [BD] Signed less than or equal
-	C166_CC_SLT = 0x18,	///< CCNc = 0x0C; [CD] Signed less than
-	C166_CC_SGE = 0x1A,	///< CCNc = 0x0D; [DD] Signed greater than or equal
-	C166_CC_UGT = 0x1C,	///< CCNc = 0x0E; [ED] Unsigned greater than
-	C166_CC_ULE = 0x1E,	///< CCNc = 0x0F; [FD] Unsigned less than or equal
-
-	C166_CC_NUSR0 = 0x01,     ///< USR-bit 0 is cleared (*)
-	C166_CC_NUSR1 = 0x03,     ///< USR-bit 1 is cleared (*)
-	C166_CC_USR0 = 0x05,      ///< USR-bit 0 is set 1
-	C166_CC_USR1 = 0x07       ///< USR-bit 1 is set 1
-} C166CondCode;
-
-const char *c166_rw[] = {
-	"r0", "r1", "r2", "r3",
-	"r4", "r5", "r6", "r7",
-	"r8", "r9", "r10", "r11",
-	"r12", "r13", "r14", "r15",
-};
-
-const char *c166_rb[] = {
-	"rl0", "rh0",
-	"rl1", "rh1",
-	"rl2", "rh2",
-	"rl3", "rh3",
-	"rl4", "rh4",
-	"rl5", "rh5",
-	"rl6", "rh6",
-	"rl7", "rh7",
-};
-
-/**
- * Maps hexcodes to condition codes for JMPR instructions
- * Used to determine the condition code for conditional jump instructions
- */
-// C166 condition code names
-static const char *conds_names[] = {
-	[C166_CC_UC]    = "cc_UC",      ///< Unconditional
-	[C166_CC_V]     = "cc_V",       ///< Overflow
-	[C166_CC_NV]    = "cc_NV",      ///< No Overflow
-	[C166_CC_N]     = "cc_N",       ///< Negative
-	[C166_CC_NN]    = "cc_NN",      ///< Not Negative
-	[C166_CC_C]     = "cc_C/ULT",   ///< Carry
-	[C166_CC_NC]    = "cc_NC/UGE",  ///< No Carry
-	[C166_CC_EQ]    = "cc_Z/EQ",    ///< Equal
-	[C166_CC_NE]    = "cc_NZ/NE",   ///< Not Equal
-	[C166_CC_ULE]   = "cc_ULE",     ///< Unsigned Less Than or Equal
-	[C166_CC_UGT]   = "cc_UGT",     ///< Unsigned Greater Than
-	[C166_CC_SLE]   = "cc_SLE",     ///< Signed Less Than or Equal
-	[C166_CC_SGE]   = "cc_SGE",     ///< Signed Greater Than or Equal
-	[C166_CC_SGT]   = "cc_SGT",     ///< Signed Greater Than
-	[C166_CC_NET]   = "cc_NET",     ///< Not Equal and Not End-of-Table
-
-	[C166_CC_SLT]   = "cc_SLT",     ///< Signed Less Than
-
-	[C166_CC_NUSR0] = "cc_NUSR0",   ///< USR-bit 0 is cleared (*)
-	[C166_CC_NUSR1] = "cc_NUSR1",   ///< USR-bit 1 is cleared (*)
-	[C166_CC_USR0]  = "cc_USR0",    ///< USR-bit 0 is set 1
-	[C166_CC_USR1]  = "cc_USR1"     ///< USR-bit 1 is set 1
-};
-// clang-format on
-
-static const char *conds(ut8 cc) {
-	return conds_names[cc << 1];
-}
-static const char *conds_extended(ut8 cc) {
-	return conds_names[cc];
-}
-
-typedef enum {
-	C166_EXT_MODE_NONE,
-	C166_EXT_MODE_PAGE,
-	C166_EXT_MODE_SEG,
-} C166ExtMode;
-
-// clang-format off
-typedef struct {
-	bool esfr;  		///< Extended register sequence active
-	C166ExtMode mode; 	///< Extended page/seq mode
-	ut8 i; 			///< Number of unstructions remaining until state exits
-	ut16 value; 		///< Value of ext
-} C166ExtState;
-
-typedef struct {
-	ut32 last_addr; 	///< State of last addr dissassembled
-	C166ExtState ext;
-	RzPVector /*<RzAsmTokenPattern *>*/ *token_patterns;
-} C166State;
-// clang-format on
-
 typedef struct {
 	ut64 d;
 	ut32 imm;
@@ -787,5 +626,7 @@ static inline ut16 get_operand(const C166_Inst *i, const ut8 index) {
 }
 
 RZ_IPI st32 c166_decode_command(RZ_NONNULL C166State *state, RZ_NONNULL C166_Inst *instr, RZ_NONNULL const ut8 *bytes, st32 len);
+RZ_API void c166_maybe_deactivate_ext(RZ_NONNULL C166State *state, ut32 addr);
 static bool check_unused_opcode(ut8 opcode);
+static ut16 CoREG(ut8 bits);
 #endif /* C166_DISAS_H */

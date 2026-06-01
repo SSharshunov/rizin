@@ -1,0 +1,649 @@
+NAME=Testing the decryption in emulateme 1
+#FILE=bins/c166/emulateme.c166
+FILE=bins/omf/omf166/emulateme
+TIMEOUT=30
+CMDS=<<EOF
+e asm.cpu=c166-generic
+aaa
+e io.cache=1
+s entry0
+aezi
+aezsu 0x000001ac
+ps @ obj._seckrit
+EOF
+EXPECT=<<EOF
+IL[0xfa] - [0x000000] IP: [0x000016] c166_il_jmps_seg_caddr
+IL[0xa5] - [0x000016] IP: [0x000016] c166_il_diswdt
+IL[0x0a] - [0x00001a] IP: [0x000016] c166_il_bfldl_bitoff_x bSFR BUSCON0, #0x3f, #0x2e
+IL[0x1a] - [0x00001e] IP: [0x000016] c166_il_bfldh_bitoff_x bSFR BUSCON0, #0xd2, #0x00
+IL[0x1a] - [0x000022] IP: [0x000016] c166_il_bfldh_bitoff_x bSFR SYSCON, #0xfb, #0x00
+IL[0x0a] - [0x000026] IP: [0x000016] c166_il_bfldl_bitoff_x bSFR SYSCON, #0x6f, #0x00
+IL[0xe6] - [0x00002a] IP: [0x000016] c166_il_mov_reg_data16 0x0a 0xfa0c
+IL[0xe6] - [0x00002e] IP: [0x000016] c166_il_mov_reg_data16 0x00 0x0000
+IL[0xe6] - [0x000032] IP: [0x000016] c166_il_mov_reg_data16 0x01 0x0001
+IL[0xe6] - [0x000036] IP: [0x000016] c166_il_mov_reg_data16 0x02 0x0003
+IL[0xe6] - [0x00003a] IP: [0x000016] c166_il_mov_reg_data16 0x08 0xfc00
+IL[0xb5] - [0x00003e] IP: [0x000016] c166_il_einit
+IL[0xe6] - [0x000042] IP: [0x000016] c166_il_mov_reg_data16 0xf0 0xa200
+IL[0xe6] - [0x000046] IP: [0x000016] c166_il_mov_reg_data16 0xf9 0x0001
+IL[0xe6] - [0x00004a] IP: [0x000016] c166_il_mov_reg_data16 0xf8 0x801a
+IL[0xf0] - [0x00004e] IP: [0x000016] c166_il_mov_rwn_rwm r1, r8
+IL[0x70] - [0x000050] IP: [0x000016] c166_il_or_rwn_rwm r1, r9
+IL[0x2d] - [0x000052] IP: [0x0000a6] c166_il_jmpr_rel cc_Z/EQ (4) new_IP: [0x0000a6] 
+IL[0xe0] - [0x000054] IP: [0x0000a6] c166_il_mov_rwn_data4 r5, #0x00
+IL[0xdc] - [0x000056] IP: [0x0000a6] c166_il_exts r9, #1 (esfr: true)
+IL[0x98] - [0x000058] IP: [0x0000a6] c166_il_mov_rwn_orwmp r2, [r8+] (esfr: true)
+IL[0x2d] - [0x00005a] IP: [0x0000a6] c166_il_jmpr_rel cc_Z/EQ (4) new_IP: [0x0000a6] 
+IL[0xf0] - [0x00005c] IP: [0x0000a6] c166_il_mov_rwn_rwm r3, r2
+IL[0xdc] - [0x00005e] IP: [0x0000a6] c166_il_exts r9, #1 (esfr: true)
+IL[0x98] - [0x000060] IP: [0x0000a6] c166_il_mov_rwn_orwmp r4, [r8+] (esfr: true)
+IL[0xaa] - [0x000062] IP: [0x0000a6] c166_il_jbc_bitaddr_rel new_IP: [0x00009c] reg: r2
+EOF
+RUN
+
+NAME=Testing the decryption in emulateme 2
+#FILE=bins/c166/emulateme.c166
+FILE=bins/omf/omf166/emulateme
+TIMEOUT=30
+CMDS=<<EOF
+e asm.cpu=c166-generic
+aaa
+e io.cache=1
+s entry0
+aezi
+aezvt
+#aezsu 0x000001ac
+sd +0x1a
+echo
+#ps @ obj._seckrit
+aoip 1
+agI
+aezvt
+echo
+s sym.decrypt
+px @ 0x4 @! 0x11
+px @ 0xe200 @! 0x11
+EOF
+EXPECT=<<EOF
+variable type value      
+-------------------------
+PC       bitv 0x00000000
+BUSCON0  bitv 0x0680
+CSP      bitv 0x00
+DPP0     bitv 0x000
+DPP1     bitv 0x001
+DPP2     bitv 0x002
+DPP3     bitv 0x003
+IP       bitv 0x00000000
+SGTDIS   bool false
+SYSCON   bitv 0x0000
+c        bool false
+e        bool false
+n        bool false
+r0       bitv 0xfc00
+r1       bitv 0xfc00
+r10      bitv 0x0000
+r11      bitv 0x0000
+r12      bitv 0x0000
+r13      bitv 0x0000
+r14      bitv 0x0000
+r15      bitv 0x0000
+r2       bitv 0xfa00
+r3       bitv 0xfc00
+r4       bitv 0x0000
+r5       bitv 0x0000
+r6       bitv 0x0000
+r7       bitv 0x0000
+r8       bitv 0x0000
+r9       bitv 0x0000
+v        bool false
+z        bool false
+
+
+0x1a
+(seq
+  (set e
+    false)
+  (set z
+    (ite
+      (is_zero
+        (|
+          (var BUSCON0)
+          (cast 16
+            false
+            (&
+              (bv 8 0x2e)
+              (bv 8 0x3f)))))
+      true
+      false))
+  (set v
+    false)
+  (set c
+    false)
+  (set n
+    (msb
+      (|
+        (var BUSCON0)
+        (cast 16
+          false
+          (&
+            (bv 8 0x2e)
+            (bv 8 0x3f))))))
+  (set BUSCON0
+    (|
+      (var BUSCON0)
+      (cast 16
+        false
+        (&
+          (bv 8 0x2e)
+          (bv 8 0x3f))))))
+                                                .------------------------------.
+                                                |  bfldl 0xff0c, #0x3f, #0x2e  |
+                                                `------------------------------'
+                                                         v v v v v v
+                                                         | | | | | |
+                                                         | | | | | '-------------------------------------.
+                   .-------------------------------------' | | | '--------------------.                  |
+                   |                 .---------------------' | '------.               |                  |
+                   |                 |                .------'        |               |                  |
+                   |                 |                |               |               |                  |
+                   |                 |                |               |               |                  |
+                   |                 |                |               |               |                  |
+               .----------.      .----------.     .----------.    .----------.    .----------.       .----------------.
+               |  set: e  |      |  set: z  |     |  set: v  |    |  set: c  |    |  set: n  |       |  set: BUSCON0  |
+               `----------'      `----------'     `----------'    `----------'    `----------'       `----------------'
+                   v                 v                v               v               v                  v
+                   |                 |                |               |               |                  |
+                   |                .'                |               |               |                  |
+                   |                |                 |               |               |                  '--.
+                   |                |                 |               |               |                     |
+               .----------.     .-------------.   .----------.    .----------.    .----------.          .-----------.
+               |  false   |     |  ite        |   |  false   |    |  false   |    |  msb     |          |  or       |
+               `----------'     `-------------'   `----------'    `----------'    `----------'          `-----------'
+                                   v v v                                              v                       v v
+                                   | | |                                              |                       | |
+                                   | | '---------.                                    |                       | |
+                 .-----------------' |           |                                    |                       | |
+                 |               .---'           |                                    |                       | |
+                 |               |               |                             .------'                       | |
+                 |               |               |                             |               .--------------' |
+                 |               |               |                             |               |                '----.
+                 |               |               |                             |               |                     |
+             .-----------.   .----------.    .----------.                  .-----------.   .----------------.    .------------.
+             |  is_zero  |   |  true    |    |  false   |                  |  or       |   |  var: BUSCON0  |    |  cast: 16  |
+             `-----------'   `----------'    `----------'                  `-----------'   `----------------'    `------------'
+                 v                                                               v v                                   v v
+                 |                                                               | |                                   | |
+                 |                                                .--------------' |                                   | |
+                 |                                                |                '----.                              | |
+                 |                                                |                     |                     .--------' |
+                 |                                                |                     |                     |          '----.
+                 |                                                |                     |                     |               |
+             .-----------.                                    .----------------.    .------------.        .----------.    .-----------.
+             |  or       |                                    |  var: BUSCON0  |    |  cast: 16  |        |  false   |    |  and      |
+             `-----------'                                    `----------------'    `------------'        `----------'    `-----------'
+                   v v                                                                    v v                                   v v
+                   | |                                                                    | |                                   | |
+    .--------------' |                                                                    | |                                   | |
+    |                '----.                                                               | |                                   | |
+    |                     |                                                      .--------' |                                   | |
+    |                     |                                                      |          '----.                              | |
+    |                     |                                                      |               |                .-------------' |
+    |                     |                                                      |               |                |               '---.
+    |                     |                                                      |               |                |                   |
+.----------------.    .------------.                                         .----------.    .-----------.    .--------------.    .--------------.
+|  var: BUSCON0  |    |  cast: 16  |                                         |  false   |    |  and      |    |  bv: 8 0x2e  |    |  bv: 8 0x3f  |
+`----------------'    `------------'                                         `----------'    `-----------'    `--------------'    `--------------'
+                            v v                                                                    v v
+                            | |                                                                    | |
+                   .--------' |                                                                    | |
+                   |          '----.                                                               | |
+                   |               |                                                 .-------------' |
+                   |               |                                                 |               '---.
+                   |               |                                                 |                   |
+               .----------.    .-----------.                                     .--------------.    .--------------.
+               |  false   |    |  and      |                                     |  bv: 8 0x2e  |    |  bv: 8 0x3f  |
+               `----------'    `-----------'                                     `--------------'    `--------------'
+                                     v v
+                                     | |
+                       .-------------' |
+                       |               '---.
+                       |                   |
+                   .--------------.    .--------------.
+                   |  bv: 8 0x2e  |    |  bv: 8 0x3f  |
+                   `--------------'    `--------------'
+variable type value      
+-------------------------
+PC       bitv 0x00000000
+BUSCON0  bitv 0x0680
+CSP      bitv 0x00
+DPP0     bitv 0x000
+DPP1     bitv 0x001
+DPP2     bitv 0x002
+DPP3     bitv 0x003
+IP       bitv 0x00000000
+SGTDIS   bool false
+SYSCON   bitv 0x0000
+c        bool false
+e        bool false
+n        bool false
+r0       bitv 0xfc00
+r1       bitv 0xfc00
+r10      bitv 0x0000
+r11      bitv 0x0000
+r12      bitv 0x0000
+r13      bitv 0x0000
+r14      bitv 0x0000
+r15      bitv 0x0000
+r2       bitv 0xfa00
+r3       bitv 0xfc00
+r4       bitv 0x0000
+r5       bitv 0x0000
+r6       bitv 0x0000
+r7       bitv 0x0000
+r8       bitv 0x0000
+r9       bitv 0x0000
+v        bool false
+z        bool false
+
+
+- offset -   0 1  2 3  4 5  6 7  8 9  A B  C D  E F  0123456789ABCDEF
+0x00000004  416e 7943 6f6c 6f75 7259 6f75 4c69 6b65  AnyColourYouLike
+0x00000014  00                                       .
+- offset -   0 1  2 3  4 5  6 7  8 9  A B  C D  E F  0123456789ABCDEF
+0x0000e200  ffff ffff ffff ffff ffff ffff ffff ffff  ................
+0x0000e210  ff                                       .
+IL[0x0a] - [0x00001a] IP: [0x000000] c166_il_bfldl_bitoff_x bSFR BUSCON0, #0x3f, #0x2e
+IL[0x0a] - [0x00001a] IP: [0x000000] c166_il_bfldl_bitoff_x bSFR BUSCON0, #0x3f, #0x2e
+EOF
+RUN
+
+NAME=Testing the decryption in emulateme 3
+#FILE=bins/c166/emulateme.c166
+FILE=bins/omf/omf166/emulateme
+TIMEOUT=30
+CMDS=<<EOF
+e asm.cpu=c166-generic
+e io.cache=0
+aaa
+#s entry0
+aezi
+aezvt
+echo =======
+aezsue 0x00001ac
+echo =======
+echo
+px @ 0x4 @! 0x11
+echo =======
+px @ 0xe200 @! 0x11
+echo =======
+px @ 0x1801A @! 0x11
+echo =======
+EOF
+EXPECT=<<EOF
+variable type value      
+-------------------------
+PC       bitv 0x00000000
+BUSCON0  bitv 0x0680
+CSP      bitv 0x00
+DPP0     bitv 0x000
+DPP1     bitv 0x001
+DPP2     bitv 0x002
+DPP3     bitv 0x003
+IP       bitv 0x00000000
+SGTDIS   bool false
+SYSCON   bitv 0x0000
+c        bool false
+e        bool false
+n        bool false
+r0       bitv 0xfc00
+r1       bitv 0xfc00
+r10      bitv 0x0000
+r11      bitv 0x0000
+r12      bitv 0x0000
+r13      bitv 0x0000
+r14      bitv 0x0000
+r15      bitv 0x0000
+r2       bitv 0xfa00
+r3       bitv 0xfc00
+r4       bitv 0x0000
+r5       bitv 0x0000
+r6       bitv 0x0000
+r7       bitv 0x0000
+r8       bitv 0x0000
+r9       bitv 0x0000
+v        bool false
+z        bool false
+
+=======
+0x00000000 [fa001600] jmps 0x000016
+(seq (set CSP (ite (! (var SGTDIS)) (bv 8 0x0) (bv 8 0x0))) (jmp (bv 32 0x16)))
+pc_write(old: 0x0, new: 0x4)
+var_read(name: SGTDIS, value: 0x0)
+var_write(name: CSP, old: 0x0, new: 0x0)
+pc_write(old: 0x4, new: 0x16)
+
+0x00000016 [a55aa5a5] diswdt
+nop
+pc_write(old: 0x16, new: 0x1a)
+
+0x0000001a [0a863f2e] bfldl 0xff0c, #0x3f, #0x2e
+(seq (set e false) (set z (ite (is_zero (| (var BUSCON0) (cast 16 false (& (bv 8 0x2e) (bv 8 0x3f))))) true false)) (set v false) (set c false) (set n (msb (| (var BUSCON0) (cast 16 false (& (bv 8 0x2e) (bv 8 0x3f)))))) (set BUSCON0 (| (var BUSCON0) (cast 16 false (& (bv 8 0x2e) (bv 8 0x3f))))))
+pc_write(old: 0x1a, new: 0x1e)
+var_write(name: e, old: 0x0, new: 0x0)
+var_read(name: BUSCON0, value: 0x680)
+var_write(name: z, old: 0x0, new: 0x0)
+var_write(name: v, old: 0x0, new: 0x0)
+var_write(name: c, old: 0x0, new: 0x0)
+var_read(name: BUSCON0, value: 0x680)
+var_write(name: n, old: 0x0, new: 0x0)
+var_read(name: BUSCON0, value: 0x680)
+var_write(name: BUSCON0, old: 0x680, new: 0x6ae)
+
+0x0000001e [1a8600d2] bfldh 0xff0c, #0xd2, #0x00
+(seq (set e false) (set z (ite (is_zero (| (& (var BUSCON0) (bv 16 0x2dff)) (& (bv 16 0x0) (bv 16 0x2dff)))) true false)) (set v false) (set c false) (set n (msb (| (& (var BUSCON0) (bv 16 0x2dff)) (& (bv 16 0x0) (bv 16 0x2dff))))) (set BUSCON0 (| (& (var BUSCON0) (bv 16 0x2dff)) (& (bv 16 0x0) (bv 16 0x2dff)))))
+pc_write(old: 0x1e, new: 0x22)
+var_write(name: e, old: 0x0, new: 0x0)
+var_read(name: BUSCON0, value: 0x6ae)
+var_write(name: z, old: 0x0, new: 0x0)
+var_write(name: v, old: 0x0, new: 0x0)
+var_write(name: c, old: 0x0, new: 0x0)
+var_read(name: BUSCON0, value: 0x6ae)
+var_write(name: n, old: 0x0, new: 0x0)
+var_read(name: BUSCON0, value: 0x6ae)
+var_write(name: BUSCON0, old: 0x6ae, new: 0x4ae)
+
+0x00000022 [1a8900fb] bfldh 0xff12, #0xfb, #0x00
+(seq (set e false) (set z (ite (is_zero (| (& (var SYSCON) (bv 16 0x4ff)) (& (bv 16 0x0) (bv 16 0x4ff)))) true false)) (set v false) (set c false) (set n (msb (| (& (var SYSCON) (bv 16 0x4ff)) (& (bv 16 0x0) (bv 16 0x4ff))))) (set SYSCON (| (& (var SYSCON) (bv 16 0x4ff)) (& (bv 16 0x0) (bv 16 0x4ff)))))
+pc_write(old: 0x22, new: 0x26)
+var_write(name: e, old: 0x0, new: 0x0)
+var_read(name: SYSCON, value: 0x0)
+var_write(name: z, old: 0x0, new: 0x1)
+var_write(name: v, old: 0x0, new: 0x0)
+var_write(name: c, old: 0x0, new: 0x0)
+var_read(name: SYSCON, value: 0x0)
+var_write(name: n, old: 0x0, new: 0x0)
+var_read(name: SYSCON, value: 0x0)
+var_write(name: SYSCON, old: 0x0, new: 0x0)
+
+0x00000026 [0a896f00] bfldl 0xff12, #0x6f, #0x00
+(seq (set e false) (set z (ite (is_zero (| (var SYSCON) (cast 16 false (& (bv 8 0x0) (bv 8 0x6f))))) true false)) (set v false) (set c false) (set n (msb (| (var SYSCON) (cast 16 false (& (bv 8 0x0) (bv 8 0x6f)))))) (set SYSCON (| (var SYSCON) (cast 16 false (& (bv 8 0x0) (bv 8 0x6f))))))
+pc_write(old: 0x26, new: 0x2a)
+var_write(name: e, old: 0x0, new: 0x0)
+var_read(name: SYSCON, value: 0x0)
+var_write(name: z, old: 0x1, new: 0x1)
+var_write(name: v, old: 0x0, new: 0x0)
+var_write(name: c, old: 0x0, new: 0x0)
+var_read(name: SYSCON, value: 0x0)
+var_write(name: n, old: 0x0, new: 0x0)
+var_read(name: SYSCON, value: 0x0)
+var_write(name: SYSCON, old: 0x0, new: 0x0)
+
+0x0000002a [e60a0cfa] mov 0xfe14, #0xfa0c
+(seq (set e (ite (== (bv 16 0xfa0c) (bv 16 0x8000)) true false)) (set z (ite (is_zero (bv 16 0xfa0c)) true false)) (set n (msb (bv 16 0xfa0c))) (set r2 (bv 16 0xfa0c)))
+pc_write(old: 0x2a, new: 0x2e)
+var_write(name: e, old: 0x0, new: 0x0)
+var_write(name: z, old: 0x1, new: 0x0)
+var_write(name: n, old: 0x0, new: 0x1)
+var_write(name: r2, old: 0xfa00, new: 0xfa0c)
+
+0x0000002e [e6000000] mov 0xfe00, #0x0000
+(seq (set e (ite (== (bv 16 0x0) (bv 16 0x8000)) true false)) (set z (ite (is_zero (bv 16 0x0)) true false)) (set n (msb (bv 16 0x0))) (set DPP0 (bv 10 0x0)))
+pc_write(old: 0x2e, new: 0x32)
+var_write(name: e, old: 0x0, new: 0x0)
+var_write(name: z, old: 0x0, new: 0x1)
+var_write(name: n, old: 0x1, new: 0x0)
+var_write(name: DPP0, old: 0x0, new: 0x0)
+
+0x00000032 [e6010100] mov 0xfe02, #0x0001
+(seq (set e (ite (== (bv 16 0x1) (bv 16 0x8000)) true false)) (set z (ite (is_zero (bv 16 0x1)) true false)) (set n (msb (bv 16 0x1))) (set DPP1 (bv 10 0x1)))
+pc_write(old: 0x32, new: 0x36)
+var_write(name: e, old: 0x0, new: 0x0)
+var_write(name: z, old: 0x1, new: 0x0)
+var_write(name: n, old: 0x0, new: 0x0)
+var_write(name: DPP1, old: 0x1, new: 0x1)
+
+0x00000036 [e6020300] mov 0xfe04, #0x0003
+(seq (set e (ite (== (bv 16 0x3) (bv 16 0x8000)) true false)) (set z (ite (is_zero (bv 16 0x3)) true false)) (set n (msb (bv 16 0x3))) (set DPP2 (bv 10 0x3)))
+pc_write(old: 0x36, new: 0x3a)
+var_write(name: e, old: 0x0, new: 0x0)
+var_write(name: z, old: 0x0, new: 0x0)
+var_write(name: n, old: 0x0, new: 0x0)
+var_write(name: DPP2, old: 0x2, new: 0x3)
+
+0x0000003a [e60800fc] mov 0xfe10, #0xfc00
+(seq (set e (ite (== (bv 16 0xfc00) (bv 16 0x8000)) true false)) (set z (ite (is_zero (bv 16 0xfc00)) true false)) (set n (msb (bv 16 0xfc00))) (set r0 (bv 16 0xfc00)))
+pc_write(old: 0x3a, new: 0x3e)
+var_write(name: e, old: 0x0, new: 0x0)
+var_write(name: z, old: 0x0, new: 0x0)
+var_write(name: n, old: 0x0, new: 0x1)
+var_write(name: r0, old: 0xfc00, new: 0xfc00)
+
+0x0000003e [b54ab5b5] einit
+nop
+pc_write(old: 0x3e, new: 0x42)
+
+0x00000042 [e6f000a2] mov r0, #0xa200
+(seq (set e (ite (== (bv 16 0xa200) (bv 16 0x8000)) true false)) (set z (ite (is_zero (bv 16 0xa200)) true false)) (set n (msb (bv 16 0xa200))) (set r0 (bv 16 0xa200)))
+pc_write(old: 0x42, new: 0x46)
+var_write(name: e, old: 0x0, new: 0x0)
+var_write(name: z, old: 0x0, new: 0x0)
+var_write(name: n, old: 0x1, new: 0x1)
+var_write(name: r0, old: 0xfc00, new: 0xa200)
+
+0x00000046 [e6f90100] mov r9, #0x0001
+(seq (set e (ite (== (bv 16 0x1) (bv 16 0x8000)) true false)) (set z (ite (is_zero (bv 16 0x1)) true false)) (set n (msb (bv 16 0x1))) (set r9 (bv 16 0x1)))
+pc_write(old: 0x46, new: 0x4a)
+var_write(name: e, old: 0x0, new: 0x0)
+var_write(name: z, old: 0x0, new: 0x0)
+var_write(name: n, old: 0x1, new: 0x0)
+var_write(name: r9, old: 0x0, new: 0x1)
+
+0x0000004a [e6f81a80] mov r8, #0x801a
+(seq (set e (ite (== (bv 16 0x801a) (bv 16 0x8000)) true false)) (set z (ite (is_zero (bv 16 0x801a)) true false)) (set n (msb (bv 16 0x801a))) (set r8 (bv 16 0x801a)))
+pc_write(old: 0x4a, new: 0x4e)
+var_write(name: e, old: 0x0, new: 0x0)
+var_write(name: z, old: 0x0, new: 0x0)
+var_write(name: n, old: 0x0, new: 0x1)
+var_write(name: r8, old: 0x0, new: 0x801a)
+
+0x0000004e [f018] mov r1, r8
+(seq (set e (ite (== (var r8) (bv 16 0x8000)) true false)) (set z (ite (is_zero (var r8)) true false)) (set n (msb (var r8))) (set r1 (var r8)))
+pc_write(old: 0x4e, new: 0x50)
+var_read(name: r8, value: 0x801a)
+var_write(name: e, old: 0x0, new: 0x0)
+var_read(name: r8, value: 0x801a)
+var_write(name: z, old: 0x0, new: 0x0)
+var_read(name: r8, value: 0x801a)
+var_write(name: n, old: 0x1, new: 0x1)
+var_read(name: r8, value: 0x801a)
+var_write(name: r1, old: 0xfc00, new: 0x801a)
+
+0x00000050 [7019] or r1, r9
+(seq (set e (ite (== (var r1) (bv 16 0x8000)) true false)) (set z (ite (is_zero (bv 16 0x9)) true false)) (set v false) (set c false) (set n (msb (| (var r1) (var r9)))) (set r1 (| (var r1) (var r9))))
+pc_write(old: 0x50, new: 0x52)
+var_read(name: r1, value: 0x801a)
+var_write(name: e, old: 0x0, new: 0x0)
+var_write(name: z, old: 0x0, new: 0x0)
+var_write(name: v, old: 0x0, new: 0x0)
+var_write(name: c, old: 0x0, new: 0x0)
+var_read(name: r1, value: 0x801a)
+var_read(name: r9, value: 0x1)
+var_write(name: n, old: 0x1, new: 0x1)
+var_read(name: r1, value: 0x801a)
+var_read(name: r9, value: 0x1)
+var_write(name: r1, old: 0x801a, new: 0x801b)
+
+0x00000052 [2d29] jmpr cc_Z/EQ, 0x0000a6
+(branch (ite (var z) true false) (jmp (bv 32 0xa6)) nop)
+pc_write(old: 0x52, new: 0x54)
+var_read(name: z, value: 0x0)
+
+0x00000054 [e005] mov r5, #0x00
+(seq (set e (ite (== (var r5) (bv 16 0x8000)) true false)) (set z (ite (is_zero (var r5)) true false)) (set n (msb (var r5))) (set r5 (bv 16 0x0)))
+pc_write(old: 0x54, new: 0x56)
+var_read(name: r5, value: 0x0)
+var_write(name: e, old: 0x0, new: 0x0)
+var_read(name: r5, value: 0x0)
+var_write(name: z, old: 0x0, new: 0x1)
+var_read(name: r5, value: 0x0)
+var_write(name: n, old: 0x1, new: 0x0)
+var_write(name: r5, old: 0x0, new: 0x0)
+
+0x00000056 [dc09] exts r9, #1
+nop
+pc_write(old: 0x56, new: 0x58)
+
+0x00000058 [9828] mov r2, [r8+]
+(seq (set e (ite (== (loadw 0 16 (| (<< (cast 32 false (var r9)) (bv 16 0x10) false) (cast 32 false (var r8)))) (bv 16 0x8000)) true false)) (set z (ite (is_zero (loadw 0 16 (| (<< (cast 32 false (var r9)) (bv 16 0x10) false) (cast 32 false (var r8))))) true false)) (set n (msb (loadw 0 16 (| (<< (cast 32 false (var r9)) (bv 16 0x10) false) (cast 32 false (var r8)))))) (set r2 (cast 16 false (loadw 0 16 (| (<< (cast 32 false (var r9)) (bv 16 0x10) false) (cast 32 false (var r8)))))) (set r8 (+ (var r8) (bv 16 0x2))))
+pc_write(old: 0x58, new: 0x5a)
+var_read(name: r9, value: 0x1)
+var_read(name: r8, value: 0x801a)
+mem_read(addr: 0x1801a, value: 0x8010)
+var_write(name: e, old: 0x0, new: 0x0)
+var_read(name: r9, value: 0x1)
+var_read(name: r8, value: 0x801a)
+mem_read(addr: 0x1801a, value: 0x8010)
+var_write(name: z, old: 0x1, new: 0x0)
+var_read(name: r9, value: 0x1)
+var_read(name: r8, value: 0x801a)
+mem_read(addr: 0x1801a, value: 0x8010)
+var_write(name: n, old: 0x0, new: 0x1)
+var_read(name: r9, value: 0x1)
+var_read(name: r8, value: 0x801a)
+mem_read(addr: 0x1801a, value: 0x8010)
+var_write(name: r2, old: 0xfa0c, new: 0x8010)
+var_read(name: r8, value: 0x801a)
+var_write(name: r8, old: 0x801a, new: 0x801c)
+
+0x0000005a [2d25] jmpr cc_Z/EQ, 0x0000a6
+(branch (ite (var z) true false) (jmp (bv 32 0xa6)) nop)
+pc_write(old: 0x5a, new: 0x5c)
+var_read(name: z, value: 0x0)
+
+0x0000005c [f032] mov r3, r2
+(seq (set e (ite (== (var r2) (bv 16 0x8000)) true false)) (set z (ite (is_zero (var r2)) true false)) (set n (msb (var r2))) (set r3 (var r2)))
+pc_write(old: 0x5c, new: 0x5e)
+var_read(name: r2, value: 0x8010)
+var_write(name: e, old: 0x0, new: 0x0)
+var_read(name: r2, value: 0x8010)
+var_write(name: z, old: 0x0, new: 0x0)
+var_read(name: r2, value: 0x8010)
+var_write(name: n, old: 0x1, new: 0x1)
+var_read(name: r2, value: 0x8010)
+var_write(name: r3, old: 0xfc00, new: 0x8010)
+
+0x0000005e [dc09] exts r9, #1
+nop
+pc_write(old: 0x5e, new: 0x60)
+
+0x00000060 [9848] mov r4, [r8+]
+(seq (set e (ite (== (loadw 0 16 (| (<< (cast 32 false (var r9)) (bv 16 0x10) false) (cast 32 false (var r8)))) (bv 16 0x8000)) true false)) (set z (ite (is_zero (loadw 0 16 (| (<< (cast 32 false (var r9)) (bv 16 0x10) false) (cast 32 false (var r8))))) true false)) (set n (msb (loadw 0 16 (| (<< (cast 32 false (var r9)) (bv 16 0x10) false) (cast 32 false (var r8)))))) (set r4 (cast 16 false (loadw 0 16 (| (<< (cast 32 false (var r9)) (bv 16 0x10) false) (cast 32 false (var r8)))))) (set r8 (+ (var r8) (bv 16 0x2))))
+pc_write(old: 0x60, new: 0x62)
+var_read(name: r9, value: 0x1)
+var_read(name: r8, value: 0x801c)
+mem_read(addr: 0x1801c, value: 0x3)
+var_write(name: e, old: 0x0, new: 0x0)
+var_read(name: r9, value: 0x1)
+var_read(name: r8, value: 0x801c)
+mem_read(addr: 0x1801c, value: 0x3)
+var_write(name: z, old: 0x0, new: 0x0)
+var_read(name: r9, value: 0x1)
+var_read(name: r8, value: 0x801c)
+mem_read(addr: 0x1801c, value: 0x3)
+var_write(name: n, old: 0x1, new: 0x0)
+var_read(name: r9, value: 0x1)
+var_read(name: r8, value: 0x801c)
+mem_read(addr: 0x1801c, value: 0x3)
+var_write(name: r4, old: 0x0, new: 0x3)
+var_read(name: r8, value: 0x801c)
+var_write(name: r8, old: 0x801c, new: 0x801e)
+
+0x00000062 [aaf21be0] jbc r2.14, 0x00009c
+(seq (set e false) (set z (! (! (is_zero (>> (& (var r2) (bv 16 0x4000)) (bv 16 0xe) false))))) (set v false) (set c false) (set n (! (is_zero (>> (& (var r2) (bv 16 0x4000)) (bv 16 0xe) false)))) (branch (! (is_zero (>> (& (var r2) (bv 16 0x4000)) (bv 16 0xe) false))) (set r2 (- (var r2) (bv 16 0x4000))) nop) (branch (! (is_zero (>> (& (var r2) (bv 16 0x4000)) (bv 16 0xe) false))) (jmp (bv 32 0x9c)) nop))
+pc_write(old: 0x62, new: 0x66)
+var_write(name: e, old: 0x0, new: 0x0)
+var_read(name: r2, value: 0x8010)
+var_write(name: z, old: 0x0, new: 0x1)
+var_write(name: v, old: 0x0, new: 0x0)
+var_write(name: c, old: 0x0, new: 0x0)
+var_read(name: r2, value: 0x8010)
+var_write(name: n, old: 0x0, new: 0x0)
+var_read(name: r2, value: 0x8010)
+var_read(name: r2, value: 0x8010)
+
+0x00000066 [aaf20ef0] jbc r2.15, 0x000086
+(seq (set e false) (set z (! (! (is_zero (>> (& (var r2) (bv 16 0x8000)) (bv 16 0xf) false))))) (set v false) (set c false) (set n (! (is_zero (>> (& (var r2) (bv 16 0x8000)) (bv 16 0xf) false)))) (branch (! (is_zero (>> (& (var r2) (bv 16 0x8000)) (bv 16 0xf) false))) (jmp (bv 32 0x86)) nop) (branch (! (is_zero (>> (& (var r2) (bv 16 0x8000)) (bv 16 0xf) false))) (set r2 (- (var r2) (bv 16 0x8000))) nop))
+pc_write(old: 0x66, new: 0x6a)
+var_write(name: e, old: 0x0, new: 0x0)
+var_read(name: r2, value: 0x8010)
+var_write(name: z, old: 0x1, new: 0x0)
+var_write(name: v, old: 0x0, new: 0x0)
+var_write(name: c, old: 0x0, new: 0x0)
+var_read(name: r2, value: 0x8010)
+var_write(name: n, old: 0x0, new: 0x1)
+var_read(name: r2, value: 0x8010)
+pc_write(old: 0x6a, new: 0x86)
+var_read(name: r2, value: 0x8010)
+var_read(name: r2, value: 0x8010)
+var_write(name: r2, old: 0x8010, new: 0x10)
+
+0x00000086 [dc09] exts r9, #1
+nop
+pc_write(old: 0x86, new: 0x88)
+
+0x00000088 [9838] mov r3, [r8+]
+(seq (set e (ite (== (loadw 0 16 (| (<< (cast 32 false (var r9)) (bv 16 0x10) false) (cast 32 false (var r8)))) (bv 16 0x8000)) true false)) (set z (ite (is_zero (loadw 0 16 (| (<< (cast 32 false (var r9)) (bv 16 0x10) false) (cast 32 false (var r8))))) true false)) (set n (msb (loadw 0 16 (| (<< (cast 32 false (var r9)) (bv 16 0x10) false) (cast 32 false (var r8)))))) (set r3 (cast 16 false (loadw 0 16 (| (<< (cast 32 false (var r9)) (bv 16 0x10) false) (cast 32 false (var r8)))))) (set r8 (+ (var r8) (bv 16 0x2))))
+pc_write(old: 0x88, new: 0x8a)
+var_read(name: r9, value: 0x1)
+var_read(name: r8, value: 0x801e)
+mem_read(addr: 0x1801e, value: 0xe200)
+var_write(name: e, old: 0x0, new: 0x0)
+var_read(name: r9, value: 0x1)
+var_read(name: r8, value: 0x801e)
+mem_read(addr: 0x1801e, value: 0xe200)
+var_write(name: z, old: 0x0, new: 0x0)
+var_read(name: r9, value: 0x1)
+var_read(name: r8, value: 0x801e)
+mem_read(addr: 0x1801e, value: 0xe200)
+var_write(name: n, old: 0x1, new: 0x1)
+var_read(name: r9, value: 0x1)
+var_read(name: r8, value: 0x801e)
+mem_read(addr: 0x1801e, value: 0xe200)
+var_write(name: r3, old: 0x8010, new: 0xe200)
+var_read(name: r8, value: 0x801e)
+var_write(name: r8, old: 0x801e, new: 0x8020)
+
+0x0000008a [dc44] extp r4, #1
+nop
+pc_write(old: 0x8a, new: 0x8c)
+
+IL[0xfa] - [0x000000] IP: [0x000016] c166_il_jmps_seg_caddr
+IL[0xa5] - [0x000016] IP: [0x000016] c166_il_diswdt
+IL[0x0a] - [0x00001a] IP: [0x000016] c166_il_bfldl_bitoff_x bSFR BUSCON0, #0x3f, #0x2e
+IL[0x1a] - [0x00001e] IP: [0x000016] c166_il_bfldh_bitoff_x bSFR BUSCON0, #0xd2, #0x00
+IL[0x1a] - [0x000022] IP: [0x000016] c166_il_bfldh_bitoff_x bSFR SYSCON, #0xfb, #0x00
+IL[0x0a] - [0x000026] IP: [0x000016] c166_il_bfldl_bitoff_x bSFR SYSCON, #0x6f, #0x00
+IL[0xe6] - [0x00002a] IP: [0x000016] c166_il_mov_reg_data16 0x0a 0xfa0c
+IL[0xe6] - [0x00002e] IP: [0x000016] c166_il_mov_reg_data16 0x00 0x0000
+IL[0xe6] - [0x000032] IP: [0x000016] c166_il_mov_reg_data16 0x01 0x0001
+IL[0xe6] - [0x000036] IP: [0x000016] c166_il_mov_reg_data16 0x02 0x0003
+IL[0xe6] - [0x00003a] IP: [0x000016] c166_il_mov_reg_data16 0x08 0xfc00
+IL[0xb5] - [0x00003e] IP: [0x000016] c166_il_einit
+IL[0xe6] - [0x000042] IP: [0x000016] c166_il_mov_reg_data16 0xf0 0xa200
+IL[0xe6] - [0x000046] IP: [0x000016] c166_il_mov_reg_data16 0xf9 0x0001
+IL[0xe6] - [0x00004a] IP: [0x000016] c166_il_mov_reg_data16 0xf8 0x801a
+IL[0xf0] - [0x00004e] IP: [0x000016] c166_il_mov_rwn_rwm r1, r8
+IL[0x70] - [0x000050] IP: [0x000016] c166_il_or_rwn_rwm r1, r9
+IL[0x2d] - [0x000052] IP: [0x0000a6] c166_il_jmpr_rel cc_Z/EQ (4) new_IP: [0x0000a6] 
+IL[0xe0] - [0x000054] IP: [0x0000a6] c166_il_mov_rwn_data4 r5, #0x00
+IL[0xdc] - [0x000056] IP: [0x0000a6] c166_il_exts r9, #1 (esfr: true)
+IL[0x98] - [0x000058] IP: [0x0000a6] c166_il_mov_rwn_orwmp r2, [r8+] (esfr: true)
+IL[0x2d] - [0x00005a] IP: [0x0000a6] c166_il_jmpr_rel cc_Z/EQ (4) new_IP: [0x0000a6] 
+IL[0xf0] - [0x00005c] IP: [0x0000a6] c166_il_mov_rwn_rwm r3, r2
+IL[0xdc] - [0x00005e] IP: [0x0000a6] c166_il_exts r9, #1 (esfr: true)
+IL[0x98] - [0x000060] IP: [0x0000a6] c166_il_mov_rwn_orwmp r4, [r8+] (esfr: true)
+IL[0xaa] - [0x000062] IP: [0x0000a6] c166_il_jbc_bitaddr_rel new_IP: [0x00009c] reg: r2
+
+EOF
+RUN
