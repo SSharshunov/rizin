@@ -11,6 +11,8 @@
 #include <rz_bin.h>
 #include "omf_specs.h"
 
+#define MAX_NAME_LEN UT8_MAX
+
 #define FINAL_TYPE 0x00
 /**
  * <b>COMPONENT-LIST Descriptor</b><br>
@@ -451,7 +453,7 @@ typedef struct {
 
 typedef struct {
 	ut16 index;
-	char name[255];
+	char name[MAX_NAME_LEN];
 } OMF_lnames;
 
 /**
@@ -483,7 +485,7 @@ typedef struct {
 	ut8 mark; ///< Byte, required to be zero.
 	ut32 timestamp; ///< File creation date in Microsoft’s ’fstat()’ format.
 	ut8 n; ///< Pathname length, n max 255, so name array len is 255
-	char pathname[255]; ///< specifies the Pathname of one file. In case of iTyp 4, more than one pathname may be specified.
+	char pathname[MAX_NAME_LEN]; ///< specifies the Pathname of one file. In case of iTyp 4, more than one pathname may be specified.
 } OMF_deplsts;
 
 /**
@@ -509,7 +511,7 @@ typedef struct {
 	ut16 LineNumber; ///< gives the line number in range 0 to 32767. The most significant bit is reserved for future use and is always zero.
 	ut64 address; ///< Specifies the address of the following line numbers using the base address + offset format.
 	ut8 n;
-	char filename[255];
+	char filename[MAX_NAME_LEN];
 } OMF_linnums;
 
 typedef struct {
@@ -559,7 +561,7 @@ typedef struct {
 	bool nopurge; ///< NOPURGE bit; 1 = comment may not be purged from the file
 	bool is_filename;
 	ut8 n;
-	char text[255]; ///< this field provides the commentary text.
+	char text[MAX_NAME_LEN]; ///< this field provides the commentary text.
 } OMF_coments;
 
 typedef struct {
@@ -577,7 +579,7 @@ typedef struct {
 typedef struct {
 	ut16 index;
 	ut8 n; ///< n max 255, so name array len is 255
-	char name[255];
+	char name[MAX_NAME_LEN];
 } OMF_debug_includes;
 
 typedef struct {
@@ -593,7 +595,7 @@ typedef struct {
 	ut8 REP8;
 	ut8 POS8;
 	ut8 n; ///< n max 255, so name array len is 255
-	char name[255];
+	char name[MAX_NAME_LEN];
 } OMF_component;
 
 typedef struct {
@@ -678,7 +680,7 @@ typedef struct {
 		struct {
 			bool is_struct; ///< 1 = struct, 2 = union
 			ut8 n; ///< struct/union-tag name length
-			char tagname[255]; ///< struct/union-tag name in OMF166 name format
+			char tagname[MAX_NAME_LEN]; ///< struct/union-tag name in OMF166 name format
 			ut32 size; ///< sizeof struct or union
 			ut16 member_ti; ///< reference to component list or <void>
 		} struct_union;
@@ -709,12 +711,12 @@ typedef struct {
 	ut8 REP8;
 	ut8 POS8; ///< contains a bit position if REP8 contains method 1 (RegBit)
 	ut8 n; ///< member name length
-	char name[255]; ///< member name in OMF166 name format
+	char name[MAX_NAME_LEN]; ///< member name in OMF166 name format
 } OMF_type_components;
 
 typedef struct {
 	ut16 NrOfComp16; ///< Specifies the number of components
-	OMF_type_components components[255];
+	OMF_type_components components[MAX_NAME_LEN];
 } OMF_type_component_list;
 
 typedef struct {
@@ -752,11 +754,11 @@ typedef struct {
 bool rz_bin_checksum_omf_ok(const ut8 *buf, ut64 buf_size);
 rz_bin_omf_obj *rz_bin_internal_omf_load(const ut8 *buf, ut64 size);
 void rz_bin_free_all_omf_obj(rz_bin_omf_obj *obj);
-bool rz_bin_omf_get_entry(rz_bin_omf_obj *obj, RzBinAddr *addr);
-int rz_bin_omf_get_bits(rz_bin_omf_obj *obj);
-int rz_bin_omf_send_sections(RzPVector /*<RzBinSection *>*/ *vec, OMF_segment *section, rz_bin_omf_obj *obj);
-ut64 rz_bin_omf_get_paddr_sym(rz_bin_omf_obj *obj, OMF_symbol *sym);
-ut64 rz_bin_omf_get_vaddr_sym(rz_bin_omf_obj *obj, OMF_symbol *sym);
+bool rz_bin_omf_get_entry(const rz_bin_omf_obj *obj, RzBinAddr *addr);
+int rz_bin_omf_get_bits(const rz_bin_omf_obj *obj);
+int rz_bin_omf_send_sections(RzPVector /*<RzBinSection *>*/ *vec, const OMF_segment *section, const rz_bin_omf_obj *obj);
+ut64 rz_bin_omf_get_paddr_sym(const rz_bin_omf_obj *obj, const OMF_symbol *sym);
+ut64 rz_bin_omf_get_vaddr_sym(const rz_bin_omf_obj *obj, const OMF_symbol *sym);
 
 RZ_API ut8 memory_model_type(ut8 modinfo);
 RZ_API char *get_memory_model(ut8 modinfo);
@@ -767,7 +769,7 @@ RZ_API const char *name_of_ti(const rz_bin_omf166_obj *obj, ut16 ti_index);
 rz_bin_omf166_obj *rz_bin_format_omf166_load(const ut8 *buf, ut64 size);
 void rz_bin_format_omf166_fini(rz_bin_omf166_obj *obj);
 void rz_bin_free_all_omf166_obj(rz_bin_omf166_obj *obj);
-bool rz_bin_omf166_get_entry(rz_bin_omf166_obj *obj, RzBinAddr *addr);
+bool rz_bin_omf166_get_entry(const rz_bin_omf166_obj *obj, RzBinAddr *addr);
 ut64 rz_bin_omf166_get_paddr_sym(rz_bin_omf166_obj *obj, OMF_symbol *sym);
 ut64 rz_bin_omf166_get_vaddr_sym(rz_bin_omf166_obj *obj, OMF_symbol *sym);
 const char *rz_bin_omf166_get_module_information(rz_bin_omf166_obj *obj);

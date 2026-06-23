@@ -26,6 +26,7 @@ const char *const c166_rb[] = {
  * Used to determine the condition code for conditional jump instructions
  */
 // C166 condition code names
+// static
 const char *const conds_names[] = {
 	[C166_CC_UC]    = "cc_UC",      ///< Unconditional
 	[C166_CC_V]     = "cc_V",       ///< Overflow
@@ -66,3 +67,15 @@ const char *const c166_extx_names[] = {
 	"extsr",
 	"extpr"
 };
+
+const char* c166_get_word_reg_name(const ut8 rb_index) {
+	if (rb_index < 0 || rb_index >= 16) {
+		return NULL;
+	}
+	const ut16 rw_index = rb_index >> 1;
+	return c166_rw[rw_index];
+}
+
+ut8 c166_get_byte_offset(const ut8 rb_index) {
+	return (rb_index & 1) << 3;
+}

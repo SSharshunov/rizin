@@ -12,9 +12,6 @@
 #define C166_INSTR_MAXLEN    (16 + 16) // ?
 #define C166_OPERANDS_MAXLEN 32
 
-#define C166_BYTESIZE_2 2
-#define C166_BYTESIZE_4 4
-
 // clang-format off
 #define SBUF_16 \
 	(char[C166_INSTR_MAXLEN]) RZ_EMPTY /* CI linter gives an error */
@@ -38,6 +35,8 @@
 #define FMT_BYTE  ".byte 0x%02x"
 #define FMT_WORD  ".word 0x%02x%02x"
 #define FMT_2WORD ".word 0x%02x%02x .word 0x%02x%02x"
+#define FMT_DWORD_ADDR "0x%04x:0x%04x"
+#define FMT_DWORD_ADDR_LEN 19
 #define FMT0      "%s, [%s]"
 #define FMT1      "%s, [%s+]"
 #define FMT2      "[%s], %s"
@@ -94,21 +93,6 @@ TCONCS6  EQU    0EE40H
 TCONCS7  EQU    0EE48H
 WDTCON   DEFR   0FFAEH
 */
-static inline bool IS_GPR(ut8 addr) {
-	return addr >= 0xF0 && addr <= 0xFF;
-}
-
-static inline bool IS_RAM(ut8 addr) {
-	return addr <= 0x7F;
-}
-
-static inline bool IS_rSFR(ut8 addr) {
-	return addr <= 0xEF;
-}
-
-static inline bool IS_bSFR(ut8 addr) {
-	return addr >= 0x80 && addr <= 0xEF;
-}
 
 #define R_IP      (op->addr)
 #define NEXT_ADDR (R_IP + op->size)

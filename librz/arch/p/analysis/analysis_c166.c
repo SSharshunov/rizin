@@ -90,11 +90,6 @@ bool set_reg_val(RzAnalysis *analysis, const char *name, const ut64 value) {
 #define SET_A_IP(val)  set_reg_val(analysis, "IP", val)
 #define SET_A_SP(val)  set_reg_val(analysis, "SP", val)
 
-static void c166_set_mimo_addr_from_reg(RzAnalysisOp *op, ut8 reg) {
-	if (reg < 0xF0) {
-		op->mmio_address = BASE_SFR_ADDR + (2 * reg);
-	}
-}
 
 static ut16 target_addressing_mode_caddr(RzAnalysisOp *op, ut16 target) {
 	/**
@@ -159,7 +154,9 @@ static RzAnalysisValue *c166_new_mem_value(const RzAnalysis *analysis, const C16
 	}
 
 	switch (instr->ext.mode) {
+	case C166_EXT_MODE_ATOMIC:
 	case C166_EXT_MODE_NONE:
+	case C166_EXT_MODE_REG:
 		val->reg = reg;
 		break;
 	case C166_EXT_MODE_SEG:
@@ -169,6 +166,7 @@ static RzAnalysisValue *c166_new_mem_value(const RzAnalysis *analysis, const C16
 		val->reg = reg;
 		val->base = ((ut32)instr->ext.value) << 14;
 		break;
+	default:;
 	}
 	val->base += mem & 0x3FFF;
 	return val;
@@ -181,6 +179,15 @@ static RzAnalysisValue *c166_new_imm_value(ut16 data, bool absolute) {
 	val->absolute = absolute;
 	return val;
 }
+
+// static RzAnalysisValue *c166_new_mem_value(ut16 data, bool absolute) {
+// 	RzAnalysisValue *val = rz_analysis_value_new();
+// 	val->type = RZ_ANALYSIS_VAL_MEM;
+// 	// val->imm = data;
+// 	// val->absolute = absolute;
+// 	val->delta = data;
+// 	return val;
+// }
 
 static RzAnalysisValue *c166_new_bitaddr_value(const RzAnalysis *analysis, const C166_Inst *instr, ut8 bitoff) {
 	RzAnalysisValue *val = rz_analysis_value_new();
@@ -313,7 +320,7 @@ static void c166_op_trap7(RzAnalysis *analysis, RzAnalysisOp *op, const ut8 *buf
 	if (SGTDIS == 0) {
 		op->stackptr += 2;
 	}
-	SET_A_IP((buf[1] * 4) << GET_A_SCINT);
+	// SET_A_IP((buf[1] * 4) << GET_A_SCINT);
 }
 
 /**
@@ -350,7 +357,7 @@ static void c166_op_jmpi_cc_orwn(RzAnalysis *analysis, RzAnalysisOp *op, const u
 	const ut8 seg = GET_A_CSP;
 	if (buf[1] == 1) {
 		op->jump = (((ut32)seg) << 16) | ((cp + 2 * v) - op->size);
-		SET_A_IP(op->jump);
+		// SET_A_IP(op->jump);
 	}
 }
 
@@ -385,8 +392,11 @@ static void c166_op_jmps_seg_caddr(RzAnalysis *analysis, RzAnalysisOp *op, const
 		}
 	}
 	c166_set_jump_target_seg_caddr(op, seg, caddr);
+	// op->dst = c166_new_reg_value(analysis, reg, false);
+	op->src[0] = c166_new_imm_value(seg, false);
+	op->src[1] = c166_new_imm_value(caddr, false);
 	// SET_IP(caddr); ///< Need implement relative jump by offset
-	SET_A_IP((((ut32)seg) << 16) | (caddr - op->size)); ///< (caddr - op->size) for emulation fix
+	SET_A_IP((((ut32)seg) << 16) | caddr); ///< (caddr - op->size) for emulation fix
 }
 
 /**
@@ -495,15 +505,14 @@ static void c166_op_call_seg_caddr(RzAnalysis *analysis, RzAnalysisOp *op, const
 	c166_set_jump_target_seg_caddr(op, seg, caddr);
 	op->stackop = RZ_ANALYSIS_STACK_INC;
 	op->stackptr = 4;
-
-	const ut8 SGTDIS = (ut8)GET_A_SGTDIS;
-	if (SGTDIS == 0) {
-		if (!SET_A_CSP((ut64)seg)) {
-			RZ_LOG_WARN("Error setting reg value\n");
-		}
-	}
-	SET_A_IP((ut64)caddr);
 	op->eob = true;
+	// const ut8 SGTDIS = (ut8)GET_A_SGTDIS;
+	// if (SGTDIS == 0) {
+	// 	if (!SET_A_CSP((ut64)seg)) {
+	// 		RZ_LOG_WARN("Error setting reg value\n");
+	// 	}
+	// }
+	// SET_A_IP((ut64)caddr);
 }
 
 /**
@@ -537,7 +546,6 @@ static void c166_op_pcall_reg_caddr(RzAnalysis *analysis, RzAnalysisOp *op, cons
 	op->stackptr = 4;
 	op->type = RZ_ANALYSIS_OP_TYPE_UCALL;
 	c166_set_jump_target_from_caddr(op, caddr);
-	c166_set_mimo_addr_from_reg(op, buf[1]);
 	op->eob = true;
 }
 
@@ -772,46 +780,71 @@ static void c166_op_rets(RzAnalysis *analysis, RzAnalysisOp *op, const ut8 *buf)
 	op->stackptr = 4;
 }
 
-static void c166_op_mov_reg_data(RzAnalysis *analysis, RzAnalysisOp *op, const ut8 *buf) {
+static void c166_op_mov_reg_data(RzAnalysis *analysis, RzAnalysisOp *op, const C166_Inst *instr, const ut8 *buf) {
 	const ut8 reg = buf[1];
-	const bool byte = buf[0] == C166_MOVB_reg_data8;
-	const ut16 mask = byte ? 0xFF : 0xFFFF;
-	const ut16 data = rz_read_at_le16(&buf, 2) & mask;
+	const ut16 data = rz_read_at_le16(&buf, 2);
 
 	op->type = RZ_ANALYSIS_OP_TYPE_MOV;
 	op->dst = c166_new_reg_value(analysis, reg, false);
 	op->src[0] = c166_new_imm_value(data, true);
 	if (op->dst != NULL) {
-		op->mmio_address = op->dst->base;
+		op->mmios[op->mmios_count] = op->dst->base;
+		op->mmios_count++;
 	}
+	const ut16 base_addr = instr->ext.esfr ? BASE_ESFR_ADDR : BASE_SFR_ADDR;
+	const ut16 addr = base_addr + (2 * reg);
+	op->mmios[op->mmios_count] = addr;
+	op->mmios_count++;
 }
 
-static void c166_op_mov_reg_mem(const RzAnalysis *analysis, RzAnalysisOp *op, const C166_Inst *instr, const ut8 *buf) {
-	op->type = RZ_ANALYSIS_OP_TYPE_MOV;
-	const bool byte = buf[0] != C166_MOV_reg_mem;
-	const ut16 mask = byte ? 0xFF : 0xFFFF;
-	const ut32 addr = rz_read_at_le16(buf, 2) & mask;
+static void c166_op_dst_reg_src_mem(const RzAnalysis *analysis, RzAnalysisOp *op, const C166_Inst *instr, const ut8 *buf, const bool byte) {
+	const ut16 mem = rz_read_at_le16(buf, 2);
+	const st32 i = (mem >> 14) & 0b11;
+	const ut16 addr = SFR_ADDR(i);
 	op->dst = c166_new_reg_value(analysis, buf[1], byte);
-	op->src[0] = c166_new_mem_value(analysis, instr, addr);
-	if (op->dst != NULL) {
-		op->mmio_address = op->dst->base;
+	op->src[0] = c166_new_mem_value(analysis, instr, rz_read_at_le16(buf, 2));
+	op->mmios[op->mmios_count] = addr;
+	op->mmios_count++;
+}
+
+static void c166_op_src_mem_src_reg(const RzAnalysis *analysis, RzAnalysisOp *op, const C166_Inst *instr, const ut8 *buf, const bool byte) {
+	const ut16 mem = rz_read_at_le16(buf, 2);
+	op->src[0] = c166_new_reg_value(analysis, buf[1], byte);
+	op->src[1] = c166_new_mem_value(analysis, instr, mem);
+	if (op->src[0]) {
+		op->mmios[op->mmios_count] = op->src[0]->base;
+		op->mmios_count++;
+	}
+	if (op->src[1]) {
+		const st32 i = (mem >> 14) & 0b11;
+		const ut16 addr = SFR_ADDR(i);
+		op->mmios[op->mmios_count] = addr;
+		op->mmios_count++;
 	}
 }
 
-static void c166_op_mov_mem_reg(const RzAnalysis *analysis, RzAnalysisOp *op, const C166_Inst *instr, const ut8 *buf) {
-	op->type = RZ_ANALYSIS_OP_TYPE_MOV;
-	const bool byte = buf[0] != C166_MOV_mem_reg;
-	op->src[0] = c166_new_reg_value(analysis, buf[1], byte);
-	op->dst = c166_new_mem_value(analysis, instr, rz_read_at_le16(buf, 2));
-	if (op->src[0])
-		op->mmio_address = op->src[0]->base;
+static void c166_op_src_reg_src_mem(const RzAnalysis *analysis, RzAnalysisOp *op, const C166_Inst *instr, const ut8 *buf, const bool byte) {
+	const ut16 mem = rz_read_at_le16(buf, 2);
+	op->src[0] = c166_new_mem_value(analysis, instr, mem);
+	op->src[1] = c166_new_reg_value(analysis, buf[1], byte);
+	if (op->src[1]) {
+		op->mmios[op->mmios_count] = op->src[1]->base;
+		op->mmios_count++;
+	}
+	if (op->src[0]) {
+		const st32 i = (mem >> 14) & 0b11;
+		const ut16 addr = SFR_ADDR(i);
+		op->mmios[op->mmios_count] = addr;
+		op->mmios_count++;
+	}
 }
 
 static void c166_op_bfld(const RzAnalysis *analysis, RzAnalysisOp *op, const C166_Inst *instr, const ut8 *buf) {
 	op->type = RZ_ANALYSIS_OP_TYPE_STORE;
 	op->dst = c166_new_bitaddr_value(analysis, instr, buf[1]);
 	if (op->dst != NULL) {
-		op->mmio_address = op->dst->base;
+		op->mmios[op->mmios_count] = op->dst->base;
+		op->mmios_count++;
 	}
 }
 
@@ -823,7 +856,8 @@ static void c166_op_jmp_bitoff(const RzAnalysis *analysis, RzAnalysisOp *op, con
 	op->fail = op->addr + op->size;
 	op->src[0] = c166_new_bitaddr_value(analysis, instr, buf[1]);
 	if (op->src[0]) {
-		op->mmio_address = op->src[0]->base;
+		op->mmios[op->mmios_count] = op->src[0]->base;
+		op->mmios_count++;
 	}
 }
 
@@ -847,16 +881,28 @@ static void c166_op_set_type(RZ_NONNULL C166_Inst *instr, RzAnalysis *analysis, 
 		c166_op_rn_x(analysis, op, operand1, RZ_ANALYSIS_OP_TYPE_ADD, true);
 		break;
 	case C166_ADD_mem_reg:
-	case C166_ADD_reg_mem:
-	case C166_ADDB_mem_reg:
-	case C166_ADDB_reg_mem:
-	case C166_ADDC_mem_reg:
-	case C166_ADDC_reg_mem:
-	case C166_ADDCB_mem_reg:
-	case C166_ADDCB_reg_mem:
+	case C166_ADDC_mem_reg: {
 		op->type = RZ_ANALYSIS_OP_TYPE_ADD;
-		c166_set_mimo_addr_from_reg(op, operand1);
+		const bool byte = buf[0] != C166_ADDB_mem_reg;
+		c166_op_src_mem_src_reg(analysis, op, instr, buf, byte);
 		break;
+	}
+	case C166_ADDCB_mem_reg:
+	case C166_ADDB_mem_reg: {
+		op->type = RZ_ANALYSIS_OP_TYPE_ADD;
+		const bool byte = buf[0] != C166_ADDB_mem_reg;
+		c166_op_src_mem_src_reg(analysis, op, instr, buf, byte);
+		break;
+	}
+	case C166_ADDC_reg_mem:
+	case C166_ADDCB_reg_mem:
+	case C166_ADDB_reg_mem:
+	case C166_ADD_reg_mem: {
+		op->type = RZ_ANALYSIS_OP_TYPE_ADD;
+		const bool byte = buf[0] != C166_ADDB_mem_reg;
+		c166_op_src_reg_src_mem(analysis, op, instr, buf, byte);
+		break;
+	}
 	case C166_ADD_reg_data16:
 	case C166_ADDC_reg_data16:
 		op->type = RZ_ANALYSIS_OP_TYPE_ADD;
@@ -864,7 +910,11 @@ static void c166_op_set_type(RZ_NONNULL C166_Inst *instr, RzAnalysis *analysis, 
 			op->reg = c166_rb[buf[1] & 0xF];
 		}
 		op->val = rz_read_at_le16(buf, 2);
-		c166_set_mimo_addr_from_reg(op, buf[1]);
+		const ut8 reg = buf[1];
+		const ut16 base_addr = instr->ext.esfr ? BASE_ESFR_ADDR : BASE_SFR_ADDR;
+		const ut16 addr = base_addr + (2 * reg);
+		op->mmios[op->mmios_count] = addr;
+		op->mmios_count++;
 		break;
 	case C166_ADDB_reg_data8:
 	case C166_ADDCB_reg_data8:
@@ -873,7 +923,6 @@ static void c166_op_set_type(RZ_NONNULL C166_Inst *instr, RzAnalysis *analysis, 
 			op->reg = c166_rb[operand1 & 0xF];
 		}
 		op->val = get_operand(instr, 2);
-		c166_set_mimo_addr_from_reg(op, operand1);
 		break;
 
 	case C166_SUB_Rwn_Rwm:
@@ -892,20 +941,19 @@ static void c166_op_set_type(RZ_NONNULL C166_Inst *instr, RzAnalysis *analysis, 
 	case C166_SUBCB_Rbn_x:
 		c166_op_rn_x(analysis, op, operand1, RZ_ANALYSIS_OP_TYPE_SUB, true);
 		break;
-	case C166_SUB_mem_reg:
 	case C166_SUB_reg_data16:
-	case C166_SUB_reg_mem:
-	case C166_SUBC_mem_reg:
 	case C166_SUBC_reg_data16:
-	case C166_SUBC_reg_mem:
-	case C166_SUBB_mem_reg:
 	case C166_SUBB_reg_data8:
-	case C166_SUBB_reg_mem:
-	case C166_SUBCB_mem_reg:
 	case C166_SUBCB_reg_data8:
+	case C166_SUB_mem_reg:
+	case C166_SUBC_mem_reg:
+	case C166_SUBB_mem_reg:
+	case C166_SUBCB_mem_reg:
+	case C166_SUB_reg_mem:
+	case C166_SUBC_reg_mem:
+	case C166_SUBB_reg_mem:
 	case C166_SUBCB_reg_mem:
 		op->type = RZ_ANALYSIS_OP_TYPE_SUB;
-		c166_set_mimo_addr_from_reg(op, operand1);
 		break;
 	case C166_MUL_Rwn_Rwm:
 	case C166_MULU_Rwn_Rwm:
@@ -929,36 +977,41 @@ static void c166_op_set_type(RZ_NONNULL C166_Inst *instr, RzAnalysis *analysis, 
 	case C166_ANDB_Rbn_x:
 		c166_op_rn_x(analysis, op, operand1, RZ_ANALYSIS_OP_TYPE_AND, true);
 		break;
-	case C166_AND_mem_reg:
 	case C166_AND_reg_data16:
-	case C166_AND_reg_mem:
-	case C166_ANDB_mem_reg:
 	case C166_ANDB_reg_data8:
+	case C166_AND_mem_reg:
+	case C166_ANDB_mem_reg:
+	case C166_AND_reg_mem:
 	case C166_ANDB_reg_mem:
 		op->type = RZ_ANALYSIS_OP_TYPE_AND;
-		c166_set_mimo_addr_from_reg(op, operand1);
 		break;
 	case C166_OR_Rwn_Rwm:
+		op->type = RZ_ANALYSIS_OP_TYPE_OR;
 		c166_op_rn_rm(analysis, op, operand1, RZ_ANALYSIS_OP_TYPE_OR, false);
 		break;
 	case C166_OR_Rwn_x:
+		op->type = RZ_ANALYSIS_OP_TYPE_OR;
 		c166_op_rn_x(analysis, op, operand1, RZ_ANALYSIS_OP_TYPE_OR, false);
 		break;
 	case C166_ORB_Rbn_Rbm:
+		op->type = RZ_ANALYSIS_OP_TYPE_OR;
 		c166_op_rn_rm(analysis, op, operand1, RZ_ANALYSIS_OP_TYPE_OR, true);
 		break;
 	case C166_ORB_Rbn_x:
+		op->type = RZ_ANALYSIS_OP_TYPE_OR;
 		c166_op_rn_x(analysis, op, operand1, RZ_ANALYSIS_OP_TYPE_OR, true);
 		break;
-	case C166_OR_mem_reg:
 	case C166_OR_reg_data16:
-	case C166_OR_reg_mem:
-	case C166_ORB_mem_reg:
 	case C166_ORB_reg_data8:
-	case C166_ORB_reg_mem:
+	case C166_OR_mem_reg:
+	case C166_ORB_mem_reg:
+	case C166_OR_reg_mem:
+	case C166_ORB_reg_mem: {
 		op->type = RZ_ANALYSIS_OP_TYPE_OR;
-		c166_set_mimo_addr_from_reg(op, operand1);
+		const bool byte = buf[0] != C166_ADDB_mem_reg;
+		c166_op_src_mem_src_reg(analysis, op, instr, buf, byte);
 		break;
+	}
 	case C166_XOR_Rwn_Rwm:
 		c166_op_rn_rm(analysis, op, operand1, RZ_ANALYSIS_OP_TYPE_XOR, false);
 		break;
@@ -971,15 +1024,19 @@ static void c166_op_set_type(RZ_NONNULL C166_Inst *instr, RzAnalysis *analysis, 
 	case C166_XORB_Rbn_x:
 		c166_op_rn_x(analysis, op, operand1, RZ_ANALYSIS_OP_TYPE_XOR, true);
 		break;
-	case C166_XOR_mem_reg:
-	case C166_XOR_reg_data16:
-	case C166_XOR_reg_mem:
-	case C166_XORB_mem_reg:
 	case C166_XORB_reg_data8:
-	case C166_XORB_reg_mem:
+	case C166_XOR_reg_data16:
 		op->type = RZ_ANALYSIS_OP_TYPE_XOR;
-		c166_set_mimo_addr_from_reg(op, operand1);
 		break;
+	case C166_XOR_mem_reg:
+	case C166_XORB_mem_reg:
+	case C166_XOR_reg_mem:
+	case C166_XORB_reg_mem: {
+		op->type = RZ_ANALYSIS_OP_TYPE_XOR;
+		const bool byte = buf[0] != C166_ADDB_mem_reg;
+		c166_op_src_mem_src_reg(analysis, op, instr, buf, byte);
+		break;
+	}
 	case C166_NOP:
 		op->type = RZ_ANALYSIS_OP_TYPE_NOP;
 		break;
@@ -1017,8 +1074,10 @@ static void c166_op_set_type(RZ_NONNULL C166_Inst *instr, RzAnalysis *analysis, 
 	case C166_BSET_bitoff15:
 		op->type = RZ_ANALYSIS_OP_TYPE_STORE;
 		op->dst = c166_new_bitaddr_value(analysis, instr, operand1);
-		if (op->dst)
-			op->mmio_address = op->dst->base;
+		if (op->dst) {
+			op->mmios[op->mmios_count] = op->dst->base;
+			op->mmios_count++;
+		}
 		break;
 	case C166_BFLDH_bitoff_x:
 	case C166_BFLDL_bitoff_x:
@@ -1029,8 +1088,10 @@ static void c166_op_set_type(RZ_NONNULL C166_Inst *instr, RzAnalysis *analysis, 
 		op->type = RZ_ANALYSIS_OP_TYPE_MOV;
 		op->dst = c166_new_bitaddr_value(analysis, instr, operand1);
 		op->src[0] = c166_new_bitaddr_value(analysis, instr, get_operand(instr, 2));
-		if (op->dst)
-			op->mmio_address = op->dst->base;
+		if (op->dst) {
+			op->mmios[op->mmios_count] = op->dst->base;
+			op->mmios_count++;
+		}
 		break;
 	case C166_BCMP_bitaddr_bitaddr:
 		op->type = RZ_ANALYSIS_OP_TYPE_CMP;
@@ -1049,11 +1110,9 @@ static void c166_op_set_type(RZ_NONNULL C166_Inst *instr, RzAnalysis *analysis, 
 		break;
 	case C166_POP_reg:
 		op->type = RZ_ANALYSIS_OP_TYPE_POP;
-		c166_set_mimo_addr_from_reg(op, operand1);
 		break;
 	case C166_PUSH_reg:
 		op->type = RZ_ANALYSIS_OP_TYPE_PUSH;
-		c166_set_mimo_addr_from_reg(op, operand1);
 		break;
 	case C166_SHL_Rwn_Rwm:
 		c166_op_rn_rm(analysis, op, operand1, RZ_ANALYSIS_OP_TYPE_SHL, false);
@@ -1113,32 +1172,41 @@ static void c166_op_set_type(RZ_NONNULL C166_Inst *instr, RzAnalysis *analysis, 
 		break;
 	case C166_MOV_reg_data16:
 	case C166_MOVB_reg_data8:
-		c166_op_mov_reg_data(analysis, op, buf);
+		c166_op_mov_reg_data(analysis, op, instr, buf);
 		break;
 	case C166_MOV_reg_mem:
-	case C166_MOVB_reg_mem:
-		c166_op_mov_reg_mem(analysis, op, instr, buf);
+	case C166_MOVB_reg_mem: {
+		op->type = RZ_ANALYSIS_OP_TYPE_MOV;
+		const bool byte = buf[0] != C166_MOV_reg_mem;
+		c166_op_dst_reg_src_mem(analysis, op, instr, buf, byte);
 		break;
+	}
 	case C166_MOV_mem_reg:
 	case C166_MOVB_mem_reg:
 	case C166_MOVBS_mem_reg:
-	case C166_MOVBZ_mem_reg:
-		c166_op_mov_mem_reg(analysis, op, instr, buf);
+	case C166_MOVBZ_mem_reg: {
+		op->type = RZ_ANALYSIS_OP_TYPE_MOV;
+		const bool byte = buf[0] != C166_MOV_reg_mem;
+		c166_op_dst_reg_src_mem(analysis, op, instr, buf, byte);
 		break;
+	}
 	case C166_MOV_mem_oRwn:
 	case C166_MOVB_mem_oRwn:
 		op->type = RZ_ANALYSIS_OP_TYPE_MOV;
 		op->dst = c166_new_mem_value(analysis, instr, rz_read_at_le16(buf, 2));
 		if (op->dst) {
-			op->mmio_address = op->dst->base;
+			op->mmios[op->mmios_count] = op->dst->base;
+			op->mmios_count++;
 		}
 		break;
 	case C166_MOV_oRwn_mem:
 	case C166_MOVB_oRwn_mem: {
 		op->type = RZ_ANALYSIS_OP_TYPE_MOV;
 		op->src[0] = c166_new_mem_value(analysis, instr, rz_read_at_le16(buf, 2));
-		if (op->src[0])
-			op->mmio_address = op->src[0]->base;
+		if (op->src[0]) {
+			op->mmios[op->mmios_count] = op->src[0]->base;
+			op->mmios_count++;
+		}
 		break;
 	}
 	case C166_NEG_Rwn:
@@ -1181,14 +1249,14 @@ static void c166_op_set_type(RZ_NONNULL C166_Inst *instr, RzAnalysis *analysis, 
 	case C166_CMPI2_Rwn_mem:
 		op->type = RZ_ANALYSIS_OP_TYPE_CMP;
 		op->reg = c166_rw[operand1 & 0xF];
-		op->mmio_address = rz_read_at_le16(buf, 2);
+		op->mmios[op->mmios_count] = rz_read_at_le16(buf, 2);
+		op->mmios_count++;
 		break;
 	case C166_CMP_reg_data16:
 	case C166_CMP_reg_mem:
 	case C166_CMPB_reg_data8:
 	case C166_CMPB_reg_mem:
 		op->type = RZ_ANALYSIS_OP_TYPE_CMP;
-		c166_set_mimo_addr_from_reg(op, operand1);
 		break;
 	case C166_TRAP_trap7:
 		c166_op_trap7(analysis, op, buf);
@@ -1279,15 +1347,41 @@ static void c166_op_set_type(RZ_NONNULL C166_Inst *instr, RzAnalysis *analysis, 
 		op->type = RZ_ANALYSIS_OP_TYPE_UNK;
 		break;
 	case C166_BXOR_bitaddr_bitaddr:
+		op->type = RZ_ANALYSIS_OP_TYPE_XOR;
+		const ut8 qz = buf[3];
+
+		const ut8 q = H_NIB(qz);
+		const ut8 z = L_NIB(qz);
+
+		if (IS_RAM(z)) {
+			op->mmios[op->mmios_count] = BASE_RAM_B_ADDR + (2 * z);
+			op->mmios_count++;
+		}
+		if (IS_RAM(q)) {
+			op->mmios[op->mmios_count] = BASE_RAM_B_ADDR + (2 * q);
+			op->mmios_count++;
+		}
+		break;
 	case C166_BAND_bitaddr_bitaddr:
+		op->type = RZ_ANALYSIS_OP_TYPE_AND;
+		break;
 	case C166_BOR_bitaddr_bitaddr:
+		op->type = RZ_ANALYSIS_OP_TYPE_XOR;
 		break;
 	case C166_CoXXX_83:
-	case C166_CoMOV:
 	case C166_CoXXX_93:
 	case C166_CoXXX_A3:
+		break;
+	case C166_CoMOV:
+		op->type = RZ_ANALYSIS_OP_TYPE_MOV;
+		break;
 	case C166_CoSTORE_C3:
 	case C166_CoSTORE_B3:
+		op->type = RZ_ANALYSIS_OP_TYPE_STORE;
+		const ut8 extID = get_operand(instr, 2);
+		const ut8 wwwww = (extID >> 3);
+		op->mmios[op->mmios_count] = CoREG(wwwww);
+		op->mmios_count++;
 		break;
 	default:
 		RZ_LOG_DEBUG("c166_op_set_type 0x%02x\n", instr->id);
@@ -1313,14 +1407,14 @@ static int c166_op(RzAnalysis *analysis, RzAnalysisOp *op, ut64 addr, const ut8 
 		RZ_LOG_FATAL("C166State was NULL.");
 	}
 	if (!state->inited) {
-		rz_reg_setv(analysis->reg, "DPP0", 0x0);
-		rz_reg_setv(analysis->reg, "DPP1", 0x1);
-		rz_reg_setv(analysis->reg, "DPP2", 0x2);
-		rz_reg_setv(analysis->reg, "DPP3", 0x3);
-		rz_reg_setv(analysis->reg, "SP", 0xFC00);
-		rz_reg_setv(analysis->reg, "CP", 0xFC00);
-		rz_reg_setv(analysis->reg, "STKOV", 0xFA00);
-		rz_reg_setv(analysis->reg, "STKUN", 0xFC00);
+		// rz_reg_setv(analysis->reg, "DPP0", 0x0);
+		// rz_reg_setv(analysis->reg, "DPP1", 0x1);
+		// rz_reg_setv(analysis->reg, "DPP2", 0x2);
+		// rz_reg_setv(analysis->reg, "DPP3", 0x3);
+		// rz_reg_setv(analysis->reg, "SP", 0xFC00);
+		// rz_reg_setv(analysis->reg, "CP", 0xFC00);
+		// rz_reg_setv(analysis->reg, "STKOV", 0xFA00);
+		// rz_reg_setv(analysis->reg, "STKUN", 0xFC00);
 		state->inited = true;
 	}
 	C166_Inst instr = { 0 };
@@ -1348,12 +1442,14 @@ static int c166_op(RzAnalysis *analysis, RzAnalysisOp *op, ut64 addr, const ut8 
 		op->size = ret;
 		return op->size;
 	}
-	if (RZ_STR_ISEMPTY(instr.instr))
+	if (RZ_STR_ISEMPTY(instr.instr)) {
 		RZ_LOG_DEBUG("instr.addr: 0x%04x [0x%02x]\n", instr.addr, instr.id);
+	}
 	rz_warn_if_fail(RZ_STR_ISNOTEMPTY(instr.instr));
 	rz_warn_if_fail(ret == 1 || ret == 2 || ret == 4);
 
 	op->size = ret;
+	c166_op_set_type(&instr, analysis, op, buf);
 
 	if (mask & RZ_ANALYSIS_OP_MASK_DISASM) {
 		op->mnemonic = rz_str_newf("%s%s%s",
@@ -1364,20 +1460,22 @@ static int c166_op(RzAnalysis *analysis, RzAnalysisOp *op, ut64 addr, const ut8 
 	if (mask & RZ_ANALYSIS_OP_MASK_IL) {
 		rz_c166_il_opcode(analysis, op, addr, buf);
 	}
-	c166_op_set_type(&instr, analysis, op, buf);
+	c166_maybe_deactivate_ext(state, instr.addr);
+
 	return op->size;
 }
 
 static char *get_reg_profile(RzAnalysis *analysis) {
 	const char *p =
 		"=PC	IP\n"
-		"=SP	SP\n"
 		"=A0	r8\n"
 		"=A1	r9\n"
 		"=A2	r10\n"
 		"=A3	r11\n"
 
 		"gpr	IP	.32	0	0\n"
+		"gpr	SP	.16	64512	0\n" ///< FC00 == SP | Temporarily moved here to avoid confusion in rzil
+
 
 		"gpr	r0	.16	65040	0\n" // FE10 == CP
 		"gpr	r1	.16	65042	0\n"
@@ -1414,17 +1512,17 @@ static char *get_reg_profile(RzAnalysis *analysis) {
 		"gpr	rl7	.8	65054	0\n"
 		"gpr	rh7	.8	65055	0\n"
 
-		"seg	DPP0	.10	65024	0\n" ///< FE00; CPU Data Page Pointer 0 Register (10 bits)
-		"seg	DPP1	.10	65026	0\n" ///< FE02; CPU Data Page Pointer 1 Register (10 bits)
-		"seg	DPP2	.10	65028	0\n" ///< FE04; CPU Data Page Pointer 2 Register (10 bits)
-		"seg	DPP3	.10	65030	0\n" ///< FE06; CPU Data Page Pointer 3 Register (10 bits)
+		"gpr	DPP0	.10	65024	0\n" ///< FE00; CPU Data Page Pointer 0 Register (10 bits)
+		"gpr	DPP1	.10	65026	0\n" ///< FE02; CPU Data Page Pointer 1 Register (10 bits)
+		"gpr	DPP2	.10	65028	0\n" ///< FE04; CPU Data Page Pointer 2 Register (10 bits)
+		"gpr	DPP3	.10	65030	0\n" ///< FE06; CPU Data Page Pointer 3 Register (10 bits)
 		"gpr	CSP	.8	65032	0\n" ///< FE08; CPU Code Segment Pointer Register (8 bits, read only)
 
-		"gpr	r_FE0A	.16	65034	0\n" ///< FE0A; RESERVED
+		// "gpr	r_FE0A	.16	65034	0\n" ///< FE0A; RESERVED
 		"gpr	MDH	.16	65036	0\n" ///< FE0C; CPU Multiply Divide Register - High Word
 		"gpr	MDL	.16	65038	0\n" ///< FE0E; CPU Multiply Divide Register - Low Word
 		"gpr	CP	.16	65040	0\n" ///< FE10; CPU Context Pointer Register
-		"gpr	SP	.16	65042	0\n" ///< FE12; CPU System Stack Pointer Register
+		// "gpr	SP	.16	65042	0\n" ///< FE12; CPU System Stack Pointer Register
 		"gpr	STKOV	.16	65044	0\n" ///< FE14; CPU Stack Overflow Pointer Register
 		"gpr	STKUN	.16	65046	0\n" ///< FE16; CPU Stack Underflow Pointer Register
 		"gpr	CPUCON1	.16	65048	0\n" ///< FE18; CPU Core Control Register 1
@@ -1435,129 +1533,129 @@ static char *get_reg_profile(RzAnalysis *analysis) {
 		"flg	BP	.1	65048.1	0\n" ///< CPU Core: Enable Branch Prediction Unit
 		"flg	ZCJ	.1	65048.0	0\n" ///< CPU Core: Enable Zero Cycle Jump function
 		"gpr	CPUCON2	.16	65050	0\n" ///< FE1A; CPU Core Control Register 2
-		"gpr	r_FE1C	.16	65052	0\n" ///< FE1C; RESERVED
-		"gpr	r_FE1E	.16	65054	0\n" ///< FE1E; RESERVED
-		"gpr	r_FE20	.16	65056	0\n" ///< FE20; RESERVED
-		"gpr	r_FE22	.16	65058	0\n" ///< FE22; RESERVED
-		"gpr	r_FE24	.16	65060	0\n" ///< FE24; RESERVED
-		"gpr	r_FE26	.16	65062	0\n" ///< FE26; RESERVED
-		"gpr	r_FE28	.16	65064	0\n" ///< FE28; RESERVED
-		"gpr	r_FE2A	.16	65066	0\n" ///< FE2A; RESERVED
-		"gpr	r_FE2C	.16	65068	0\n" ///< FE2C; RESERVED
-		"gpr	r_FE2E	.16	65070	0\n" ///< FE2E; RESERVED
-		"gpr	r_FE30	.16	65072	0\n" ///< FE30; RESERVED
-		"gpr	r_FE32	.16	65074	0\n" ///< FE32; RESERVED
-		"gpr	r_FE34	.16	65076	0\n" ///< FE34; RESERVED
-		"gpr	r_FE36	.16	65078	0\n" ///< FE36; RESERVED
-		"gpr	r_FE38	.16	65080	0\n" ///< FE38; RESERVED
-		"gpr	r_FE3A	.16	65082	0\n" ///< FE3A; RESERVED
-		"gpr	r_FE3C	.16	65084	0\n" ///< FE3C; RESERVED
-		"gpr	r_FE3E	.16	65086	0\n" ///< FE3E; RESERVED
+		// "gpr	r_FE1C	.16	65052	0\n" ///< FE1C; RESERVED
+		// "gpr	r_FE1E	.16	65054	0\n" ///< FE1E; RESERVED
+		// "gpr	r_FE20	.16	65056	0\n" ///< FE20; RESERVED
+		// "gpr	r_FE22	.16	65058	0\n" ///< FE22; RESERVED
+		// "gpr	r_FE24	.16	65060	0\n" ///< FE24; RESERVED
+		// "gpr	r_FE26	.16	65062	0\n" ///< FE26; RESERVED
+		// "gpr	r_FE28	.16	65064	0\n" ///< FE28; RESERVED
+		// "gpr	r_FE2A	.16	65066	0\n" ///< FE2A; RESERVED
+		// "gpr	r_FE2C	.16	65068	0\n" ///< FE2C; RESERVED
+		// "gpr	r_FE2E	.16	65070	0\n" ///< FE2E; RESERVED
+		// "gpr	r_FE30	.16	65072	0\n" ///< FE30; RESERVED
+		// "gpr	r_FE32	.16	65074	0\n" ///< FE32; RESERVED
+		// "gpr	r_FE34	.16	65076	0\n" ///< FE34; RESERVED
+		// "gpr	r_FE36	.16	65078	0\n" ///< FE36; RESERVED
+		// "gpr	r_FE38	.16	65080	0\n" ///< FE38; RESERVED
+		// "gpr	r_FE3A	.16	65082	0\n" ///< FE3A; RESERVED
+		// "gpr	r_FE3C	.16	65084	0\n" ///< FE3C; RESERVED
+		// "gpr	r_FE3E	.16	65086	0\n" ///< FE3E; RESERVED
 		"gpr	T2	.16	65088	0\n" ///< FE40; GPT1 Timer 2 Register
 		"gpr	T3	.16	65090	0\n" ///< FE42; GPT1 Timer 3 Register
 		"gpr	T4	.16	65092	0\n" ///< FE44; GPT1 Timer 4 Register
 		"gpr	T5	.16	65094	0\n" ///< FE46; GPT2 Timer 5 Register
 		"gpr	T6	.16	65096	0\n" ///< FE48; GPT2 Timer 6 Register
 		"gpr	CAPREL	.16	65098	0\n" ///< FE4A; GPT2 Capture/Reload Register
-		"gpr	r_FE4C	.16	65100	0\n" ///< FE4C; RESERVED
-		"gpr	r_FE4E	.16	65102	0\n" ///< FE4E; RESERVED
+		// "gpr	r_FE4C	.16	65100	0\n" ///< FE4C; RESERVED
+		// "gpr	r_FE4E	.16	65102	0\n" ///< FE4E; RESERVED
 		"gpr	T0	.16	65104	0\n" ///< FE50; CAPCOM Timer 0 Register
 		"gpr	T1	.16	65106	0\n" ///< FE52; CAPCOM Timer 1 Register
 		"gpr	T0REL	.16	65108	0\n" ///< FE54; CAPCOM Timer 0 Reload Register
 		"gpr	T1REL	.16	65110	0\n" ///< FE56; CAPCOM Timer 1 Reload Register
-		"gpr	r_FE58	.16	65112	0\n" ///< FE58; RESERVED
-		"gpr	r_FE5A	.16	65114	0\n" ///< FE5A; RESERVED
-		"gpr	r_FE5C	.16	65116	0\n" ///< FE5C; RESERVED
-		"gpr	r_FE5E	.16	65118	0\n" ///< FE5E; RESERVED
-		"gpr	r_FE60	.16	65120	0\n" ///< FE60; RESERVED
-		"gpr	r_FE62	.16	65122	0\n" ///< FE62; RESERVED
-		"gpr	r_FE64	.16	65124	0\n" ///< FE64; RESERVED
-		"gpr	r_FE66	.16	65126	0\n" ///< FE66; RESERVED
-		"gpr	r_FE68	.16	65128	0\n" ///< FE68; RESERVED
-		"gpr	r_FE6A	.16	65130	0\n" ///< FE6A; RESERVED
-		"gpr	r_FE6C	.16	65132	0\n" ///< FE6C; RESERVED
-		"gpr	r_FE6E	.16	65134	0\n" ///< FE6E; RESERVED
-		"gpr	r_FE70	.16	65136	0\n" ///< FE70; RESERVED
-		"gpr	r_FE72	.16	65138	0\n" ///< FE72; RESERVED
-		"gpr	r_FE74	.16	65140	0\n" ///< FE74; RESERVED
-		"gpr	r_FE76	.16	65142	0\n" ///< FE76; RESERVED
-		"gpr	r_FE78	.16	65144	0\n" ///< FE78; RESERVED
-		"gpr	r_FE7A	.16	65146	0\n" ///< FE7A; RESERVED
-		"gpr	r_FE7C	.16	65148	0\n" ///< FE7C; RESERVED
-		"gpr	CC31	.16	65150	0\n" ///< FE7E; CAPCOM 2 Register 31
-		"gpr	CC0	.16	65152	0\n" ///< FE80; CAPCOM Register 0
-		"gpr	CC1	.16	65154	0\n" ///< FE82; CAPCOM Register 1
-		"gpr	CC2	.16	65156	0\n" ///< FE84; CAPCOM Register 2
-		"gpr	CC3	.16	65158	0\n" ///< FE86; CAPCOM Register 3
-		"gpr	CC4	.16	65160	0\n" ///< FE88; CAPCOM Register 4
-		"gpr	CC5	.16	65162	0\n" ///< FE8A; CAPCOM Register 5
-		"gpr	CC6	.16	65164	0\n" ///< FE8C; CAPCOM Register 6
-		"gpr	CC7	.16	65166	0\n" ///< FE8E; CAPCOM Register 7
-		"gpr	CC8	.16	65168	0\n" ///< FE90; CAPCOM Register 8
-		"gpr	CC9	.16	65170	0\n" ///< FE92; CAPCOM Register 9
-		"gpr	CC10	.16	65172	0\n" ///< FE94; CAPCOM Register 10
-		"gpr	CC11	.16	65174	0\n" ///< FE96; CAPCOM Register 11
-		"gpr	CC12	.16	65176	0\n" ///< FE98; CAPCOM Register 12
-		"gpr	CC13	.16	65178	0\n" ///< FE9A; CAPCOM Register 13
-		"gpr	CC14	.16	65180	0\n" ///< FE9C; CAPCOM Register 14
-		"gpr	CC15	.16	65182	0\n" ///< FE9E; CAPCOM Register 15
+		// "gpr	r_FE58	.16	65112	0\n" ///< FE58; RESERVED
+		// "gpr	r_FE5A	.16	65114	0\n" ///< FE5A; RESERVED
+		// "gpr	r_FE5C	.16	65116	0\n" ///< FE5C; RESERVED
+		// "gpr	r_FE5E	.16	65118	0\n" ///< FE5E; RESERVED
+		// "gpr	r_FE60	.16	65120	0\n" ///< FE60; RESERVED
+		// "gpr	r_FE62	.16	65122	0\n" ///< FE62; RESERVED
+		// "gpr	r_FE64	.16	65124	0\n" ///< FE64; RESERVED
+		// "gpr	r_FE66	.16	65126	0\n" ///< FE66; RESERVED
+		// "gpr	r_FE68	.16	65128	0\n" ///< FE68; RESERVED
+		// "gpr	r_FE6A	.16	65130	0\n" ///< FE6A; RESERVED
+		// "gpr	r_FE6C	.16	65132	0\n" ///< FE6C; RESERVED
+		// "gpr	r_FE6E	.16	65134	0\n" ///< FE6E; RESERVED
+		// "gpr	r_FE70	.16	65136	0\n" ///< FE70; RESERVED
+		// "gpr	r_FE72	.16	65138	0\n" ///< FE72; RESERVED
+		// "gpr	r_FE74	.16	65140	0\n" ///< FE74; RESERVED
+		// "gpr	r_FE76	.16	65142	0\n" ///< FE76; RESERVED
+		// "gpr	r_FE78	.16	65144	0\n" ///< FE78; RESERVED
+		// "gpr	r_FE7A	.16	65146	0\n" ///< FE7A; RESERVED
+		// "gpr	r_FE7C	.16	65148	0\n" ///< FE7C; RESERVED
+		// "gpr	CC31	.16	65150	0\n" ///< FE7E; CAPCOM 2 Register 31
+		// "gpr	CC0	.16	65152	0\n" ///< FE80; CAPCOM Register 0
+		// "gpr	CC1	.16	65154	0\n" ///< FE82; CAPCOM Register 1
+		// "gpr	CC2	.16	65156	0\n" ///< FE84; CAPCOM Register 2
+		// "gpr	CC3	.16	65158	0\n" ///< FE86; CAPCOM Register 3
+		// "gpr	CC4	.16	65160	0\n" ///< FE88; CAPCOM Register 4
+		// "gpr	CC5	.16	65162	0\n" ///< FE8A; CAPCOM Register 5
+		// "gpr	CC6	.16	65164	0\n" ///< FE8C; CAPCOM Register 6
+		// "gpr	CC7	.16	65166	0\n" ///< FE8E; CAPCOM Register 7
+		// "gpr	CC8	.16	65168	0\n" ///< FE90; CAPCOM Register 8
+		// "gpr	CC9	.16	65170	0\n" ///< FE92; CAPCOM Register 9
+		// "gpr	CC10	.16	65172	0\n" ///< FE94; CAPCOM Register 10
+		// "gpr	CC11	.16	65174	0\n" ///< FE96; CAPCOM Register 11
+		// "gpr	CC12	.16	65176	0\n" ///< FE98; CAPCOM Register 12
+		// "gpr	CC13	.16	65178	0\n" ///< FE9A; CAPCOM Register 13
+		// "gpr	CC14	.16	65180	0\n" ///< FE9C; CAPCOM Register 14
+		// "gpr	CC15	.16	65182	0\n" ///< FE9E; CAPCOM Register 15
 		"gpr	ADDAT	.16	65184	0\n" ///< FEA0; A/D Converter Result Register
-		"gpr	r_FEA2	.16	65186	0\n" ///< FEA2; RESERVED
-		"gpr	r_FEA4	.16	65188	0\n" ///< FEA4; RESERVED
-		"gpr	r_FEA6	.16	65190	0\n" ///< FEA6; RESERVED
-		"gpr	r_FEA8	.16	65192	0\n" ///< FEA8; RESERVED
-		"gpr	r_FEAA	.16	65194	0\n" ///< FEAA; RESERVED
-		"gpr	r_FEAC	.16	65196	0\n" ///< FEAC; RESERVED
+		// "gpr	r_FEA2	.16	65186	0\n" ///< FEA2; RESERVED
+		// "gpr	r_FEA4	.16	65188	0\n" ///< FEA4; RESERVED
+		// "gpr	r_FEA6	.16	65190	0\n" ///< FEA6; RESERVED
+		// "gpr	r_FEA8	.16	65192	0\n" ///< FEA8; RESERVED
+		// "gpr	r_FEAA	.16	65194	0\n" ///< FEAA; RESERVED
+		// "gpr	r_FEAC	.16	65196	0\n" ///< FEAC; RESERVED
 		"gpr	WDT	.16	65198	0\n" ///< FEAE; Watchdog Timer Register (read only)
-		"gpr	S0TBUF	.16	65200	0\n" ///< FEB0; Serial Channel 0 Transmit Buffer Register
-		"gpr	S0RBUF	.16	65202	0\n" ///< FEB2; Serial Channel 0 Receive Buffer Register (read only)
-		"gpr	S0BG	.16	65204	0\n" ///< FEB4; Serial Channel 0 Baud Rate Generator Reload Register
+		// "gpr	S0TBUF	.16	65200	0\n" ///< FEB0; Serial Channel 0 Transmit Buffer Register
+		// "gpr	S0RBUF	.16	65202	0\n" ///< FEB2; Serial Channel 0 Receive Buffer Register (read only)
+		// "gpr	S0BG	.16	65204	0\n" ///< FEB4; Serial Channel 0 Baud Rate Generator Reload Register
 
 		// "gpr			.8	65206	0\n" // FEB6;
 		// "gpr			.8	65207	0\n" // FEB7;
 
-		"gpr	S1TBUF	.16	65208	0\n" ///< FEB8; Serial Channel 1 Transmit Buffer Register
-		"gpr	S1RBUF	.16	65210	0\n" ///< FEBA; Serial Channel 1 Receive Buffer Register
-		"gpr	S1BG	.16	65212	0\n" ///< FEBC; Serial Channel 1 Baud Rate Generator/Reload Register
-		"gpr	r_FEBE	.16	65214	0\n" ///< FEBE; RESERVED
-		"gpr	PECC0	.16	65216	0\n" ///< FEC0; PEC Channel 0 Control Register
-		"gpr	PECC1	.16	65218	0\n" ///< FEC2; PEC Channel 1 Control Register
-		"gpr	PECC2	.16	65220	0\n" ///< FEC4; PEC Channel 2 Control Register
-		"gpr	PECC3	.16	65222	0\n" ///< FEC6; PEC Channel 3 Control Register
-		"gpr	PECC4	.16	65224	0\n" ///< FEC8; PEC Channel 4 Control Register
-		"gpr	PECC5	.16	65226	0\n" ///< FECA; PEC Channel 5 Control Register
-		"gpr	PECC6	.16	65228	0\n" ///< FECC; PEC Channel 6 Control Register
-		"gpr	PECC7	.16	65230	0\n" ///< FECE; PEC Channel 7 Control Register
-		"gpr	r_FED0	.16	65232	0\n" ///< FED0; RESERVED
-		"gpr	r_FED2	.16	65234	0\n" ///< FED2; RESERVED
-		"gpr	r_FED4	.16	65236	0\n" ///< FED4; RESERVED
-		"gpr	r_FED6	.16	65238	0\n" ///< FED6; RESERVED
-		"gpr	r_FED8	.16	65240	0\n" ///< FED8; RESERVED
-		"gpr	r_FEDA	.16	65242	0\n" ///< FEDA; RESERVED
-		"gpr	r_FEDC	.16	65244	0\n" ///< FEDC; RESERVED
-		"gpr	r_FEDE	.16	65246	0\n" ///< FEDE; RESERVED
-		"gpr	r_FEE0	.16	65248	0\n" ///< FEE0; RESERVED
-		"gpr	r_FEE2	.16	65250	0\n" ///< FEE2; RESERVED
-		"gpr	r_FEE4	.16	65252	0\n" ///< FEE4; RESERVED
-		"gpr	r_FEE6	.16	65254	0\n" ///< FEE6; RESERVED
-		"gpr	r_FEE8	.16	65256	0\n" ///< FEE8; RESERVED
-		"gpr	r_FEEA	.16	65258	0\n" ///< FEEA; RESERVED
-		"gpr	r_FEEC	.16	65260	0\n" ///< FEEC; RESERVED
-		"gpr	r_FEEE	.16	65262	0\n" ///< FEEE; RESERVED
-		"gpr	r_FEF0	.16	65264	0\n" ///< FEF0; RESERVED
-		"gpr	r_FEF2	.16	65266	0\n" ///< FEF2; RESERVED
-		"gpr	r_FEF4	.16	65268	0\n" ///< FEF4; RESERVED
-		"gpr	r_FEF6	.16	65270	0\n" ///< FEF6; RESERVED
-		"gpr	r_FEF8	.16	65272	0\n" ///< FEF8; RESERVED
-		"gpr	r_FEFA	.16	65274	0\n" ///< FEFA; RESERVED
-		"gpr	r_FEFC	.16	65276	0\n" ///< FEFC; RESERVED
-		"gpr	r_FEFE	.16	65278	0\n" ///< FEFE; RESERVED
-		"gpr	P0	.16	65280	0\n" ///< FF00; Port 0 Register
-		"gpr	DP0	.16	65282	0\n" ///< FF02; Port 0 Direction Control Register
-		"gpr	P1	.16	65284	0\n" ///< FF04; Port 1 Register
-		"gpr	DP1	.16	65286	0\n" ///< FF06; Port 1 Direction Control Register
-		"gpr	P4	.16	65288	0\n" ///< FF08; Port 4 Register (7 bits)
-		"gpr	DP4	.16	65290	0\n" ///< FF0A; Port 4 Direction Control Register
+		// "gpr	S1TBUF	.16	65208	0\n" ///< FEB8; Serial Channel 1 Transmit Buffer Register
+		// "gpr	S1RBUF	.16	65210	0\n" ///< FEBA; Serial Channel 1 Receive Buffer Register
+		// "gpr	S1BG	.16	65212	0\n" ///< FEBC; Serial Channel 1 Baud Rate Generator/Reload Register
+		// "gpr	r_FEBE	.16	65214	0\n" ///< FEBE; RESERVED
+		// "gpr	PECC0	.16	65216	0\n" ///< FEC0; PEC Channel 0 Control Register
+		// "gpr	PECC1	.16	65218	0\n" ///< FEC2; PEC Channel 1 Control Register
+		// "gpr	PECC2	.16	65220	0\n" ///< FEC4; PEC Channel 2 Control Register
+		// "gpr	PECC3	.16	65222	0\n" ///< FEC6; PEC Channel 3 Control Register
+		// "gpr	PECC4	.16	65224	0\n" ///< FEC8; PEC Channel 4 Control Register
+		// "gpr	PECC5	.16	65226	0\n" ///< FECA; PEC Channel 5 Control Register
+		// "gpr	PECC6	.16	65228	0\n" ///< FECC; PEC Channel 6 Control Register
+		// "gpr	PECC7	.16	65230	0\n" ///< FECE; PEC Channel 7 Control Register
+		// "gpr	r_FED0	.16	65232	0\n" ///< FED0; RESERVED
+		// "gpr	r_FED2	.16	65234	0\n" ///< FED2; RESERVED
+		// "gpr	r_FED4	.16	65236	0\n" ///< FED4; RESERVED
+		// "gpr	r_FED6	.16	65238	0\n" ///< FED6; RESERVED
+		// "gpr	r_FED8	.16	65240	0\n" ///< FED8; RESERVED
+		// "gpr	r_FEDA	.16	65242	0\n" ///< FEDA; RESERVED
+		// "gpr	r_FEDC	.16	65244	0\n" ///< FEDC; RESERVED
+		// "gpr	r_FEDE	.16	65246	0\n" ///< FEDE; RESERVED
+		// "gpr	r_FEE0	.16	65248	0\n" ///< FEE0; RESERVED
+		// "gpr	r_FEE2	.16	65250	0\n" ///< FEE2; RESERVED
+		// "gpr	r_FEE4	.16	65252	0\n" ///< FEE4; RESERVED
+		// "gpr	r_FEE6	.16	65254	0\n" ///< FEE6; RESERVED
+		// "gpr	r_FEE8	.16	65256	0\n" ///< FEE8; RESERVED
+		// "gpr	r_FEEA	.16	65258	0\n" ///< FEEA; RESERVED
+		// "gpr	r_FEEC	.16	65260	0\n" ///< FEEC; RESERVED
+		// "gpr	r_FEEE	.16	65262	0\n" ///< FEEE; RESERVED
+		// "gpr	r_FEF0	.16	65264	0\n" ///< FEF0; RESERVED
+		// "gpr	r_FEF2	.16	65266	0\n" ///< FEF2; RESERVED
+		// "gpr	r_FEF4	.16	65268	0\n" ///< FEF4; RESERVED
+		// "gpr	r_FEF6	.16	65270	0\n" ///< FEF6; RESERVED
+		// "gpr	r_FEF8	.16	65272	0\n" ///< FEF8; RESERVED
+		// "gpr	r_FEFA	.16	65274	0\n" ///< FEFA; RESERVED
+		// "gpr	r_FEFC	.16	65276	0\n" ///< FEFC; RESERVED
+		// "gpr	r_FEFE	.16	65278	0\n" ///< FEFE; RESERVED
+		// "gpr	P0	.16	65280	0\n" ///< FF00; Port 0 Register
+		// "gpr	DP0	.16	65282	0\n" ///< FF02; Port 0 Direction Control Register
+		// "gpr	P1	.16	65284	0\n" ///< FF04; Port 1 Register
+		// "gpr	DP1	.16	65286	0\n" ///< FF06; Port 1 Direction Control Register
+		// "gpr	P4	.16	65288	0\n" ///< FF08; Port 4 Register (7 bits)
+		// "gpr	DP4	.16	65290	0\n" ///< FF0A; Port 4 Direction Control Register
 		"gpr	SYSCON	.16	65292	0\n" ///< FF0C; CPU System Configuration Register
 		"gpr	MDC	.16	65294	0\n" ///< FF0E; CPU Multiply/   Divide Control Register
 		"gpr	PSW	.16	65296	0\n" ///< FF10; CPU Program Status Word
@@ -1566,108 +1664,108 @@ static char *get_reg_profile(RzAnalysis *analysis) {
 		"flg	v	.1	65296.2	0\n"
 		"flg	c	.1	65296.1	0\n"
 		"flg	n	.1	65296.0	0\n"
-		"gpr	r_FF12	.16	65298	0\n" ///< FF12; RESERVED
-		"gpr	r_FF14	.16	65300	0\n" ///< FF14; RESERVED
-		"gpr	r_FF16	.16	65302	0\n" ///< FF16; RESERVED
-		"gpr	r_FF18	.16	65304	0\n" ///< FF18; RESERVED
-		"gpr	r_FF1A	.16	65306	0\n" ///< FF1A; RESERVED
+		"gpr	BUSCON0	.16	65298	0\n" ///< FF12; RESERVED
+		"gpr	BUSCON1	.16	65300	0\n" ///< FF14; RESERVED
+		"gpr	BUSCON2	.16	65302	0\n" ///< FF16; RESERVED
+		"gpr	BUSCON3	.16	65304	0\n" ///< FF18; RESERVED
+		"gpr	BUSCON4	.16	65306	0\n" ///< FF1A; RESERVED
 		"gpr	ZEROS	.16	65308	0\n" ///< FF1C; Constant Value 0's Register (read only)
 		"gpr	ONES	.16	65310	0\n" ///< FF1E; Constant Value 1's Register (read only)
-		"gpr	r_FF20	.16	65312	0\n" ///< FF20; RESERVED
-		"gpr	r_FF22	.16	65314	0\n" ///< FF22; RESERVED
-		"gpr	r_FF24	.16	65316	0\n" ///< FF24; RESERVED
-		"gpr	r_FF26	.16	65318	0\n" ///< FF26; RESERVED
-		"gpr	r_FF28	.16	65320	0\n" ///< FF28; RESERVED
-		"gpr	r_FF2A	.16	65322	0\n" ///< FF2A; RESERVED
-		"gpr	r_FF2C	.16	65324	0\n" ///< FF2C; RESERVED
-		"gpr	r_FF2E	.16	65326	0\n" ///< FF2E; RESERVED
-		"gpr	r_FF30	.16	65328	0\n" ///< FF30; RESERVED
-		"gpr	r_FF32	.16	65330	0\n" ///< FF32; RESERVED
-		"gpr	r_FF34	.16	65332	0\n" ///< FF34; RESERVED
-		"gpr	r_FF36	.16	65334	0\n" ///< FF36; RESERVED
-		"gpr	r_FF38	.16	65336	0\n" ///< FF38; RESERVED
-		"gpr	r_FF3A	.16	65338	0\n" ///< FF3A; RESERVED
-		"gpr	r_FF3C	.16	65340	0\n" ///< FF3C; RESERVED
-		"gpr	r_FF3E	.16	65342	0\n" ///< FF3E; RESERVED
-		"gpr	T2CON	.16	65344	0\n" ///< FF40; GPT1 Timer 2 Control Register
-		"gpr	T3CON	.16	65346	0\n" ///< FF42; GPT1 Timer 3 Control Register
-		"gpr	T4CON	.16	65348	0\n" ///< FF44; GPT1 Timer 4 Control Register
-		"gpr	T5CON	.16	65350	0\n" ///< FF46; GPT2 Timer 5 Control Register
-		"gpr	T6CON	.16	65352	0\n" ///< FF48; GPT2 Timer 6 Control Register
-		"gpr	r_FF4A	.16	65354	0\n" ///< FF4A; RESERVED
-		"gpr	r_FF4C	.16	65356	0\n" ///< FF4C; RESERVED
-		"gpr	r_FF4E	.16	65358	0\n" ///< FF4E; RESERVED
-		"gpr	T01CON	.16	65360	0\n" ///< FF50; CAPCOM Timer 0 and Timer 1 Ctrl. Reg.
-		"gpr	CCM0	.16	65362	0\n" ///< FF52; CAPCOM Mode Control Register 0
-		"gpr	CCM1	.16	65364	0\n" ///< FF54; CAPCOM Mode Control Register 1
-		"gpr	CCM2	.16	65366	0\n" ///< FF56; CAPCOM Mode Control Register 2
-		"gpr	CCM3	.16	65368	0\n" ///< FF58; CAPCOM Mode Control Register 3
-		"gpr	r_FF5A	.16	65370	0\n" ///< FF5A; RESERVED
-		"gpr	r_FF5C	.16	65372	0\n" ///< FF5C; RESERVED
-		"gpr	r_FF5E	.16	65374	0\n" ///< FF5E; RESERVED
+		// "gpr	r_FF20	.16	65312	0\n" ///< FF20; RESERVED
+		// "gpr	r_FF22	.16	65314	0\n" ///< FF22; RESERVED
+		// "gpr	r_FF24	.16	65316	0\n" ///< FF24; RESERVED
+		// "gpr	r_FF26	.16	65318	0\n" ///< FF26; RESERVED
+		// "gpr	r_FF28	.16	65320	0\n" ///< FF28; RESERVED
+		// "gpr	r_FF2A	.16	65322	0\n" ///< FF2A; RESERVED
+		// "gpr	r_FF2C	.16	65324	0\n" ///< FF2C; RESERVED
+		// "gpr	r_FF2E	.16	65326	0\n" ///< FF2E; RESERVED
+		// "gpr	r_FF30	.16	65328	0\n" ///< FF30; RESERVED
+		// "gpr	r_FF32	.16	65330	0\n" ///< FF32; RESERVED
+		// "gpr	r_FF34	.16	65332	0\n" ///< FF34; RESERVED
+		// "gpr	r_FF36	.16	65334	0\n" ///< FF36; RESERVED
+		// "gpr	r_FF38	.16	65336	0\n" ///< FF38; RESERVED
+		// "gpr	r_FF3A	.16	65338	0\n" ///< FF3A; RESERVED
+		// "gpr	r_FF3C	.16	65340	0\n" ///< FF3C; RESERVED
+		// "gpr	r_FF3E	.16	65342	0\n" ///< FF3E; RESERVED
+		// "gpr	T2CON	.16	65344	0\n" ///< FF40; GPT1 Timer 2 Control Register
+		// "gpr	T3CON	.16	65346	0\n" ///< FF42; GPT1 Timer 3 Control Register
+		// "gpr	T4CON	.16	65348	0\n" ///< FF44; GPT1 Timer 4 Control Register
+		// "gpr	T5CON	.16	65350	0\n" ///< FF46; GPT2 Timer 5 Control Register
+		// "gpr	T6CON	.16	65352	0\n" ///< FF48; GPT2 Timer 6 Control Register
+		// "gpr	r_FF4A	.16	65354	0\n" ///< FF4A; RESERVED
+		// "gpr	r_FF4C	.16	65356	0\n" ///< FF4C; RESERVED
+		// "gpr	r_FF4E	.16	65358	0\n" ///< FF4E; RESERVED
+		// "gpr	T01CON	.16	65360	0\n" ///< FF50; CAPCOM Timer 0 and Timer 1 Ctrl. Reg.
+		// "gpr	CCM0	.16	65362	0\n" ///< FF52; CAPCOM Mode Control Register 0
+		// "gpr	CCM1	.16	65364	0\n" ///< FF54; CAPCOM Mode Control Register 1
+		// "gpr	CCM2	.16	65366	0\n" ///< FF56; CAPCOM Mode Control Register 2
+		// "gpr	CCM3	.16	65368	0\n" ///< FF58; CAPCOM Mode Control Register 3
+		// "gpr	r_FF5A	.16	65370	0\n" ///< FF5A; RESERVED
+		// "gpr	r_FF5C	.16	65372	0\n" ///< FF5C; RESERVED
+		// "gpr	r_FF5E	.16	65374	0\n" ///< FF5E; RESERVED
 
-		"gpr	T2IC	.16	65376	0\n" ///< FF60; GPT1 Timer 2 Interrupt Control Register
-		"gpr	T3IC	.16	65378	0\n" ///< FF62; GPT1 Timer 3 Interrupt Control Register
-		"gpr	T4IC	.16	65380	0\n" ///< FF64; GPT1 Timer 4 Interrupt Control Register
-		"gpr	T5IC	.16	65382	0\n" ///< FF66; GPT2 Timer 5 Interrupt Control Register
-		"gpr	T6IC	.16	65384	0\n" ///< FF68; GPT2 Timer 6 Interrupt Control Register
-		"gpr	CRIC	.16	65386	0\n" ///< FF6A; GPT2 CAPREL Interrupt Control Register
-		"gpr	S0TIC	.16	65388	0\n" ///< FF6C; Serial Channel 0 Transmit Interrupt Control Register
-		"gpr	S0RIC	.16	65390	0\n" ///< FF6E; Serial Channel 0 Receive Interrupt Control Register
-		"gpr	S0EIC	.16	65392	0\n" ///< FF70; Serial Channel 0 Error Interrupt Ctrl. Reg.
-		"gpr	S1TIC	.16	65394	0\n" ///< FF72; Serial Channel 1 Transmit Interrupt Control
-		"gpr	S1RIC	.16	65396	0\n" ///< FF74; Serial Channel 1 Receive Interrupt Control
-		"gpr	S1EIC	.16	65398	0\n" ///< FF76; Serial Channel 1 Error Interrupt control
-		"gpr	CC0IC	.16	65400	0\n" ///< FF78; CAPCOM Register 0 Interrupt Ctrl. Reg.
-		"gpr	CC1IC	.16	65402	0\n" ///< FF7A; CAPCOM Register 1 Interrupt Ctrl. Reg.
-		"gpr	CC2IC	.16	65404	0\n" ///< FF7C; CAPCOM Register 2 Interrupt Ctrl. Reg.
-		"gpr	CC3IC	.16	65406	0\n" ///< FF7E; CAPCOM Register 3 Interrupt Ctrl. Reg.
-		"gpr	CC4IC	.16	65408	0\n" ///< FF80; CAPCOM Register 4 Interrupt Ctrl. Reg.
-		"gpr	CC5IC	.16	65410	0\n" ///< FF82; CAPCOM Register 5 Interrupt Ctrl. Reg.
-		"gpr	CC6IC	.16	65412	0\n" ///< FF84; CAPCOM Register 6Interrupt Ctrl. Reg.
-		"gpr	CC7IC	.16	65414	0\n" ///< FF86; CAPCOM Register 7 Interrupt Ctrl. Reg.
-		"gpr	CC8IC	.16	65416	0\n" ///< FF88; CAPCOM Register 8 Interrupt Ctrl. Reg.
-		"gpr	CC9IC	.16	65418	0\n" ///< FF8A; CAPCOM Register 9 Interrupt Ctrl. Reg.
-		"gpr	CC10IC	.16	65420	0\n" ///< FF8C; CAPCOM Register 10 Interrupt Ctrl. Reg.
-		"gpr	CC11IC	.16	65422	0\n" ///< FF8E; CAPCOM Register 11 Interrupt Ctrl. Reg.
-		"gpr	CC12IC	.16	65424	0\n" ///< FF90; CAPCOM Register 12 Interrupt Ctrl. Reg.
-		"gpr	CC13IC	.16	65426	0\n" ///< FF92; CAPCOM Register 13 Interrupt Ctrl. Reg.
-		"gpr	CC14IC	.16	65428	0\n" ///< FF94; CAPCOM Register 14 Interrupt Ctrl. Reg.
-		"gpr	CC15IC	.16	65430	0\n" ///< FF96; CAPCOM Register 15 Interrupt Ctrl. Reg.
-		"gpr	ADCIC	.16	65432	0\n" ///< FF98; A/D Converter End of Conversion Interrupt Control Register
-		"gpr	ADEIC	.16	65434	0\n" ///< FF9A; A/D Converter Overrun Error Interrupt Control Register
-		"gpr	T0IC	.16	65436	0\n" ///< FF9C; CAPCOM Timer 0 Interrupt Ctrl. Reg.
-		"gpr	T1IC	.16	65438	0\n" ///< FF9E; CAPCOM Timer 1 Interrupt Ctrl. Reg.
-		"gpr	ADCON	.16	65440	0\n" ///< FFA0; A/D Converter Control Register
-		"gpr	P5	.16	65442	0\n" ///< FFA2; Port 5 Register (read only)
-		"gpr	r_FFA4	.16	65444	0\n" ///< FFA4; RESERVED
-		"gpr	r_FFA6	.16	65446	0\n" ///< FFA6; RESERVED
-		"gpr	r_FFA8	.16	65448	0\n" ///< FFA8; RESERVED
-		"gpr	r_FFAA	.16	65450	0\n" ///< FFAA; RESERVED
+		// "gpr	T2IC	.16	65376	0\n" ///< FF60; GPT1 Timer 2 Interrupt Control Register
+		// "gpr	T3IC	.16	65378	0\n" ///< FF62; GPT1 Timer 3 Interrupt Control Register
+		// "gpr	T4IC	.16	65380	0\n" ///< FF64; GPT1 Timer 4 Interrupt Control Register
+		// "gpr	T5IC	.16	65382	0\n" ///< FF66; GPT2 Timer 5 Interrupt Control Register
+		// "gpr	T6IC	.16	65384	0\n" ///< FF68; GPT2 Timer 6 Interrupt Control Register
+		// "gpr	CRIC	.16	65386	0\n" ///< FF6A; GPT2 CAPREL Interrupt Control Register
+		// "gpr	S0TIC	.16	65388	0\n" ///< FF6C; Serial Channel 0 Transmit Interrupt Control Register
+		// "gpr	S0RIC	.16	65390	0\n" ///< FF6E; Serial Channel 0 Receive Interrupt Control Register
+		// "gpr	S0EIC	.16	65392	0\n" ///< FF70; Serial Channel 0 Error Interrupt Ctrl. Reg.
+		// "gpr	S1TIC	.16	65394	0\n" ///< FF72; Serial Channel 1 Transmit Interrupt Control
+		// "gpr	S1RIC	.16	65396	0\n" ///< FF74; Serial Channel 1 Receive Interrupt Control
+		// "gpr	S1EIC	.16	65398	0\n" ///< FF76; Serial Channel 1 Error Interrupt control
+		// "gpr	CC0IC	.16	65400	0\n" ///< FF78; CAPCOM Register 0 Interrupt Ctrl. Reg.
+		// "gpr	CC1IC	.16	65402	0\n" ///< FF7A; CAPCOM Register 1 Interrupt Ctrl. Reg.
+		// "gpr	CC2IC	.16	65404	0\n" ///< FF7C; CAPCOM Register 2 Interrupt Ctrl. Reg.
+		// "gpr	CC3IC	.16	65406	0\n" ///< FF7E; CAPCOM Register 3 Interrupt Ctrl. Reg.
+		// "gpr	CC4IC	.16	65408	0\n" ///< FF80; CAPCOM Register 4 Interrupt Ctrl. Reg.
+		// "gpr	CC5IC	.16	65410	0\n" ///< FF82; CAPCOM Register 5 Interrupt Ctrl. Reg.
+		// "gpr	CC6IC	.16	65412	0\n" ///< FF84; CAPCOM Register 6Interrupt Ctrl. Reg.
+		// "gpr	CC7IC	.16	65414	0\n" ///< FF86; CAPCOM Register 7 Interrupt Ctrl. Reg.
+		// "gpr	CC8IC	.16	65416	0\n" ///< FF88; CAPCOM Register 8 Interrupt Ctrl. Reg.
+		// "gpr	CC9IC	.16	65418	0\n" ///< FF8A; CAPCOM Register 9 Interrupt Ctrl. Reg.
+		// "gpr	CC10IC	.16	65420	0\n" ///< FF8C; CAPCOM Register 10 Interrupt Ctrl. Reg.
+		// "gpr	CC11IC	.16	65422	0\n" ///< FF8E; CAPCOM Register 11 Interrupt Ctrl. Reg.
+		// "gpr	CC12IC	.16	65424	0\n" ///< FF90; CAPCOM Register 12 Interrupt Ctrl. Reg.
+		// "gpr	CC13IC	.16	65426	0\n" ///< FF92; CAPCOM Register 13 Interrupt Ctrl. Reg.
+		// "gpr	CC14IC	.16	65428	0\n" ///< FF94; CAPCOM Register 14 Interrupt Ctrl. Reg.
+		// "gpr	CC15IC	.16	65430	0\n" ///< FF96; CAPCOM Register 15 Interrupt Ctrl. Reg.
+		// "gpr	ADCIC	.16	65432	0\n" ///< FF98; A/D Converter End of Conversion Interrupt Control Register
+		// "gpr	ADEIC	.16	65434	0\n" ///< FF9A; A/D Converter Overrun Error Interrupt Control Register
+		// "gpr	T0IC	.16	65436	0\n" ///< FF9C; CAPCOM Timer 0 Interrupt Ctrl. Reg.
+		// "gpr	T1IC	.16	65438	0\n" ///< FF9E; CAPCOM Timer 1 Interrupt Ctrl. Reg.
+		// "gpr	ADCON	.16	65440	0\n" ///< FFA0; A/D Converter Control Register
+		// "gpr	P5	.16	65442	0\n" ///< FFA2; Port 5 Register (read only)
+		// "gpr	r_FFA4	.16	65444	0\n" ///< FFA4; RESERVED
+		// "gpr	r_FFA6	.16	65446	0\n" ///< FFA6; RESERVED
+		// "gpr	r_FFA8	.16	65448	0\n" ///< FFA8; RESERVED
+		// "gpr	r_FFAA	.16	65450	0\n" ///< FFAA; RESERVED
 		"gpr	TFR	.16	65452	0\n" ///< FFAC; Trap Flag Register
 		"gpr	WDTCON	.16	65454	0\n" ///< FFAE; Watchdog Timer Control Register
 		"gpr	S0CON	.16	65456	0\n" ///< FFB0; Serial Channel 0 Control Register
-		"gpr	r_FFB2	.16	65458	0\n" ///< FFB2; RESERVED
-		"gpr	r_FFB4	.16	65460	0\n" ///< FFB4; RESERVED
-		"gpr	r_FFB6	.16	65462	0\n" ///< FFB6; RESERVED
-		"gpr	S1CON	.16	65464	0\n" ///< FFB8; Serial Channel 1 Control Register
-		"gpr	r_FFBA	.16	65466	0\n" ///< FFBA; RESERVED
-		"gpr	r_FFBC	.16	65468	0\n" ///< FFBC; RESERVED
-		"gpr	r_FFBE	.16	65470	0\n" ///< FFBE; RESERVED
-		"gpr	P2	.16	65472	0\n" ///< FFC0; Port 2 Register
-		"gpr	DP2	.16	65474	0\n" ///< FFC2; Port 2 Direction Control Register
-		"gpr	P3	.16	65476	0\n" ///< FFC4; Port 3 Register
-		"gpr	DP3	.16	65478	0\n" ///< FFC6; Port 3 Direction Control Register
+		// "gpr	r_FFB2	.16	65458	0\n" ///< FFB2; RESERVED
+		// "gpr	r_FFB4	.16	65460	0\n" ///< FFB4; RESERVED
+		// "gpr	r_FFB6	.16	65462	0\n" ///< FFB6; RESERVED
+		// "gpr	S1CON	.16	65464	0\n" ///< FFB8; Serial Channel 1 Control Register
+		// "gpr	r_FFBA	.16	65466	0\n" ///< FFBA; RESERVED
+		// "gpr	r_FFBC	.16	65468	0\n" ///< FFBC; RESERVED
+		// "gpr	r_FFBE	.16	65470	0\n" ///< FFBE; RESERVED
+		// "gpr	P2	.16	65472	0\n" ///< FFC0; Port 2 Register
+		// "gpr	DP2	.16	65474	0\n" ///< FFC2; Port 2 Direction Control Register
+		// "gpr	P3	.16	65476	0\n" ///< FFC4; Port 3 Register
+		// "gpr	DP3	.16	65478	0\n" ///< FFC6; Port 3 Direction Control Register
 
-		"gpr	r_FFC8	.16	65480	0\n" ///< FFC8; RESERVED
-		"gpr	r_FFCA	.16	65482	0\n" ///< FFCA; RESERVED
-		"gpr	r_FFCC	.16	65484	0\n" ///< FFCC; RESERVED
-		"gpr	r_FFCE	.16	65486	0\n" ///< FFCE; RESERVED
-		"gpr	r_FFD0	.16	65488	0\n" ///< FFD0; RESERVED
-		"gpr	r_FFD2	.16	65490	0\n" ///< FFD2; RESERVED
-		"gpr	r_FFD4	.16	65492	0\n" ///< FFD4; RESERVED
-		"gpr	r_FFD6	.16	65494	0\n" ///< FFD6; RESERVED
-		"gpr	r_FFD8	.16	65496	0\n" ///< FFD8; RESERVED
+		// "gpr	r_FFC8	.16	65480	0\n" ///< FFC8; RESERVED
+		// "gpr	r_FFCA	.16	65482	0\n" ///< FFCA; RESERVED
+		// "gpr	r_FFCC	.16	65484	0\n" ///< FFCC; RESERVED
+		// "gpr	r_FFCE	.16	65486	0\n" ///< FFCE; RESERVED
+		"gpr	P7	.16	65488	0\n" ///< FFD0; RESERVED
+		// "gpr	r_FFD2	.16	65490	0\n" ///< FFD2; RESERVED
+		"gpr	P8	.16	65492	0\n" ///< FFD4; RESERVED
+		// "gpr	r_FFD6	.16	65494	0\n" ///< FFD6; RESERVED
+		// "gpr	r_FFD8	.16	65496	0\n" ///< FFD8; RESERVED
 		"gpr	MRW	.16	65498	0\n" ///< FFDA; MAC Repeat Word
 		"gpr	MCW	.16	65500	0\n" ///< FFDC; MAC Control Word
 		"gpr	MSW	.16	65502	0"; ///< FFDE; MAC Status Word

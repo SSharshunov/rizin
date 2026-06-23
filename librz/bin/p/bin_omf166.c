@@ -98,14 +98,13 @@ static bool check_buffer(RzBuffer *b) {
 }
 
 static RzPVector /*<RzBinAddr *>*/ *entries(RzBinFile *bf) {
-	RzPVector *ret;
-	RzBinAddr *addr;
-	rz_bin_omf166_obj *obj = (rz_bin_omf166_obj *)bf->o->bin_obj;
-
-	if (!((ret = rz_pvector_new(free)))) {
+	const rz_bin_omf166_obj *obj = (rz_bin_omf166_obj *)bf->o->bin_obj;
+	RzPVector *ret = rz_pvector_new(free);
+	if (!ret) {
 		return NULL;
 	}
-	if (!((addr = RZ_NEW0(RzBinAddr)))) {
+	RzBinAddr *addr = RZ_NEW0(RzBinAddr);
+	if (!addr) {
 		rz_pvector_free(ret);
 		return NULL;
 	}
@@ -130,7 +129,8 @@ static RzPVector /*<RzBinMap *>*/ *maps(RzBinFile *bf) {
 	void **it;
 	rz_pvector_foreach (obj->pe_vec, it) {
 		const OMF_pes *pe = (OMF_pes *)*it;
-		if (!((map = RZ_NEW0(RzBinMap)))) {
+		map = RZ_NEW0(RzBinMap);
+		if (!map) {
 			rz_pvector_free(ret);
 			return NULL;
 		}
@@ -141,6 +141,7 @@ static RzPVector /*<RzBinMap *>*/ *maps(RzBinFile *bf) {
 		map->name = rz_str_dup(get_data_type(pe->data_type));
 		rz_pvector_push(ret, map);
 	}
+
 	return ret;
 }
 
@@ -165,13 +166,13 @@ static RzPVector /*<RzBinSection *>*/ *sections(RzBinFile *bf) {
 			return NULL;
 		}
 
-		OMF_lnames *lname = (OMF_lnames *)rz_pvector_at(obj->lnames_vec, section->index);
+		const OMF_lnames *lname = (OMF_lnames *)rz_pvector_at(obj->lnames_vec, section->index);
 		if (!lname) {
 			rz_warn_if_reached();
 			RZ_FREE(new);
 			continue;
 		}
-		OMF_lnames *c_lname = (OMF_lnames *)rz_pvector_at(obj->lnames_vec, section->class_index);
+		const OMF_lnames *c_lname = (OMF_lnames *)rz_pvector_at(obj->lnames_vec, section->class_index);
 		if (!c_lname) {
 			rz_warn_if_reached();
 			RZ_FREE(new);
@@ -401,12 +402,13 @@ static RzPVector /*<RzBinString *>*/ *strings(RzBinFile *bf) {
 
 static RzBinAddr *binsym(RzBinFile *bf, RzBinSpecialSymbol type) {
 	RzBinAddr *ptr = NULL;
-	rz_bin_omf166_obj *obj = (rz_bin_omf166_obj *)bf->o->bin_obj;
+	const rz_bin_omf166_obj *obj = (rz_bin_omf166_obj *)bf->o->bin_obj;
 
 	switch (type) {
 	case RZ_BIN_SPECIAL_SYMBOL_ENTRY:
 		// entrypoint is always RESET vector (0xC00000)
-		if (!((ptr = RZ_NEW0(RzBinAddr)))) {
+		ptr = RZ_NEW0(RzBinAddr);
+		if (!ptr) {
 			RZ_FREE(ptr);
 			return NULL;
 		}
@@ -414,7 +416,8 @@ static RzBinAddr *binsym(RzBinFile *bf, RzBinSpecialSymbol type) {
 		ptr->vaddr = obj->base_addr;
 		return ptr;
 	case RZ_BIN_SPECIAL_SYMBOL_MAIN:
-		if (!((ptr = RZ_NEW0(RzBinAddr)))) {
+		ptr = RZ_NEW0(RzBinAddr);
+		if (!ptr) {
 			return NULL;
 		}
 		if (!rz_bin_omf166_get_entry(bf->o->bin_obj, ptr)) {
@@ -429,7 +432,7 @@ static RzBinAddr *binsym(RzBinFile *bf, RzBinSpecialSymbol type) {
 }
 
 static ut64 baddr(RzBinFile *bf) {
-	rz_bin_omf166_obj *obj = (rz_bin_omf166_obj *)bf->o->bin_obj;
+	const rz_bin_omf166_obj *obj = (rz_bin_omf166_obj *)bf->o->bin_obj;
 	return obj->base_addr;
 }
 

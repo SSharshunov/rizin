@@ -109,7 +109,7 @@ d "bclr r3.0" 0EF3
 d "bclr 0xfd98.11" be4c
 
 d "bcmp r0.7, r1.14" 2af1f0e7
-
+d "bcmp r2.0, r2.8" 2af2f280
 d "bfldh r1, #0x80, #0xff"  1AF1FF80
 d "bfldh r1, #0xff, #0x80"  1AF180FF
 d "bfldl r1, #0x80, #0xff"  0AF180FF
@@ -382,6 +382,7 @@ d "mov r5, 0xfe00:0x0002" F2F50200
 d "mov r4, 0xfe00:0x0000" F2F40000
 d "mov [r4+#0x0002], r5" C4540200
 d "mov r8, #0x0002" E6F80200
+d "mov 0xfe16, #0xf800" E60B00F8
 
 # from Directives/Reference/NODdppSAVE
 # dpp0=0xfe00 dpp3=0xfe06 CP=0xfe10

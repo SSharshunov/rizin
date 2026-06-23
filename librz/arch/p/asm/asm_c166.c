@@ -357,6 +357,7 @@ static st32 disassemble(const RzAsm *a, RzAsmOp *op, const ut8 *buf, st32 len) {
 		return op->size;
 	}
 	op->size = c166_decode_command(state, &inst, buf, len);
+	c166_maybe_deactivate_ext(state, inst.addr);
 
 	if (op->size == 4 && len == 3) {
 		rz_asm_op_setf_asm(op, FMT_2WORD, buf[0], buf[1], buf[2], 0x00);
@@ -397,6 +398,7 @@ static RZ_OWN RzPVector /*<RzAsmTokenPattern *>*/ *get_token_patterns() {
 		return NULL;
 	}
 	TOKEN(META, "^(.word.*)");
+	// TOKEN(NUMBER, "#(0x[0-9a-f]{1,8})");
 	TOKEN(REGISTER, "(0xf[a-f][0-9a-f]{2})"); ///< 0xfe00:0x0246
 	// Hexadecimal numbers
 	TOKEN(SEPARATOR, "([\\s.,:#]+)");
@@ -466,8 +468,8 @@ static bool c16x_fini(void *user) {
 static char **c166_cpu_descriptions() {
 	static char *cpu_desc[] = {
 		"c166-generic", "Siemens/Infineon C166 family",
-		"c166v1", "Siemens/Infineon C16x v1 family",
-		"c166v2", "Siemens/Infineon C16x v2 family",
+		// "c166v1", "Siemens/Infineon C16x v1 family",
+		// "c166v2", "Siemens/Infineon C16x v2 family",
 		NULL
 	};
 	return cpu_desc;
@@ -484,9 +486,9 @@ RzAsmPlugin rz_asm_plugin_c166 = {
 	.init = &c16x_init,
 	.fini = &c16x_fini,
 	.cpus =
-		"c166-generic,"
-		"c166v1,"
-		"c166v2",
+		"c166-generic,",
+		// "c166v1,"
+		// "c166v2"
 	.get_cpu_desc = c166_cpu_descriptions,
 };
 

@@ -9,21 +9,28 @@
 #include <rz_analysis.h>
 #include <analysis_private.h>
 
+#define C166_BYTESIZE_INVALID (-1)
+#define C166_BYTESIZE_2 2
+#define C166_BYTESIZE_4 4
+
+#define H_NIB(x) (((x) & 0xF0) >> 4) ///< High nibble
+#define L_NIB(x) ((x) & 0x0F) ///< Low nibble
+
 // Core Special Function Registers (CSFR)
-#define BASE_GPR_ADDR    0xFE10 ///< Base address for calculate GPR physical address (also REG_CP)
-#define BASE_SFR_ADDR    0xFE00 ///< Base address for calculate SFR physical address (also REG_DPP0)
-#define BASE_ESFR_ADDR   0xF000 ///< Base address for calculate ESFR physical address
-#define BASE_RAM_B_ADDR  0xFD00 ///< Base address for calculate RAM physical address (bit)
-#define BASE_SFR_B_ADDR  0xFF00 ///< Base address for calculate SFR physical address (bit)
-#define BASE_ESFR_B_ADDR 0xF100 ///< Base address for calculate ESFR physical address (bit)
+#define BASE_GPR_ADDR    0xFE10U ///< Base address for calculate GPR physical address (also REG_CP)
+#define BASE_SFR_ADDR    0xFE00U ///< Base address for calculate SFR physical address (also REG_DPP0)
+#define BASE_ESFR_ADDR   0xF000U ///< Base address for calculate ESFR physical address
+#define BASE_RAM_B_ADDR  0xFD00U ///< Base address for calculate RAM physical address (bit)
+#define BASE_SFR_B_ADDR  0xFF00U ///< Base address for calculate SFR physical address (bit)
+#define BASE_ESFR_B_ADDR 0xF100U ///< Base address for calculate ESFR physical address (bit)
 
-#define QX0   0xF000 ///< MAC Offset Register X0 (ESFRs)
-#define QX1   0xF002 ///< MAC Offset Register X1 (ESFRs)
-#define QR0   0xF004 ///< MAC Offset Register R0 (ESFRs)
-#define QR1   0xF006 ///< MAC Offset Register R1 (ESFRs)
-#define CPUID 0xF00C ///< CPU Identification Register (ESFRs)
+#define QX0   0xF000U ///< MAC Offset Register X0 (ESFRs)
+#define QX1   0xF002U ///< MAC Offset Register X1 (ESFRs)
+#define QR0   0xF004U ///< MAC Offset Register R0 (ESFRs)
+#define QR1   0xF006U ///< MAC Offset Register R1 (ESFRs)
+#define CPUID 0xF00CU ///< CPU Identification Register (ESFRs)
 
-#define REG_PSW 0xFF10 ///< Processor Status Word
+#define REG_PSW 0xFF10U ///< Processor Status Word
 
 #define REG_DPP0    (BASE_SFR_ADDR + 0x00) ///< CPU Data Page Pointer 0 Register (10 bits)
 #define REG_DPP1    (BASE_SFR_ADDR + 0x02) ///< CPU Data Page Pointer 1 Register (10 bits)
@@ -41,21 +48,25 @@
 #define REG_MAL     (BASE_SFR_ADDR + 0x5C) ///< MAC Accumulator – Low Word
 #define REG_MAH     (BASE_SFR_ADDR + 0x5E) ///< MAC Accumulator – High Word
 
-#define IDX0   0xFF08 ///< Address Pointer IDX0
-#define IDX1   0xFF0A ///< Address Pointer IDX1
-#define SPSEG  0xFF0C ///< Stack Pointer Segment Register
-#define MDC    0xFF0E ///< (Bit addressable) Multiply Divide Control Register
-#define PSW    0xFF10 ///< (Bit addressable) Program Status Word
-#define VECSEG 0xFF12 ///< (Bit addressable) Vector Table Segment Register
-#define ZEROS  0xFF1C ///< (Bit addressable) Constant Value 0s Register (read only)
-#define ONES   0xFF1E ///< (Bit addressable) Constant Value 1s Register (read only)
-#define TFR    0xFFAC ///< (Bit addressable) Trap Flag Register
-#define MRW    0xFFDA ///< (Bit addressable) MAC Repeat Word
-#define MCW    0xFFDC ///< (Bit addressable) MAC Control Word
-#define MSW    0xFFDE ///< (Bit addressable) MAC Status Word
+#define IDX0   0xFF08U ///< Address Pointer IDX0
+#define IDX1   0xFF0AU ///< Address Pointer IDX1
+#define SPSEG  0xFF0CU ///< Stack Pointer Segment Register
+#define MDC    0xFF0EU ///< (Bit addressable) Multiply Divide Control Register
+#define PSW    0xFF10U ///< (Bit addressable) Program Status Word
+#define VECSEG 0xFF12U ///< (Bit addressable) Vector Table Segment Register
+#define ZEROS  0xFF1CU ///< (Bit addressable) Constant Value 0s Register (read only)
+#define ONES   0xFF1EU ///< (Bit addressable) Constant Value 1s Register (read only)
+#define TFR    0xFFACU ///< (Bit addressable) Trap Flag Register
+#define MRW    0xFFDAU ///< (Bit addressable) MAC Repeat Word
+#define MCW    0xFFDCU ///< (Bit addressable) MAC Control Word
+#define MSW    0xFFDEU ///< (Bit addressable) MAC Status Word
 
-#define REG_ASC0_TIC 0xFF6C ///< Serial Channel 0 Transmit Interrupt Control Register
-#define REG_ASC0_RIC 0xFF6E ///< Serial Channel 0 Receive Interrupt Control Register
+#define REG_ASC0_TIC 0xFF6CU ///< Serial Channel 0 Transmit Interrupt Control Register
+#define REG_ASC0_RIC 0xFF6EU ///< Serial Channel 0 Receive Interrupt Control Register
+
+#define baddr(base, reg) ((ut16)reg * 2 + base)
+#define SFR_ADDR(reg) baddr(BASE_SFR_ADDR, reg)
+#define ESFR_ADDR(reg) baddr(BASE_ESFR_ADDR, reg)
 
 /*!
  * \brief C166 Branch Condition Codes
@@ -96,6 +107,7 @@ typedef enum {
 typedef enum {
 	C166_EXT_MODE_NONE,
 	C166_EXT_MODE_ATOMIC,
+	C166_EXT_MODE_REG,
 	C166_EXT_MODE_PAGE,
 	C166_EXT_MODE_SEG,
 } C166ExtMode;
@@ -123,4 +135,23 @@ extern const char *const c166_extx_names[];
 
 const char *conds(ut8 cc);
 const char *conds_extended(ut8 cc);
+const char* c166_get_word_reg_name(const ut8 rb_index);
+ut8 c166_get_byte_offset(const ut8 rb_index);
+
+static inline bool IS_GPR(ut8 addr) {
+	return addr >= 0xF0 && addr <= 0xFF;
+}
+
+static inline bool IS_RAM(ut8 addr) {
+	return addr <= 0x7F;
+}
+
+static inline bool IS_rSFR(ut8 addr) {
+	return addr <= 0xEF;
+}
+
+static inline bool IS_bSFR(ut8 addr) {
+	return addr >= 0x80 && addr <= 0xEF;
+}
+
 #endif /* C166_COMMON_H */

@@ -343,13 +343,13 @@ static const char *c166_instr_name(ut8 instr) {
 	}
 }
 
-RZ_API void c166_activate_ext(RZ_NONNULL C166State *state, ut32 addr, C166ExtState ext) {
+RZ_API void c166_activate_ext(RZ_NONNULL C166State *state, const ut32 addr, const C166ExtState ext) {
 	rz_return_if_fail(ext.i <= 4);
 	state->ext = ext;
 	state->last_addr = addr;
 }
 
-RZ_API void c166_maybe_deactivate_ext(RZ_NONNULL C166State *state, ut32 addr) {
+RZ_API void c166_maybe_deactivate_ext(RZ_NONNULL C166State *state, const ut32 addr) {
 	if (addr == state->last_addr) {
 		return;
 	}
@@ -371,17 +371,38 @@ RZ_API void c166_maybe_deactivate_ext(RZ_NONNULL C166State *state, ut32 addr) {
  * Format a mem value into buf. Does not apply to seg or pag formats.
  * Caller must provide a buf with at least 13 characters.
  */
-static const char *c166_fmt_mem(const C166ExtState *ext, char *buf, ut16 mem) {
+static const char *c166_fmt_mem(const C166ExtState *ext, char *buf, const ut16 mem) {
 	const st32 i = (mem >> 14) & 0b11;
 	switch (ext->mode) {
+	case C166_EXT_MODE_REG:
 	case C166_EXT_MODE_NONE: {
-		const ut16 addr = BASE_SFR_ADDR + (i * 2);
+		const ut16 addr = SFR_ADDR(i);
 		snprintf(buf, 16, "0x%x:0x%04x", addr, mem & 0x3FFF);
 		break;
 	}
 	case C166_EXT_MODE_SEG: {
-		const ut32 seg = ((ut32)(ext->value & 0xFF)) << 16;
-		snprintf(buf, 12, "0x%06x", seg | (mem & 0x3FFF));
+		const ut32 seg = ((ut32)(ext->value & 0xFF));
+		switch (seg) {
+		case 1:
+			snprintf(buf, 16, "0xfe00:0x%04x", (mem & 0x3FFF));
+			break;
+		case 2:
+			snprintf(buf, 16, "0xfe02:0x%04x", (mem & 0x3FFF));
+			break;
+		case 3:
+			snprintf(buf, 16, "0xfe04:0x%04x", (mem & 0x3FFF));
+			break;
+		case 4:
+			snprintf(buf, 16, "0xfe06:0x%04x", (mem & 0x3FFF));
+			break;
+		default:
+			printf("seg: %d 0x%04x [0x%08x]\n",
+				seg, mem, ext->value);
+			snprintf(buf, 19, "0x%04x:0x%04x",
+				0xfe00 | ((seg - 1) * 2),
+				mem & 0x3FFF);
+			rz_warn_if_reached();
+		}
 		break;
 	}
 	case C166_EXT_MODE_PAGE: {
@@ -389,6 +410,7 @@ static const char *c166_fmt_mem(const C166ExtState *ext, char *buf, ut16 mem) {
 		snprintf(buf, 11, "0x%08x", page | (mem & 0x3FFF));
 		break;
 	}
+	default:;
 	}
 	return buf;
 }
@@ -397,7 +419,7 @@ static const char *c166_fmt_mem(const C166ExtState *ext, char *buf, ut16 mem) {
  * Return the reg interpretation in word or byte mode.
  * Caller must provide a buf with at least 10 characters.
  */
-static const char *c166_fmt_reg(const C166ExtState *ext, char *buf, ut8 reg, bool byte) {
+static const char *c166_fmt_reg(const C166ExtState *ext, char *buf, ut8 reg, const bool byte) {
 	if (IS_GPR(reg)) {
 		// Short ‘reg’ addresses from F0 to FF always specify GPRs.
 		return byte ? c166_rb[L_NIB(reg)] : c166_rw[L_NIB(reg)];
@@ -513,7 +535,7 @@ static ut8 c166_instr_mov_nm(C166_Inst *instr) {
 	bool rb = false;
 	const char *format = NULL;
 
-	ut8 op = get_operand(instr, 1);
+	const ut8 op = get_operand(instr, 1);
 
 	const ut8 n = H_NIB(op);
 	const ut8 m = L_NIB(op);
@@ -551,7 +573,6 @@ static ut8 c166_instr_mov_nm(C166_Inst *instr) {
 		rb = true;
 		swap = true;
 		format = FMT3;
-		break;
 		break;
 	case C166_MOV_oRwnp_oRwm: ///< 0xD8            [Rwn+], [Rwm]
 	case C166_MOVB_oRwnp_oRwm: ///< 0xD9           [Rwn+], [Rwm]
@@ -617,7 +638,7 @@ static ut8 c166_instr_rb_x(C166_Inst *instr) {
 		OPERANDS(FMT0, r, c166_rb[op & 0b11]);
 	} else {
 		///< #data3
-		OPERANDS(FMT8, r, op);
+		OPERANDS(FMT8, r, op & 0x7);
 	}
 	return C166_BYTESIZE_2;
 }
@@ -694,15 +715,15 @@ static ut8 c166_instr_reg(C166_Inst *instr) {
 	return C166_BYTESIZE_2;
 }
 
-static ut8 c166_instr_reg_data16(C166_Inst *instr, bool byte) {
+static ut8 c166_instr_reg_data16(C166_Inst *instr) {
 	const ut8 reg = get_operand(instr, 1);
 	const ut16 data = rz_read_at_le16(&instr->d, 2);
 	OPERANDS("%s, #0x%04x",
-		c166_fmt_reg(&instr->ext, SBUF_16, reg, byte), data);
+		c166_fmt_reg(&instr->ext, SBUF_16, reg, false), data);
 	return C166_BYTESIZE_4;
 }
 
-static ut8 c166_instr_reg_data8(C166_Inst *instr, bool byte) {
+static ut8 c166_instr_reg_data8(C166_Inst *instr) {
 	const ut8 reg = get_operand(instr, 1);
 	const ut8 data = rz_read_at_le16(&instr->d, 2);
 
@@ -712,7 +733,7 @@ static ut8 c166_instr_reg_data8(C166_Inst *instr, bool byte) {
 	 * rz_read_at_le16 swaps so use lower
 	 */
 	OPERANDS(FMT8,
-		c166_fmt_reg(&instr->ext, SBUF_16, reg, byte), data & 0xFF);
+		c166_fmt_reg(&instr->ext, SBUF_16, reg, true), data & 0xFF);
 	return C166_BYTESIZE_4;
 }
 
@@ -813,74 +834,144 @@ static ut8 c166_instr_call_rel(C166_Inst *instr) {
  * Modes ATOMIC #irang2 D1 :00##-0 2
  * Modes EXTR   #irang2 D1 :10##-0 2
  */
-static ut8 c166_instr_irang2(C166State *state, C166_Inst *instr) {
-	const ut8 op = get_operand(instr, 1);
-	const ut8 sub_op = (op >> 6) & 0b11;
-	const ut8 irang2 = ((op >> 4) & 0b0011) + 1;
-
-	if (sub_op == 0b00) {
-		INSTR("%s", "atomic");
-	} else if (sub_op == 0b10) {
-		const C166ExtState ex = (C166ExtState){
-			.esfr = true,
-			.mode = C166_EXT_MODE_NONE,
-			.value = (op & 3),
-			.i = 0
-		};
-		c166_activate_ext(state, instr->addr, ex);
-		INSTR("%s", "extr");
-	} else
-		INSTR("%s", "invalid");
-	OPERANDS("#%x", irang2);
-	return C166_BYTESIZE_2;
-}
+// static ut8 c166_instr_irang2(C166State *state, C166_Inst *instr) {
+// 	const ut8 op = get_operand(instr, 1);
+// 	const ut8 sub_op = (op >> 6) & 0b11;
+// 	const ut8 irang2 = ((op >> 4) & 0b0011) + 1;
+//
+// 	if (sub_op == 0b00) {
+// 		INSTR("%s", "atomic");
+// 	} else if (sub_op == 0b10) {
+// 		const C166ExtState ex = (C166ExtState){
+// 			.esfr = true,
+// 			.mode = C166_EXT_MODE_NONE,
+// 			.value = (op & 3),
+// 			.i = 0
+// 		};
+// 		c166_activate_ext(state, instr->addr, ex);
+// 		INSTR("%s", "extr");
+// 	} else
+// 		INSTR("%s", "invalid");
+// 	OPERANDS("#%x", irang2);
+// 	return C166_BYTESIZE_2;
+// }
 
 ///< This modifies the ext state
-static ut8 c166_instr_rw_irang2(C166State *state, C166_Inst *instr) {
-	const ut8 op = get_operand(instr, 1);
+// static ut8 c166_instr_rw_irang2(C166State *state, C166_Inst *instr) {
+// 	const ut8 op = get_operand(instr, 1);
+//
+// 	INSTR("%s", c166_extx_names[(op >> 6) & 0b11]);
+// 	const ut8 m = L_NIB(op);
+// 	const ut8 irang2 = ((op >> 4) & 0b0011) + 1;
+// 	const C166ExtState ex = (C166ExtState){
+// 		.esfr = true,
+// 		// .mode = C166_EXT_MODE_NONE,
+// 		.mode = C166_EXT_MODE_SEG,
+// 		.value = m,
+// 		.i = irang2
+// 	};
+// 	c166_activate_ext(state, instr->addr, ex);
+// 	OPERANDS(FMT10, c166_rw[m], irang2);
+// 	return C166_BYTESIZE_2;
+// }
 
-	INSTR("%s", c166_extx_names[(op >> 6) & 0b11]);
-	const ut8 m = L_NIB(op);
-	const ut8 irang2 = ((op >> 4) & 0b0011) + 1;
-	const C166ExtState ex = (C166ExtState){
-		.esfr = true,
-		.mode = C166_EXT_MODE_NONE,
-		.value = 0,
-		.i = irang2
-	};
-	c166_activate_ext(state, instr->addr, ex);
-	OPERANDS(FMT10, c166_rw[m], irang2);
-	return C166_BYTESIZE_2;
-}
-
-static ut8 c166_instr_seg_or_pag_irang2(C166State *state, C166_Inst *instr, ut16 data) {
+static ut8 c166_instr_seg_or_pag_irang2(C166State *state, C166_Inst *instr) {
 	const ut8 op = get_operand(instr, 1);
 	const ut8 sub_op = (op >> 6) & 0b11;
-
-	INSTR("%s", c166_extx_names[sub_op]);
-
-	bool seg = (sub_op == 0b00) || (sub_op == 0b10);
-
 	const ut8 irang2 = ((op >> 4) & 0b0011) + 1;
-	const bool esfr = (op >> 7) & 1;
 
-	C166ExtState new_state = {
-		.esfr = esfr,
-		.mode = seg ? C166_EXT_MODE_SEG : C166_EXT_MODE_PAGE,
-		.i = irang2,
-		.value = 0
-	};
+	// d    c    0    9
+	// 1101 1100 00 00 1001
+	// D    C   :00 ##-m
+	// D    7   :00 ##-0 ss 00
+	// ATOMIC #irang2	D1 :00##-0		2
+	// EXTR #irang2		D1 :10##-0		2
 
-	if (seg) {
-		new_state.value = data & 0xFF;
-		OPERANDS("#0x%04x, #%i", data & 0xFF, irang2);
-	} else {
-		new_state.value = data & 0x3FF;
-		OPERANDS("#0x%04x, #%i", data & 0x3FF, irang2);
+	// EXTS #seg , #irang2	D7 :00##-0 ss 00	4
+	// EXTP #pag , #irang2	D7 :01##-0 pp 0:00pp	4
+	// EXTSR #seg , #irang2	D7 :10##-0 ss 00	4
+	// EXTPR #pag , #irang2	D7 :11##-0 pp 0:00pp	4
+
+	// EXTS Rwm , #irang2	DC :00##-m		2
+	// EXTP Rwm , #irang2	DC :01##-m		2
+	// EXTSR Rwm , #irang2	DC :10##-m		2
+	// EXTPR Rwm , #irang2	DC :11##-m		2
+
+	/**
+	 * Modes ATOMIC #irang2 D1 :00##-0 2
+	 * Modes EXTR   #irang2 D1 :10##-0 2
+	 */
+	if (instr->id == C166_ATOMIC_or_EXTR_irang2) { // D1
+		if (sub_op == 0b00) {
+			const C166ExtState ex = (C166ExtState){
+				.esfr = false,
+				.mode = C166_EXT_MODE_ATOMIC,
+				.value = 0,
+				.i = irang2
+			};
+			c166_activate_ext(state, instr->addr, ex);
+			INSTR("%s", "atomic");
+		} else if (sub_op == 0b10) {
+			const C166ExtState ex = (C166ExtState){
+				.esfr = true,
+				.mode = C166_EXT_MODE_NONE,
+				.value = 0,
+				.i = irang2
+			};
+			c166_activate_ext(state, instr->addr, ex);
+			INSTR("%s", "extr");
+		} else {
+			INSTR("%s", "invalid");
+			return C166_BYTESIZE_2;
+		}
+		OPERANDS("#%x", irang2);
+		return C166_BYTESIZE_2;
 	}
+	/**
+	 * Modes EXTS Rwm , #irang2	DC :00##-m		2
+	 * Modes EXTP Rwm , #irang2	DC :01##-m		2
+	 * Modes EXTSR Rwm , #irang2	DC :10##-m		2
+	 * Modes EXTPR Rwm , #irang2	DC :11##-m		2
+	 */
+	if (instr->id == C166_EXTP_or_EXTS_Rwm_irang2) { // DC
+		INSTR("%s", c166_extx_names[(op >> 6) & 0b11]);
+		const ut8 m = L_NIB(op);
+		const C166ExtState ex = (C166ExtState){
+			.esfr = true,
+			.mode = C166_EXT_MODE_REG,
+			.value = m,
+			.i = irang2
+		};
+		c166_activate_ext(state, instr->addr, ex);
+		OPERANDS(FMT10, c166_rw[m], irang2);
+		return C166_BYTESIZE_2;
+	}
+	/**
+	 * Modes EXTS #seg , #irang2	D7 :00##-0 ss 00	4
+	 * Modes EXTP #pag , #irang2	D7 :01##-0 pp 0:00pp	4
+	 * Modes EXTSR #seg , #irang2	D7 :10##-0 ss 00	4
+	 * Modes EXTPR #pag , #irang2	D7 :11##-0 pp 0:00pp	4
+	 */
+	if (instr->id == C166_EXTP_or_EXTS_pag10_or_seg8_irang2) { //  0xD7
+		INSTR("%s", c166_extx_names[sub_op]);
 
-	c166_activate_ext(state, instr->addr, new_state);
-	return 4;
+		const bool seg = (sub_op == 0b00) || (sub_op == 0b10);
+
+		const ut16 data = rz_read_at_le16(&instr->d, 2);
+		const C166ExtState new_state = {
+			.esfr = true,
+			.mode = seg ? C166_EXT_MODE_SEG : C166_EXT_MODE_PAGE,
+			.i = irang2,
+			.value = data & (seg ? 0xFF : 0x3FF)
+		};
+		OPERANDS("#0x%04x, #%i", new_state.value, irang2);
+
+		c166_activate_ext(state, instr->addr, new_state);
+		return C166_BYTESIZE_4;
+	}
+	RZ_LOG_DEBUG("id: 0x%02x, addr: 0x%08x\n", instr->id, instr->addr);
+	rz_warn_if_reached();
+	return C166_BYTESIZE_2;
 }
 
 static ut8 c166_trap_instr(C166_Inst *instr) {
@@ -888,7 +979,7 @@ static ut8 c166_trap_instr(C166_Inst *instr) {
 	const ut16 addr = 4 * (trap7 & 0x7F);
 	INSTR("%s", "trap");
 	OPERANDS("#0x%04x", addr);
-	return 2;
+	return C166_BYTESIZE_2;
 }
 
 /**
@@ -898,7 +989,7 @@ static ut8 c166_trap_instr(C166_Inst *instr) {
  *
  * DSP Instruction Set
  */
-static const char *c166_instr_extended_name(C166_Inst *instr) {
+static const char *c166_instr_extended_name(const C166_Inst *instr) {
 	const ut8 opcode = instr->id;
 	const ut8 extID = get_operand(instr, 2);
 
@@ -1508,10 +1599,10 @@ RZ_IPI st32 c166_decode_command(RZ_NONNULL C166State *state, RZ_NONNULL C166_Ins
 	if (!rz_buf_read(b, (ut8 *)&instr->d, RZ_MIN(8, len))) {
 		goto err;
 	}
+
 	const ut8 opcode = rz_read_le8(&instr->d);
 	instr->id = opcode;
 	instr->ext = state->ext; // Copy state
-	c166_maybe_deactivate_ext(state, instr->addr);
 
 	switch (opcode) {
 	case C166_ADD_Rwn_Rwm:
@@ -1681,11 +1772,12 @@ RZ_IPI st32 c166_decode_command(RZ_NONNULL C166State *state, RZ_NONNULL C166_Ins
 		instr->byte_size = c166_instr_mov_nm(instr);
 		break;
 	case C166_ATOMIC_or_EXTR_irang2:
-		instr->byte_size = c166_instr_irang2(state, instr);
-		goto ok;
 	case C166_EXTP_or_EXTS_Rwm_irang2:
-		instr->byte_size = c166_instr_rw_irang2(state, instr);
+	case C166_EXTP_or_EXTS_pag10_or_seg8_irang2: {
+		instr->byte_size = c166_instr_seg_or_pag_irang2(
+			state, instr);
 		goto ok;
+	}
 	case C166_TRAP_trap7:
 		instr->byte_size = c166_trap_instr(instr);
 		goto ok;
@@ -1746,7 +1838,7 @@ RZ_IPI st32 c166_decode_command(RZ_NONNULL C166State *state, RZ_NONNULL C166_Ins
 	case C166_CMP_reg_data16:
 	case C166_MOV_reg_data16:
 	case C166_SCXT_reg_data16:
-		instr->byte_size = c166_instr_reg_data16(instr, false);
+		instr->byte_size = c166_instr_reg_data16(instr);
 		break;
 	case C166_CMPD1_Rwn_data16:
 	case C166_CMPD2_Rwn_data16:
@@ -1769,7 +1861,7 @@ RZ_IPI st32 c166_decode_command(RZ_NONNULL C166State *state, RZ_NONNULL C166_Ins
 	case C166_XORB_reg_data8:
 	case C166_CMPB_reg_data8:
 	case C166_MOVB_reg_data8:
-		instr->byte_size = c166_instr_reg_data8(instr, true);
+		instr->byte_size = c166_instr_reg_data8(instr);
 		break;
 	case C166_CALLS_seg_caddr:
 	case C166_JMPS_seg_caddr:
@@ -1812,10 +1904,6 @@ RZ_IPI st32 c166_decode_command(RZ_NONNULL C166State *state, RZ_NONNULL C166_Ins
 	case C166_BFLDL_bitoff_x:
 		instr->byte_size = c166_instr_bfld(instr);
 		break;
-	case C166_EXTP_or_EXTS_pag10_or_seg8_irang2: {
-		instr->byte_size = c166_instr_seg_or_pag_irang2(state, instr, rz_read_at_le16(bytes, 2));
-		goto ok;
-	}
 	case C166_SBRK:
 	case C166_NOP:
 	case C166_RET:
