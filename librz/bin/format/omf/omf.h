@@ -224,7 +224,7 @@ typedef enum omf_ityp_t {
 	/**
 	 * Used to specify an object file as input for L166.
 	 */
-	ITYP_COMMANDLINE = 0x05, ///< Commandline descriptor.
+	ITYP_INVOCATION_LINE = 0xFF, ///< Invocation Line descriptor.
 	/**
 	 * Contains the invocation line to the translator
 	 * including all invocation controls.
@@ -719,6 +719,7 @@ typedef struct {
 
 typedef struct {
 	ut8 bits;
+	ut64 base_addr;
 	ut8 modinfo;
 	int TI_INDEX;
 	int SEC_INDEX;
