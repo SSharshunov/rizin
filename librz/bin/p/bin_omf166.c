@@ -7,7 +7,8 @@
 #include <rz_util.h>
 #include <rz_lib.h>
 #include <rz_bin.h>
-#include "omf/omf.h"
+#include "omf/omf166.h"
+#include <c166/c166_raw.h>
 
 // Modified from one in analysis_riscv
 // First arg is checked against all others
@@ -274,24 +275,16 @@ static RzPVector /*<RzBinSymbol *>*/ *symbols(RzBinFile *bf) {
 	rz_pvector_foreach (obj->pe_vec, it) {
 		const OMF_pes *pe = (OMF_pes *)*it;
 		if (pe->isVector) {
-			const ut64 addr = (pe->SegmentNumber8 << 16) + pe->offset;
-			char *sym_name = pe->offset == 0x00 ? rz_str_newf("int.RESET") : rz_str_newf("isr_vec_0x%" PFMT64x, addr & 0xff);
-			RzBinSymbol *ptr = RZ_NEW0(RzBinSymbol);
-			if (!ptr) {
-				free(sym_name);
-				return ret;
+			ut64 addr = (pe->SegmentNumber8 << 16) + pe->offset;
+			if (pe->offset == 0) {
+				char *sym_name = rz_str_newf("int.RESET");
+				create_isr_sym(ret, sym_name, addr);
+				continue;
 			}
-			ptr->name = sym_name;
-			ptr->paddr = addr;
-			ptr->vaddr = addr;
-			ptr->size = pe->size;
-			ptr->ordinal = 0;
-			ptr->bits = 16;
-			ptr->bind = RZ_BIN_BIND_GLOBAL_STR;
-			ptr->type = RZ_BIN_TYPE_FUNC_STR;
-			rz_pvector_push(ret, ptr);
+			rz_vector_push(obj->interrupts, &addr);
 		}
 	}
+	populate_isr_table(obj->interrupts, ret, obj->base_addr);
 	return ret;
 }
 
@@ -308,6 +301,13 @@ static RzStructuredData *omf166_structure(RzBinFile *bf) {
 	if (!info) {
 		return NULL;
 	}
+
+	const char *cpu = cpu_name(obj->cpu);
+	rz_structured_data_map_add_string(info, "cpu", cpu);
+	free((char *)cpu);
+	rz_structured_data_map_add_unsigned(info, "isr_count",
+		rz_vector_len(obj->interrupts), false);
+	rz_structured_data_map_add_unsigned(info, "base_addr", obj->base_addr, true);
 
 	RzStructuredData *modinfo = rz_structured_data_map_add_map(info, "omf166-modinfo");
 	if (!modinfo) {
@@ -366,8 +366,8 @@ static RzBinInfo *info(RzBinFile *bf) {
 		return NULL;
 	}
 
-	RzBinInfo *ret;
-	if (!((ret = RZ_NEW0(RzBinInfo)))) {
+	RzBinInfo *ret = RZ_NEW0(RzBinInfo);
+	if (!ret) {
 		return NULL;
 	}
 
@@ -377,7 +377,7 @@ static RzBinInfo *info(RzBinFile *bf) {
 	ret->rclass = rz_str_dup("OMF166");
 	ret->compiler = rz_str_dup("keil");
 	ret->os = rz_str_dup("c166");
-	ret->cpu = rz_str_dup("c166-generic");
+	ret->cpu = cpu_name(obj->cpu);
 	ret->machine = rz_str_dup("Siemens/Infineon C166 family microcontroller");
 	ret->arch = rz_str_dup("c166");
 	ret->big_endian = false;

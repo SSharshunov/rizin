@@ -153,7 +153,7 @@ description: Return from intra-segment subroutine and pop direct word register f
 refptr: 0
 size: 2
 type: ret
-stackop: get
+stackop: inc
 stackptr: 4
 
 opcode: xorb rh0, #0x0001
@@ -217,7 +217,7 @@ refptr: 0
 size: 2
 type: trap
 fail: 0x00000002
-stackop: inc
+stackop: unk
 stackptr: 6
 
 opcode: pcall 0xfe04, 0x2c10
@@ -227,7 +227,7 @@ refptr: 0
 size: 4
 type: ucall
 fail: 0x00000004
-stackop: inc
+stackop: unk
 stackptr: 4
 
 EOF
@@ -313,15 +313,15 @@ EXPECT=<<EOF
         |   ;-- section.C_INITSEC_UNKNOWN:
         |   0x00c00004      .word 0x0000                               ; [25] -r-- section size 2 named C_INITSEC_UNKNOWN
         |   0x00c00006      ffff           bset  r15.15
-/ sym.isr_vec_0x8();
+/ sym.isr.NMI_trap();
 \       |   0x00c00008      fac07400       jmps  NMI_trap              ; 0xc00074 ; "\r\xff\r\xff\r\xff\r\xff\xff\xff\xff\xff\xfa\xc0\x80\U00000012\xa5Z\xa5\xa5р\xe6\xea"
         |   0x00c0000c      ffff           bset  r15.15
         |   0x00c0000e      ffff           bset  r15.15
-/ sym.isr_vec_0x10();
+/ sym.isr.STKOF_trap();
 \       |   0x00c00010      fac07600       jmps  STKOF_trap            ; 0xc00076 ; "\r\xff\r\xff\r\xff\xff\xff\xff\xff\xfa\xc0\x80\U00000012\xa5Z\xa5\xa5р\xe6\xea"
         |   0x00c00014      ffff           bset  r15.15
         |   0x00c00016      ffff           bset  r15.15
-/ sym.isr_vec_0x18();
+/ sym.isr.STKUF_trap();
 \       |   0x00c00018      fac07800       jmps  STKUF_trap            ; 0xc00078 ; "\r\xff\r\xff\xff\xff\xff\xff\xfa\xc0\x80\U00000012\xa5Z\xa5\xa5р\xe6\xea"
         |   ; CALL XREFS from main @ 0xc01550, 0xc01614
         |   ; CALL XREF from getline @ 0xc018ea
@@ -334,7 +334,7 @@ EXPECT=<<EOF
 |       |   0x00c00020      f2f4b2fe       mov   r4, DPP3:0x3eb2       ; Getkey.c:26
 |       |   0x00c00024      7eb7           bclr  S0RIC.7               ; Getkey.c:27
 \       |   0x00c00026      db00           rets                        ; Getkey.c:28
-/ sym.isr_vec_0x28();
+/ sym.isr.Class_B_trap();
 \      ,==< 0x00c00028      fac07a00       jmps  Class_B_trap          ; 0xc0007a ; "\r\xff\xff\xff\xff\xff\xfa\xc0\x80\U00000012\xa5Z\xa5\xa5р\xe6\xea"
        ||   ;-- section.C_CLRMEMSEC_UNKNOWN:
        ||   0x00c0002c hex length=24 delta=0
@@ -347,22 +347,22 @@ EXPECT=<<EOF
 0x00c00054  0040 1c46 0050 c347 0024 7449 8096 184b  .@.F.P.G.$tI...K
 0x00c00064  20bc be4c ca1b 0e5a 1cc2 5367 aec5 9d74   ..L...Z..Sg...t
  ; [19] -r-- section size 48 named C_LIB_NCONST_NCONST
-       ||   ; CODE XREF from sym.isr_vec_0x8 @ 0xc00008
+       ||   ; CODE XREF from sym.isr.NMI_trap @ 0xc00008
        ||   ;-- section.PR_TRAPS_FCODE:
 / NMI_trap();
 \      ||   0x00c00074      0dff           jmpr  cc_UC, NMI_trap       ; Traps.c:24 ; [10] -rw- section size 8 named PR_TRAPS_FCODE
-       ||   ; CODE XREF from sym.isr_vec_0x10 @ 0xc00010
+       ||   ; CODE XREF from sym.isr.STKOF_trap @ 0xc00010
 / STKOF_trap();
 \      ||   0x00c00076      0dff           jmpr  cc_UC, STKOF_trap     ; Traps.c:33
-      @||   ; CODE XREF from sym.isr_vec_0x18 @ 0xc00018
+      @||   ; CODE XREF from sym.isr.STKUF_trap @ 0xc00018
 / STKUF_trap();
 \     @==-> 0x00c00078      0dff           jmpr  cc_UC, STKUF_trap     ; Traps.c:42
-      @||   ; CODE XREF from sym.isr_vec_0x28 @ 0xc00028
+      @||   ; CODE XREF from sym.isr.Class_B_trap @ 0xc00028
 / Class_B_trap();
 \     @`--> 0x00c0007a      0dff           jmpr  cc_UC, Class_B_trap   ; Traps.c:56
         |   0x00c0007c      ffff           bset  r15.15
         |   0x00c0007e      ffff           bset  r15.15
-/ sym.isr_vec_0x80();
+/ sym.isr.T0INT();
 \       |   0x00c00080      fac08012       jmps  timer0                ; 0xc01280
         |   ; CODE XREF from entry0 @ 0xc00000
         |   ;-- C_RESET:
@@ -716,15 +716,19 @@ paddr size vaddr vsize align perm name type flags
 --------------------------------------------------
 
             ;-- entry0:
+            ;-- isr.RESET:
         ,=< 0x00c00000      fac08400       jmps  0xc00084
         |   0x00c00004      0000           add   r0, r0
         |   0x00c00006      ffff           bset  r15.15
+        |   ;-- isr.NMI_trap:
        ,==< 0x00c00008      fac07400       jmps  0xc00074
        ||   0x00c0000c      ffff           bset  r15.15
        ||   0x00c0000e      ffff           bset  r15.15
+       ||   ;-- isr.STKOF_trap:
       ,===< 0x00c00010      fac07600       jmps  0xc00076
       |||   0x00c00014      ffff           bset  r15.15
       |||   0x00c00016      ffff           bset  r15.15
+      |||   ;-- isr.STKUF_trap:
      ,====< 0x00c00018      fac07800       jmps  0xc00078
     @====-> 0x00c0001c      9ab7fe70       jnb   S0RIC.7, 0xc0001c
      ||||   0x00c00020      f2f4b2fe       mov   r4, DPP3:0x3eb2
@@ -758,3 +762,127 @@ RUN
 #        ,=< 0x00000000      jmps  0x00, 0x0004
 #EOF
 #RUN
+
+
+NAME=Try testing real dump 1
+FILE=bins/omf/omf166/measure
+TIMEOUT=30
+CMDS=<<EOF
+e asm.cpu=c166-generic
+pd 25
+EOF
+EXPECT=<<EOF
+            ;-- entry0:
+            ;-- int.RESET:
+        ,=< 0x00c00000      jmps  ?C_RESET                             ; sym.a166_FAR._C_STARTUP
+        |                                                              ; 0xc00084
+        |   ;-- section.C_INITSEC_UNKNOWN:
+        |   0x00c00004      .word 0x0000                               ; [25] -r-- section size 2 named C_INITSEC_UNKNOWN
+        |   0x00c00006      bset  r15.15
+        |   ;-- isr.NMI_trap:
+        |   0x00c00008      jmps  NMI_trap                             ; 0xc00074 ; "\r\xff\r\xff\r\xff\r\xff\xff\xff\xff\xff\xfa\xc0\x80\U00000012\xa5Z\xa5\xa5р\xe6\xea"
+        |   0x00c0000c      bset  r15.15
+        |   0x00c0000e      bset  r15.15
+        |   ;-- isr.STKOF_trap:
+        |   0x00c00010      jmps  STKOF_trap                           ; 0xc00076 ; "\r\xff\r\xff\r\xff\xff\xff\xff\xff\xfa\xc0\x80\U00000012\xa5Z\xa5\xa5р\xe6\xea"
+        |   0x00c00014      bset  r15.15
+        |   0x00c00016      bset  r15.15
+        |   ;-- isr.STKUF_trap:
+        |   0x00c00018      jmps  STKUF_trap                           ; 0xc00078 ; "\r\xff\r\xff\xff\xff\xff\xff\xfa\xc0\x80\U00000012\xa5Z\xa5\xa5р\xe6\xea"
+        |   ;-- getkey:
+        |   ;-- section.PR_GETKEY_FCODE:
+        |   ;-- _getkey:
+/ _getkey();
+|       |   0x00c0001c      jnb   S0RIC.7, _getkey                     ; Getkey.c:22 ; 0xc0001c ; [09] -rw- section size 12 named PR_GETKEY_FCODE
+|       |   0x00c00020      mov   r4, DPP3:0x3eb2                      ; Getkey.c:26
+|       |   0x00c00024      bclr  S0RIC.7                              ; Getkey.c:27
+\       |   0x00c00026      rets                                       ; Getkey.c:28
+        |   ;-- isr.Class_B_trap:
+       ,==< 0x00c00028      jmps  Class_B_trap                         ; 0xc0007a ; "\r\xff\xff\xff\xff\xff\xfa\xc0\x80\U00000012\xa5Z\xa5\xa5р\xe6\xea"
+       ||   ;-- section.C_CLRMEMSEC_UNKNOWN:
+       ||   0x00c0002c hex length=24 delta=0
+0x00c0002c  1a80 0400 40c2 0fa0 0400 5cc2 0300 0000  ....@.....\.....
+0x00c0003c  0080 0400 5bc2 0000                      ....[...
+ ; [26] -r-- section size 24 named C_CLRMEMSEC_UNKNOWN
+       ||   ;-- section.C_LIB_NCONST_NCONST:
+       ||   0x00c00044 hex length=48 delta=0
+0x00c00044  0000 803f 0000 2041 0000 c842 0000 7a44  ...?.. A...B..zD
+0x00c00054  0040 1c46 0050 c347 0024 7449 8096 184b  .@.F.P.G.$tI...K
+0x00c00064  20bc be4c ca1b 0e5a 1cc2 5367 aec5 9d74   ..L...Z..Sg...t
+ ; [19] -r-- section size 48 named C_LIB_NCONST_NCONST
+       ||   ;-- section.PR_TRAPS_FCODE:
+/ NMI_trap();
+\      ||   0x00c00074      jmpr  cc_UC, NMI_trap                      ; Traps.c:24 ; [10] -rw- section size 8 named PR_TRAPS_FCODE
+/ STKOF_trap();
+\      ||   0x00c00076      jmpr  cc_UC, STKOF_trap                    ; Traps.c:33
+/ STKUF_trap();
+\     @==-> 0x00c00078      jmpr  cc_UC, STKUF_trap                    ; Traps.c:42
+/ Class_B_trap();
+\     @`--> 0x00c0007a      jmpr  cc_UC, Class_B_trap                  ; Traps.c:56
+        |   0x00c0007c      bset  r15.15
+        |   0x00c0007e      bset  r15.15
+        |   ;-- isr.T0INT:
+        |   0x00c00080      jmps  timer0                               ; 0xc01280
+        |   ;-- C_RESET:
+        |   ;-- section.C_STARTUP_CODE_ICODE:
+        |   ;-- a166_FAR.?C_STARTUP:
+/ ?C_RESET();
+|       `-> 0x00c00084      diswdt                                     ; START_V2.A66:1453 ; [15] -rw- section size 350 named C_STARTUP_CODE_ICODE
+EOF
+RUN
+
+NAME=Try testing real dump 2
+FILE=bins/c166/measure_raw.bin
+TIMEOUT=30
+CMDS=<<EOF
+e asm.cpu=c166-generic
+pd
+EOF
+EXPECT=<<EOF
+            ;-- entry0:
+            ;-- isr.RESET:
+        ,=< 0x00c00000      jmps  0xc00084
+        |   0x00c00004      add   r0, r0
+        |   0x00c00006      bset  r15.15
+        |   ;-- isr.NMI_trap:
+       ,==< 0x00c00008      jmps  0xc00074
+       ||   0x00c0000c      bset  r15.15
+       ||   0x00c0000e      bset  r15.15
+       ||   ;-- isr.STKOF_trap:
+      ,===< 0x00c00010      jmps  0xc00076
+      |||   0x00c00014      bset  r15.15
+      |||   0x00c00016      bset  r15.15
+      |||   ;-- isr.STKUF_trap:
+     ,====< 0x00c00018      jmps  0xc00078
+    @====-> 0x00c0001c      jnb   S0RIC.7, 0xc0001c
+     ||||   0x00c00020      mov   r4, DPP3:0x3eb2
+     ||||   0x00c00024      bclr  S0RIC.7
+     ||||   0x00c00026      rets
+    ,=====< 0x00c00028      jmps  0xc0007a
+    |||||   0x00c0002c      bfldh P0L, #0x00, #0x04
+    |||||   0x00c00030      cmp   r12, r2
+    |||||   0x00c00032      bset  T2CON.0
+    |||||   0x00c00034      add   DPP3:0x025c, DPP0
+    |||||   0x00c00038      addb  DPP0, DPP0:0x0000
+    |||||   0x00c0003c      add   r8, r0
+    |||||   0x00c0003e      add   DPP3:0x025b, DPP0
+    |||||   0x00c00042      add   r0, r0
+EOF
+RUN
+
+NAME=Try testing real dump 3
+FILE=bins/c166/Lifan_X50_CVT_Bosch_M7.8.8_F01R00DP24_BSL_Combiloader.bin
+TIMEOUT=30
+BROKEN=1
+CMDS=<<EOF
+e asm.cpu=c166-generic
+e io.cache=1
+aaa
+EOF
+EXPECT=<<EOF
+
+EOF
+RUN
+
+
+

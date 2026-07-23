@@ -1,0 +1,35 @@
+
+d "extr #1;mov 0xf1d0, #0x7889;mov 0xffaa, #0x0000;mov 0xfe16, #0xf800;mov 0xfe14, #0xf60c;bfldh 0xff10, #0x03, #0x02" d180e6e88978e6d50000e60b00f8e60a0cf61a880203
+d "extr #4;mov 0xf1d0, #0x7889;mov 0xf1aa, #0x0000;mov 0xf016, #0xf800;mov 0xf014, #0xf60c;bfldh 0xff10, #0x03, #0x02" d1B0e6e88978e6d50000e60b00f8e60a0cf61a880203
+d "mov 0xfe06, #0x0003" e6030300
+d "mov 0xfe06, #0x0003" e6030300
+
+d "sub 0xfe0a, 0xfe00:0x0404" 22050404 # as sub 0x05,DPP0:0x0404
+d "sub 0xfe00, 0xfe00:0x0404" 22000404
+d "sub 0xfe5a, 0xfe00:0x0404" 222D0404 # as sub 0x2d,DPP0:0x0404
+
+d "sub r5, 0xfe00:0x0404" 22F50404 # as sub R5, DPP0:0x0404
+
+d "exts #0x008d, #1;cmp 0xfe10, 0xfe00:0x08f6" d7038d074208f608
+d "exts #0x008d, #1" d7038d07
+#d "" 4208f608
+d "cmp 0xfe10, 0xfe00:0x08f6" 4208f608 # right (Keil) as  CMP CP,DPP0:0x08F6
+
+d "exts #0x008d, #1" d7008d00 # right (Keil)
+d "exts #0x008d, #2" d7108d00 # right (Keil)
+d "exts #0x008d, #3" d7208d00 # right (Keil)
+d "exts #0x008d, #4" d7308d00 # right (Keil)
+
+# d "" 9AEF0260 # warning A111: ACCESS TO EXTENDED SFR OUTSIDE AN 'EXT' SEQUENCE
+d "extr #1;jnb 0xf1de.6, 0x00000a" d1809AEF0260 # as 9AEF0260 JNB 0xEF.6,0x000222
+d "jnb 0xfd02.3, 0x00000c" 9A010430
+
+d "jnb 0xff12.10, 0x00000a" 9A8903A0 # as jnb ROMEN,0x00000a
+
+d "add r12, 0xfe00:0x1ffc" 02FCFC1F # as ADD R12,DPP0:0x1FFC
+d "add r13, 0xfe00:0x1ffc" 02FDFC1F # as ADD R13,DPP0:0x1FFC
+
+d "extp #0x0000, #1;cmp r12, 0xfe00:0x1ffe" D740000042FCFE1F # as EXTP #0x0000,#1; CMP R12,DPP0:0x1FFE
+d "cmp r12, 0xfe00:0x1ffe" 42FCFE1F # as CMP R12,DPP0:0x1FFE
+#69 18 75 69 77 47 42 94 42
+#99 a0 94 80 8f 60 84 2

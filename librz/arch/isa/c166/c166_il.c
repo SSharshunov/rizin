@@ -70,7 +70,7 @@ const char *c166_instr_name(ut8 instr);
 static RzILOpEffect *c166_il_unk(ut64 pc, RzAnalysis *analysis, const ut8 *buf, RzAnalysisOp *op) {
 	ut64 IP = rz_reg_getv(analysis->reg, "IP");
 	const char *op_name = c166_instr_name(op->id);
-	printf("IL[0x%02x] - [0x%06lx] IP: [0x%06lx] c166_il_unk %s\n", op->id, pc, IP, op_name);
+	RZ_LOG_DEBUG("IL[0x%02x] - [0x%06lx] IP: [0x%06lx] c166_il_unk %s\n", op->id, pc, IP, op_name);
 	return rz_il_op_new_nop();
 }
 
@@ -84,8 +84,8 @@ static RzILOpEffect *c166_il_lifted_nop(ut64 pc, RzAnalysis *analysis, const ut8
 static RzILOpEffect *c166_il_add_rwn_rwm(ut64 pc, RzAnalysis *analysis, const ut8 *buf, RzAnalysisOp *op) {
 	const ut8 m = L_NIB(buf[1]);
 	const ut8 n = H_NIB(buf[1]);
-	const char* dst = c166_global_registers[n];
-	const char* src = c166_global_registers[m];
+	const char *dst = c166_global_registers[n];
+	const char *src = c166_global_registers[m];
 	return SEQ8(
 		SETL("val", VARG(src)),
 		SETL("res", ADD(VARG(dst), VARL("val"))),
@@ -94,8 +94,7 @@ static RzILOpEffect *c166_il_add_rwn_rwm(ut64 pc, RzAnalysis *analysis, const ut
 		SET_Z(VARL("res")),
 		V_FALSE,
 		SET_C(VARL("res")),
-		SET_N(VARL("res"))
-	);
+		SET_N(VARL("res")));
 }
 
 static RzILOpEffect *c166_il_bclr_bitoff4(ut64 pc, RzAnalysis *analysis, const ut8 *buf, RzAnalysisOp *op) {
@@ -120,8 +119,7 @@ static RzILOpEffect *c166_il_xorb_rbn_rbm(ut64 pc, RzAnalysis *analysis, const u
 		SETL("op2", READ_RL(VARG(dst))),
 		SETL("op2", LOGXOR(VARL("op1"), VARL("op2"))),
 		WRITE_RL(dst, UNSIGNED(16, VARL("op2"))),
-		SEQ5(SET_E(VARL("op2")), SET_Z(VARL("op2")), V_FALSE, C_FALSE, SET_N(VARL("op2")))
-	);
+		SEQ5(SET_E(VARL("op2")), SET_Z(VARL("op2")), V_FALSE, C_FALSE, SET_N(VARL("op2"))));
 }
 static RzILOpEffect *c166_il_xor_reg_mem(ut64 pc, RzAnalysis *analysis, const ut8 *buf, RzAnalysisOp *op) {
 	ut64 IP = rz_reg_getv(analysis->reg, "IP");
@@ -178,17 +176,14 @@ static RzILOpEffect *c166_il_cmpb_reg_data8(ut64 pc, RzAnalysis *analysis, const
 			ITE(
 				ULT(VARL("op1"), VARL("op2")),
 				SUB(UNSIGNED(16, VARL("op1")), UNSIGNED(16, VARL("op2"))),
-				SUB(VARL("op1"), VARL("op2"))
-			)
-		),
+				SUB(VARL("op1"), VARL("op2")))),
 		SETG("r14", UNSIGNED(16, VARL("op1"))),
 		SETG("r15", UNSIGNED(16, VARL("res"))),
 		SET_E8(VARL("op2")),
 		SETG("z", ITE(EQ(VARL("op1"), VARL("op2")), IL_TRUE, IL_FALSE)),
 		SETG("c", ITE(ULT(VARL("op1"), VARL("op2")), IL_TRUE, IL_FALSE)),
 		SETG("v", ITE(EQ(VARL("res"), U8(0xFF)), IL_TRUE, IL_FALSE)),
-		SET_N(VARL("res"))
-	);
+		SET_N(VARL("res")));
 }
 
 /**
@@ -231,8 +226,7 @@ static RzILOpEffect *c166_il_mov_rwn_orwm(ut64 pc, RzAnalysis *analysis, const u
 			SETL("addr", LOGOR(VARL("seg"), UNSIGNED(32, VARL("src_op")))),
 			SETL("load", LOADW(16, VARL("addr"))),
 			SETG(dst, UNSIGNED(16, VARL("load"))),
-			SEQ3(SET_E(VARL("load")), SET_Z(VARL("load")), SET_N(VARL("load")))
-		);
+			SEQ3(SET_E(VARL("load")), SET_Z(VARL("load")), SET_N(VARL("load"))));
 	}
 	ut64 IP = rz_reg_getv(analysis->reg, "IP");
 	printf("IL[0x%02x] - [0x%06lx] IP: [0x%06lx] c166_il_mov_rwn_orwm unk\n", op->id, pc, IP);
@@ -335,8 +329,7 @@ static RzILOpEffect *c166_il_movb_rbn_oRwm(ut64 pc, RzAnalysis *analysis, const 
 			SETL("load", LOADW(16, VARL("addr"))),
 			SETL("reg_offset", U8(reg_offset)),
 			WRITE_RL(dst, UNSIGNED(16, VARL("load"))),
-			SEQ3(SET_E(VARL("load")), SET_Z(VARL("load")), SET_N(VARL("src_op")))
-		);
+			SEQ3(SET_E(VARL("load")), SET_Z(VARL("load")), SET_N(VARL("src_op"))));
 	}
 	return rz_il_op_new_nop();
 }
@@ -362,7 +355,7 @@ static RzILOpEffect *c166_il_jnb_bitaddr_rel(ut64 pc, RzAnalysis *analysis, cons
 		const ut16 base_addr = state->ext.esfr ? BASE_ESFR_B_ADDR : BASE_SFR_B_ADDR;
 		const ut16 bitaddr = base_addr + (2 * (qq & 0x7F));
 		printf("IL[0x%02x] - [0x%06lx] IP: [0x%06lx] c166_il_jnb_bitaddr_rel 0x%04x.%i, 0x%06x  new_IP: [0x%06x]\n",
-		op->id, pc, IP, bitaddr, q, addr, addr);
+			op->id, pc, IP, bitaddr, q, addr, addr);
 	}
 	RzILOpBitVector *mask = U16(1 << q);
 
@@ -376,7 +369,7 @@ static RzILOpEffect *c166_il_jnb_bitaddr_rel(ut64 pc, RzAnalysis *analysis, cons
 static RzILOpEffect *c166_il_and_reg_data16(ut64 pc, RzAnalysis *analysis, const ut8 *buf, RzAnalysisOp *op) {
 	const ut8 reg = buf[1];
 	const ut16 data = rz_read_at_le16(buf, 2);
-	const char* op1 = NULL;
+	const char *op1 = NULL;
 	const C166State *state = (C166State *)analysis->plugin_data;
 	if (!state) {
 		RZ_LOG_FATAL("C166State was NULL.");
@@ -406,7 +399,7 @@ static RzILOpEffect *c166_il_jb_bitaddr_rel(ut64 pc, RzAnalysis *analysis, const
 	}
 	if (IS_RAM(qq)) {
 		printf("IL[0x%02x] - [0x%06lx] IP: [0x%06lx] c166_il_jb_bitaddr_rel 0x%04x.%i, 0x%06x\n",
-		op->id, pc, IP, BASE_RAM_B_ADDR + (2 * qq), q, addr);
+			op->id, pc, IP, BASE_RAM_B_ADDR + (2 * qq), q, addr);
 	}
 	if (IS_bSFR(qq)) {
 		const C166State *state = (C166State *)analysis->plugin_data;
@@ -417,7 +410,7 @@ static RzILOpEffect *c166_il_jb_bitaddr_rel(ut64 pc, RzAnalysis *analysis, const
 		const ut16 base_addr = state->ext.esfr ? BASE_ESFR_B_ADDR : BASE_SFR_B_ADDR;
 		const ut16 bitaddr = base_addr + (2 * (qq & 0x7F));
 		printf("IL[0x%02x] - [0x%06lx] IP: [0x%06lx] c166_il_jb_bitaddr_rel 0x%04x.%i, 0x%06x  new_IP: [0x%06x]\n",
-		op->id, pc, IP, bitaddr, q, addr, addr);
+			op->id, pc, IP, bitaddr, q, addr, addr);
 	}
 	RzILOpBitVector *mask = U16(1 << q);
 
@@ -431,7 +424,7 @@ static RzILOpEffect *c166_il_jb_bitaddr_rel(ut64 pc, RzAnalysis *analysis, const
 static RzILOpEffect *c166_il_or_reg_data16(ut64 pc, RzAnalysis *analysis, const ut8 *buf, RzAnalysisOp *op) {
 	const ut8 reg = buf[1];
 	const ut16 data = rz_read_at_le16(buf, 2);
-	const char* op1 = NULL;
+	const char *op1 = NULL;
 	const C166State *state = (C166State *)analysis->plugin_data;
 	if (!state) {
 		RZ_LOG_FATAL("C166State was NULL.");
@@ -466,14 +459,14 @@ static RzILOpEffect *c166_il_bmovn_bitaddr_bitaddr(ut64 pc, RzAnalysis *analysis
 
 static RzILOpEffect *c166_il_cmp_rwn_rwm(ut64 pc, RzAnalysis *analysis, const ut8 *buf, RzAnalysisOp *op) {
 	ut64 IP = rz_reg_getv(analysis->reg, "IP");
-	printf("IL[0x%02x] - [0x%06lx] IP: [0x%06lx] c166_il_cmp_rwn_rwm nop\n", op->id, pc, IP);
+	RZ_LOG_DEBUG("IL[0x%02x] - [0x%06lx] IP: [0x%06lx] c166_il_cmp_rwn_rwm nop\n", op->id, pc, IP);
 	return rz_il_op_new_nop();
 }
 
 static RzILOpEffect *c166_il_addc_rwn_x(ut64 pc, RzAnalysis *analysis, const ut8 *buf, RzAnalysisOp *op) {
 	ut64 IP = rz_reg_getv(analysis->reg, "IP");
 	const ut8 reg = L_NIB(buf[1]);
-	const char* src = c166_global_registers[H_NIB(buf[1])];
+	const char *src = c166_global_registers[H_NIB(buf[1])];
 	RzILOpBitVector *val = NULL;
 	RzILOpEffect *add = NULL;
 	if ((reg & 0b1100) == 0b1100) {
@@ -499,7 +492,7 @@ static RzILOpEffect *c166_il_addc_rwn_x(ut64 pc, RzAnalysis *analysis, const ut8
 static RzILOpEffect *c166_il_sub_rwn_x(ut64 pc, RzAnalysis *analysis, const ut8 *buf, RzAnalysisOp *op) {
 	ut64 IP = rz_reg_getv(analysis->reg, "IP");
 	const ut8 reg = L_NIB(buf[1]);
-	const char* src = c166_global_registers[H_NIB(buf[1])];
+	const char *src = c166_global_registers[H_NIB(buf[1])];
 	RzILOpBitVector *val = NULL;
 	RzILOpEffect *sub = NULL;
 	RzILOpEffect *e = NULL;
@@ -527,8 +520,7 @@ static RzILOpEffect *c166_il_sub_rwn_x(ut64 pc, RzAnalysis *analysis, const ut8 
 		sub = SEQ3(
 			SETL("val", VARG(src)),
 			SETL("val", SUB(VARL("val"), U16(data))),
-			SETG(src, VARL("val"))
-		);
+			SETG(src, VARL("val")));
 		e = SET_E(U16(data));
 		z = SET_Z(VARL("val"));
 		n = SET_N(VARL("val"));
@@ -536,7 +528,6 @@ static RzILOpEffect *c166_il_sub_rwn_x(ut64 pc, RzAnalysis *analysis, const ut8 
 	}
 
 	RzILOpEffect *v = SETG("v", IL_FALSE); // TODO ?????
-
 
 	RzILOpEffect *sub_flags_seq = SEQ5(e, z, v, c, n);
 	return SEQ2(sub, sub_flags_seq);
@@ -575,12 +566,10 @@ static RzILOpEffect *c166_il_movb_orwm_rbn(ut64 pc, RzAnalysis *analysis, const 
 			SETL("val",
 				ITE(NON_ZERO(VARL("reg_offset")),
 					SHIFTL0(VARL("val"), VARL("reg_offset")),
-					VARL("val")
-				)),
+					VARL("val"))),
 			STORE(VARL("addr"), UNSIGNED(8, VARL("val"))),
 			SETL("src_op", U8(n)),
-			SEQ3(SET_E(UNSIGNED(8, VARL("val"))), SET_Z(VARL("val")), SET_N(VARL("src_op")))
-		);
+			SEQ3(SET_E(UNSIGNED(8, VARL("val"))), SET_Z(VARL("val")), SET_N(VARL("src_op"))));
 	}
 	const char *dst = c166_global_registers[m];
 	return SEQN(7,
@@ -590,12 +579,10 @@ static RzILOpEffect *c166_il_movb_orwm_rbn(ut64 pc, RzAnalysis *analysis, const 
 		SETL("val",
 			ITE(NON_ZERO(VARL("reg_offset")),
 				LOGAND(VARL("val"), U16(0xFF)),
-				VARL("val")
-			)),
+				VARL("val"))),
 		STORE(VARL("addr"), UNSIGNED(8, VARL("val"))),
 		SETL("src_op", U8(n)),
-		SEQ3(SET_E(UNSIGNED(8, VARL("val"))), SET_Z(VARL("val")), SET_N(VARL("src_op")))
-	);
+		SEQ3(SET_E(UNSIGNED(8, VARL("val"))), SET_Z(VARL("val")), SET_N(VARL("src_op"))));
 }
 
 static RzILOpEffect *c166_il_movbz_rwn_rbm(ut64 pc, RzAnalysis *analysis, const ut8 *buf, RzAnalysisOp *op) {
@@ -679,7 +666,7 @@ static RzILOpEffect *c166_il_bclr_bitoff0(ut64 pc, RzAnalysis *analysis, const u
 }
 static RzILOpEffect *c166_il_bset_bitoff0(ut64 pc, RzAnalysis *analysis, const ut8 *buf, RzAnalysisOp *op) {
 	ut64 IP = rz_reg_getv(analysis->reg, "IP");
-	printf("IL[0x%02x] - [0x%06lx] IP: [0x%06lx] c166_il_bset_bitoff0 nop\n", op->id, pc, IP);
+	RZ_LOG_DEBUG("IL[0x%02x] - [0x%06lx] IP: [0x%06lx] c166_il_bset_bitoff0 nop\n", op->id, pc, IP);
 	return rz_il_op_new_nop();
 }
 
@@ -696,7 +683,7 @@ static RzILOpEffect *c166_il_add_rwn_x(ut64 pc, RzAnalysis *analysis, const ut8 
 	// 08 n:11ii
 	const ut8 reg = L_NIB(buf[1]);
 	const ut8 n = H_NIB(buf[1]);
-	const char* dst = c166_global_registers[n];
+	const char *dst = c166_global_registers[n];
 	RzILOpBitVector *val = NULL;
 	RzILOpEffect *add = NULL;
 	RzILOpEffect *op1 = SETL("op1", VARG(dst));
@@ -757,7 +744,7 @@ static RzILOpEffect *c166_il_add_reg_data16(ut64 pc, RzAnalysis *analysis, const
 		// return byte ? c166_rb[L_NIB(reg)] : c166_rw[L_NIB(reg)];
 		// printf("IL[0x%02x] - [0x%06lx] IP: [0x%06lx] c166_il_add_reg_data16 %s, #0x%04x\n",
 		// 	op->id, pc, IP, c166_rw[L_NIB(reg)], data);
-		const char* dst = c166_global_registers[L_NIB(reg)];
+		const char *dst = c166_global_registers[L_NIB(reg)];
 		RzILOpBitVector *val = ADD(VARL("op1"), U16(data));
 		return SEQ3(
 			SETL("op1", VARG(dst)),
@@ -767,9 +754,7 @@ static RzILOpEffect *c166_il_add_reg_data16(ut64 pc, RzAnalysis *analysis, const
 				SET_Z(val),
 				V_FALSE,
 				C_FALSE,
-				SET_N(val)
-			)
-		);
+				SET_N(val)));
 	}
 	const C166State *state = (C166State *)analysis->plugin_data;
 	if (!state) {
@@ -805,20 +790,18 @@ static RzILOpEffect *c166_il_rets(ut64 pc, RzAnalysis *analysis, const ut8 *buf,
 		SETL("SP", SP_INC),
 		BRANCH(INV(VARG("SGTDIS")),
 			SETG("CSP", SP_GET_VAL8),
-			NOP()
-		),
+			NOP()),
 		SETG("SP", SP_INC),
-		JMP(UNSIGNED(32, VARL("addr")))
-	);
+		JMP(UNSIGNED(32, VARL("addr"))));
 }
 
 /*
-*	(IP) ← ((SP))
-*	(SP) ← (SP) + 2
-*	(tmp) ← ((SP))
-*	(SP) ← (SP) + 2
-*	(op1) ← (tmp)
-*
+ *	(IP) ← ((SP))
+ *	(SP) ← (SP) + 2
+ *	(tmp) ← ((SP))
+ *	(SP) ← (SP) + 2
+ *	(op1) ← (tmp)
+ *
  */
 static RzILOpEffect *c166_il_retp(ut64 pc, RzAnalysis *analysis, const ut8 *buf, RzAnalysisOp *op) {
 	ut64 IP = rz_reg_getv(analysis->reg, "IP");
@@ -839,7 +822,7 @@ static RzILOpEffect *c166_il_retp(ut64 pc, RzAnalysis *analysis, const ut8 *buf,
 	const RzPlatformTarget *arch_target = rz_analysis_get_arch_target(analysis);
 	const char *resolved = rz_platform_profile_resolve_mmio(arch_target->profile, op1);
 	if (!resolved) {
-		printf("IL[0x%02x] - [0x%06lx] IP: [0x%06lx] c166_il_retp 0x%04x\n",
+		RZ_LOG_DEBUG("IL[0x%02x] - [0x%06lx] IP: [0x%06lx] c166_il_retp 0x%04x\n",
 			op->id, pc, IP, op1);
 		return SEQN(7,
 			SETL("SP", VARG("SP")),
@@ -848,8 +831,7 @@ static RzILOpEffect *c166_il_retp(ut64 pc, RzAnalysis *analysis, const ut8 *buf,
 			STOREW(U32(op1), SP_GET_VAL16),
 			SETL("SP", SP_INC),
 			SETG("SP", VARL("SP")),
-			JMP(UNSIGNED(32, VARL("ip")))
-		);
+			JMP(UNSIGNED(32, VARL("ip"))));
 	}
 
 	return SEQN(7,
@@ -859,20 +841,19 @@ static RzILOpEffect *c166_il_retp(ut64 pc, RzAnalysis *analysis, const ut8 *buf,
 		SETG(resolved, SP_GET_VAL16),
 		SETL("SP", SP_INC),
 		SETG("SP", VARL("SP")),
-		JMP(UNSIGNED(32, VARL("ip")))
-	);
+		JMP(UNSIGNED(32, VARL("ip"))));
 }
 
 /*
-*	(IP) ← ((SP))
-*	(SP) ← (SP) + 2
-*	IF (CPUCON1.SGTDIS = 0) THEN
-*		(CSP) ← ((SP))
-*		(SP) ← (SP) + 2
-*	END IF
-*	(PSW) ← ((SP))
-*	(SP) ← (SP) + 2
-*
+ *	(IP) ← ((SP))
+ *	(SP) ← (SP) + 2
+ *	IF (CPUCON1.SGTDIS = 0) THEN
+ *		(CSP) ← ((SP))
+ *		(SP) ← (SP) + 2
+ *	END IF
+ *	(PSW) ← ((SP))
+ *	(SP) ← (SP) + 2
+ *
  */
 static RzILOpEffect *c166_il_reti(ut64 pc, RzAnalysis *analysis, const ut8 *buf, RzAnalysisOp *op) {
 	return SEQN(8,
@@ -882,29 +863,25 @@ static RzILOpEffect *c166_il_reti(ut64 pc, RzAnalysis *analysis, const ut8 *buf,
 		BRANCH(INV(VARG("SGTDIS")),
 			SEQ2(
 				SETG("CSP", SP_GET_VAL8),
-				SETL("SP", SP_INC)
-			),
-			NOP()
-		),
+				SETL("SP", SP_INC)),
+			NOP()),
 		SETG("PSW", SP_GET_VAL16),
 		SETL("SP", SP_INC),
 		SETG("SP", VARL("SP")),
-		JMP(UNSIGNED(32, VARL("addr")))
-	);
+		JMP(UNSIGNED(32, VARL("addr"))));
 }
 
 /*
-*	(IP) ← ((SP))
-*	(SP) ← (SP) + 2
-*
+ *	(IP) ← ((SP))
+ *	(SP) ← (SP) + 2
+ *
  */
 static RzILOpEffect *c166_il_ret(ut64 pc, RzAnalysis *analysis, const ut8 *buf, RzAnalysisOp *op) {
 	return SEQN(4,
 		SETL("SP", VARG("SP")),
 		SETL("ip", SP_GET_VAL16),
 		SETG("SP", SP_INC),
-		JMP(UNSIGNED(32, VARL("ip")))
-	);
+		JMP(UNSIGNED(32, VARL("ip"))));
 }
 
 /**
@@ -960,8 +937,7 @@ static RzILOpEffect *c166_il_push_reg(ut64 pc, RzAnalysis *analysis, const ut8 *
 			SETL("SP", VARG("SP")),
 			SETL("SP", SP_DEC),
 			SETL("addr", UNSIGNED(32, VARL("SP"))),
-			STORE(VARL("addr"), VARL("reg_val"))
-		);
+			STORE(VARL("addr"), VARL("reg_val")));
 	}
 	const C166State *state = (C166State *)analysis->plugin_data;
 	if (!state) {
@@ -984,8 +960,7 @@ static RzILOpEffect *c166_il_push_reg(ut64 pc, RzAnalysis *analysis, const ut8 *
 		SETL("SP", SP_DEC),
 		SETG("SP", VARL("SP")),
 		SETL("addr", UNSIGNED(32, VARL("SP"))),
-		STOREW(VARL("addr"), VARL("reg_val"))
-	);
+		STOREW(VARL("addr"), VARL("reg_val")));
 }
 
 /**
@@ -1039,7 +1014,7 @@ static RzILOpEffect *c166_il_movb_rbn_orwm_data16(ut64 pc, RzAnalysis *analysis,
 			SETL("addr", U16((seg << 14) + mem)),
 			SETL("addr", ADD(VARL("addr"), VARG(c166_rw[m]))),
 			SETL("load", LOADW(8, UNSIGNED(32, VARL("addr")))),
-			WRITE_RL(dst,  UNSIGNED(16, VARL("load"))),
+			WRITE_RL(dst, UNSIGNED(16, VARL("load"))),
 			SEQ3(SET_E(VARL("load")), SET_Z(VARL("load")), SET_N(VARL("load"))) // ??
 		);
 	}
@@ -1091,14 +1066,11 @@ static RzILOpEffect *c166_il_movb_orwm_data16_rbn(ut64 pc, RzAnalysis *analysis,
 		return SEQ3(
 			SETL("addr", U16((seg << 14) + mem)),
 			SETL("addr", ADD(VARL("addr"), VARG(c166_rw[m]))),
-			STORE(UNSIGNED(32, VARL("addr")), UNSIGNED(8, READ_RL(VARG(dst))))
-		);
+			STORE(UNSIGNED(32, VARL("addr")), UNSIGNED(8, READ_RL(VARG(dst)))));
 	}
 	return SEQ2(
 		SETL("addr", UNSIGNED(32, ADD(VARG(c166_rw[m]), U16(mem)))),
-		SETG(c166_rw[m], LOADW(16, VARL("addr")))
-	);
-
+		SETG(c166_rw[m], LOADW(16, VARL("addr"))));
 }
 
 static RzILOpEffect *c166_il_mov_rwn_rwm(ut64 pc, RzAnalysis *analysis, const ut8 *buf, RzAnalysisOp *op) {
@@ -1133,8 +1105,7 @@ static RzILOpEffect *c166_il_mov_rwn_orwmp(ut64 pc, RzAnalysis *analysis, const 
 			SETL("load", LOADW(16, VARL("addr"))),
 			SETG(dst, UNSIGNED(16, VARL("load"))),
 			SETG(src, ADD(VARL("src_op"), U16(2))),
-			SEQ3(SET_E(VARL("load")), SET_Z(VARL("load")), SET_N(VARL("load")))
-		);
+			SEQ3(SET_E(VARL("load")), SET_Z(VARL("load")), SET_N(VARL("load"))));
 	}
 
 	RzILOpBitVector *addr = UNSIGNED(32, VARG(src));
@@ -1154,8 +1125,7 @@ static RzILOpEffect *c166_il_mov_rwn_data4(ut64 pc, RzAnalysis *analysis, const 
 	return SEQN(3,
 		SETL("val", U8(data)),
 		SETG(c166_global_registers[reg], U16(data)),
-		SEQ3(SET_E(UNSIGNED(8, VARL("val"))), SET_Z(VARL("val")), SET_N(VARL("val")))
-	);
+		SEQ3(SET_E(UNSIGNED(8, VARL("val"))), SET_Z(VARL("val")), SET_N(VARL("val"))));
 }
 
 static RzILOpEffect *c166_il_mov_reg_data16(ut64 pc, RzAnalysis *analysis, const ut8 *buf, RzAnalysisOp *op) {
@@ -1191,8 +1161,7 @@ static RzILOpEffect *c166_il_mov_reg_data16(ut64 pc, RzAnalysis *analysis, const
 #endif
 			return SEQ2(
 				mov_flags_seq(U16(data)),
-				SETG("r2", U16(data))
-			);
+				SETG("r2", U16(data)));
 		case 0xfe10: ///< "CP"
 #ifdef C166_DUPLICATE_REG_OPERATIONS
 			rz_reg_setv(analysis->reg, "r0", (ut32)data);
@@ -1276,8 +1245,7 @@ static RzILOpEffect *c166_il_movb_rbn_data4(ut64 pc, RzAnalysis *analysis, const
 	return SEQN(3,
 		SETL("val", U16(data4)),
 		WRITE_RL(dst, VARL("val")),
-		SEQ3(SET_E(VARL("val")), SET_Z(VARL("val")), SET_N(VARL("val")))
-	);
+		SEQ3(SET_E(VARL("val")), SET_Z(VARL("val")), SET_N(VARL("val"))));
 }
 
 /**
@@ -1399,8 +1367,7 @@ static RzILOpEffect *c166_il_calls_seg_caddr(ut64 pc, RzAnalysis *analysis, cons
 		STOREW(UNSIGNED(32, VARL("SP")), U16(pc + C166_BYTESIZE_4)),
 		SETG("SP", VARL("SP")),
 		SETG("CSP", ITE(INV(VARG("SGTDIS")), U8(seg), U8(0))),
-		JMP(_loc)
-	);
+		JMP(_loc));
 }
 
 /**
@@ -1429,11 +1396,8 @@ static RzILOpEffect *c166_il_calli_cc_rwn(ut64 pc, RzAnalysis *analysis, const u
 				SETG("SP", VARL("SP")),
 				// STOREW(VARL("SP"), U16(pc + C166_BYTESIZE_4)),
 				STOREW(UNSIGNED(32, VARL("SP")), U16(pc + C166_BYTESIZE_4)),
-				JMP(VARL("addr"))
-			),
-			NOP()
-		)
-	);
+				JMP(VARL("addr"))),
+			NOP()));
 	/**
 	 SETL("reg_val", VARG(c166_rw[L_NIB(reg)])),
 			SETL("SP", VARG("SP")),
@@ -1520,7 +1484,7 @@ static c166_il_op c166_ops[256] = {
 	c166_il_unk, //
 	c166_il_unk, //
 	c166_il_add_reg_data16, //
-	c166_il_unk, //c166_il_addb_reg_data8, //
+	c166_il_unk, // c166_il_addb_reg_data8, //
 	c166_il_add_rwn_x, // 0x08
 	c166_il_addb_rbn_x, // 0x09
 	c166_il_bfldl_bitoff_x, // 0x0A 10
@@ -1535,7 +1499,7 @@ static c166_il_op c166_ops[256] = {
 	c166_il_unk, //
 	c166_il_unk, // 20
 	c166_il_unk, //
-	c166_il_unk, //c166_il_addc_reg_data16, //
+	c166_il_unk, // c166_il_addc_reg_data16, //
 	c166_il_unk, //
 	c166_il_addc_rwn_x, //
 	c166_il_unk, //
@@ -1543,27 +1507,27 @@ static c166_il_op c166_ops[256] = {
 	c166_il_unk, //
 	c166_il_unk, //
 	c166_il_jmpr_rel, //
-	c166_il_unk, //30
-	c166_il_unk, //c166_il_bset_bitoff1, //
-	c166_il_unk, //c166_il_sub_rwn_rwm, //
+	c166_il_unk, // 30
+	c166_il_unk, // c166_il_bset_bitoff1, //
+	c166_il_unk, // c166_il_sub_rwn_rwm, //
 	c166_il_unk, //
 	c166_il_unk, //
 	c166_il_unk, //
 	c166_il_unk, //
 	c166_il_unk, //
-	c166_il_unk, //c166_il_sub_reg_data16, //
+	c166_il_unk, // c166_il_sub_reg_data16, //
 	c166_il_unk, //
-	c166_il_sub_rwn_x, //40
-	c166_il_unk, //c166_il_subb_rbn_x, //
+	c166_il_sub_rwn_x, // 40
+	c166_il_unk, // c166_il_subb_rbn_x, //
 	c166_il_unk, //
 	c166_il_unk, //
 	c166_il_unk, // C166_ROR_Rwn_Rwm
 	c166_il_jmpr_rel, //
-	c166_il_unk, //c166_il_bclr_bitoff2, //
-	c166_il_unk, //c166_il_bset_bitoff2, //
+	c166_il_unk, // c166_il_bclr_bitoff2, //
+	c166_il_unk, // c166_il_bset_bitoff2, //
 	c166_il_unk, //
 	c166_il_unk, //
-	c166_il_unk, //50
+	c166_il_unk, // 50
 	c166_il_unk, //
 	c166_il_unk, //
 	c166_il_unk, //
@@ -1573,19 +1537,19 @@ static c166_il_op c166_ops[256] = {
 	c166_il_unk, //
 	c166_il_bmovn_bitaddr_bitaddr, //
 	c166_il_unk, //
-	c166_il_unk, //60
+	c166_il_unk, // 60
 	c166_il_jmpr_rel, //
 	c166_il_unk, //
 	c166_il_unk, //
 	c166_il_cmp_rwn_rwm, //
 	c166_il_cmpb_rbn_rbm, //
-	c166_il_unk, //c166_il_cmp_reg_mem, //
-	c166_il_unk, //c166_il_cmpb_reg_mem, //
+	c166_il_unk, // c166_il_cmp_reg_mem, //
+	c166_il_unk, // c166_il_cmpb_reg_mem, //
 	c166_il_unk, //
 	c166_il_unk, //
-	c166_il_unk, //c166_il_cmp_reg_data16, //70
+	c166_il_unk, // c166_il_cmp_reg_data16, //70
 	c166_il_cmpb_reg_data8, //
-	c166_il_unk, //c166_il_cmp_rwn_x, //
+	c166_il_unk, // c166_il_cmp_rwn_x, //
 	c166_il_cmpb_rbn_x, //
 	c166_il_unk, //
 	c166_il_div_rwn, //
@@ -1593,7 +1557,7 @@ static c166_il_op c166_ops[256] = {
 	c166_il_jmpr_rel, //
 	c166_il_bclr_bitoff4, //
 	c166_il_bset_bitoff4, //
-	c166_il_unk, //80
+	c166_il_unk, // 80
 	c166_il_xorb_rbn_rbm, //
 	c166_il_xor_reg_mem, //
 	c166_il_unk, //
@@ -1603,7 +1567,7 @@ static c166_il_op c166_ops[256] = {
 	c166_il_unk, //
 	c166_il_unk, //
 	c166_il_unk, //
-	c166_il_unk, //90
+	c166_il_unk, // 90
 	c166_il_unk, //
 	c166_il_shl_rwn_data4, //
 	c166_il_jmpr_rel, //
@@ -1613,7 +1577,7 @@ static c166_il_op c166_ops[256] = {
 	c166_il_unk, //
 	c166_il_unk, //
 	c166_il_unk, //
-	c166_il_unk, //100
+	c166_il_unk, // 100
 	c166_il_unk, //
 	c166_il_and_reg_data16, //
 	c166_il_unk, //
@@ -1623,7 +1587,7 @@ static c166_il_op c166_ops[256] = {
 	c166_il_divl_rwn, //
 	c166_il_unk, //
 	c166_il_jmpr_rel, //
-	c166_il_unk, //110
+	c166_il_unk, // 110
 	c166_il_bset_bitoff6, //
 	c166_il_or_rwn_rwm, //
 	c166_il_unk, //
@@ -1633,27 +1597,27 @@ static c166_il_op c166_ops[256] = {
 	c166_il_unk, //
 	c166_il_or_reg_data16, //
 	c166_il_unk, //
-	c166_il_or_rwn_x, //120
+	c166_il_or_rwn_x, // 120
 	c166_il_orb_rbn_x, //
 	c166_il_unk, //
 	c166_il_unk, //
 	c166_il_shr_rwn_data4, //
 	c166_il_jmpr_rel, //
-	c166_il_unk, //c166_il_bclr_bitoff7, //
+	c166_il_unk, // c166_il_bclr_bitoff7, //
 	c166_il_unk, //
 	c166_il_unk, //
 	c166_il_unk, //
-	c166_il_unk, //130
+	c166_il_unk, // 130
 	c166_il_unk, //
 	c166_il_unk, //
 	c166_il_lifted_nop, //
 	c166_il_unk, //
 	c166_il_lifted_nop, //
-	c166_il_unk, //c166_il_mov_norwm_rwn, //
+	c166_il_unk, // c166_il_mov_norwm_rwn, //
 	c166_il_unk, //
 	c166_il_jb_bitaddr_rel, //
 	c166_il_unk, //
-	c166_il_lifted_nop, //140
+	c166_il_lifted_nop, // 140
 	c166_il_jmpr_rel, //
 	c166_il_unk, //
 	c166_il_unk, //
@@ -1663,7 +1627,7 @@ static c166_il_op c166_ops[256] = {
 	c166_il_unk, //
 	c166_il_unk, //
 	c166_il_unk, //
-	c166_il_unk, //150
+	c166_il_unk, // 150
 	c166_il_lifted_nop, //
 	c166_il_mov_rwn_orwmp, //
 	c166_il_unk, //
@@ -1673,7 +1637,7 @@ static c166_il_op c166_ops[256] = {
 	c166_il_jmpr_rel, //
 	c166_il_unk, //
 	c166_il_unk, //
-	c166_il_unk, //160
+	c166_il_unk, // 160
 	c166_il_unk, //
 	c166_il_unk, //
 	c166_il_unk, //
@@ -1683,7 +1647,7 @@ static c166_il_op c166_ops[256] = {
 	c166_il_lifted_nop, //
 	c166_il_mov_rwn_orwm, //
 	c166_il_movb_rbn_oRwm, //
-	c166_il_jbc_bitaddr_rel, //170
+	c166_il_jbc_bitaddr_rel, // 170
 	c166_il_calli_cc_rwn, //
 	c166_il_unk, //
 	c166_il_jmpr_rel,
@@ -1693,7 +1657,7 @@ static c166_il_op c166_ops[256] = {
 	c166_il_unk, //
 	c166_il_unk, //
 	c166_il_unk, //
-	c166_il_unk, //180
+	c166_il_unk, // 180
 	c166_il_lifted_nop, //
 	c166_il_unk, //
 	c166_il_lifted_nop, //
@@ -1703,27 +1667,27 @@ static c166_il_op c166_ops[256] = {
 	c166_il_unk, //
 	c166_il_unk, //
 	c166_il_jmpr_rel, //
-	c166_il_unk, //c166_il_bclr_bitoff11, //190
-	c166_il_unk, //c166_il_bset_bitoff11, //
+	c166_il_unk, // c166_il_bclr_bitoff11, //190
+	c166_il_unk, // c166_il_bset_bitoff11, //
 	c166_il_movbz_rwn_rbm, //
 	c166_il_unk, //
 	c166_il_unk, //
 	c166_il_unk, //
-	c166_il_unk, //c166_il_mov_orwm_data16_rwn, //
+	c166_il_unk, // c166_il_mov_orwm_data16_rwn, //
 	c166_il_unk, //
 	c166_il_unk, //
 	c166_il_unk, //
-	c166_il_unk, //200
+	c166_il_unk, // 200
 	c166_il_unk, //
 	c166_il_unk, //
 	c166_il_ret, //
 	c166_il_lifted_nop, //
-	c166_il_jmpr_rel, //c166_il_jmpr_cc_slt_rel, //
+	c166_il_jmpr_rel, // c166_il_jmpr_cc_slt_rel, //
 	c166_il_unk,
 	c166_il_unk, //
-	c166_il_unk, //c166_il_movbs_rwn_rbm, //
-	c166_il_extp_or_exts_pag10_or_seg8_irang2, //c166_il_atomic_or_extr_irang2, //
-	c166_il_unk, //210
+	c166_il_unk, // c166_il_movbs_rwn_rbm, //
+	c166_il_extp_or_exts_pag10_or_seg8_irang2, // c166_il_atomic_or_extr_irang2, //
+	c166_il_unk, // 210
 	c166_il_unk, //
 	c166_il_mov_rwn_orwm_data16, //
 	c166_il_unk, //
@@ -1734,7 +1698,7 @@ static c166_il_op c166_ops[256] = {
 	c166_il_calls_seg_caddr, //
 	c166_il_rets, //
 	c166_il_lifted_nop, // c166_il_extp_or_exts_rwm_irang2, //220
-	c166_il_jmpr_rel, //c166_il_jmpr_cc_sge_rel, //
+	c166_il_jmpr_rel, // c166_il_jmpr_cc_sge_rel, //
 	c166_il_unk, //
 	c166_il_unk, //
 	c166_il_mov_rwn_data4, // 0xE0
@@ -1743,29 +1707,29 @@ static c166_il_op c166_ops[256] = {
 	c166_il_unk, //
 	c166_il_movb_orwm_data16_rbn, //
 	c166_il_unk, //
-	c166_il_mov_reg_data16, //230
-	c166_il_unk, //c166_il_movb_reg_data8, //
-	c166_il_unk, //c166_il_mov_orwn_orwmp, //
+	c166_il_mov_reg_data16, // 230
+	c166_il_unk, // c166_il_movb_reg_data8, //
+	c166_il_unk, // c166_il_mov_orwn_orwmp, //
 	c166_il_unk, //
-	c166_il_unk, //c166_il_jmpa_cc_caddr, //
+	c166_il_unk, // c166_il_jmpa_cc_caddr, //
 	c166_il_retp, //
 	c166_il_push_reg, //
-	c166_il_jmpr_rel, //c166_il_jmpr_cc_ugt_rel, //
+	c166_il_jmpr_rel, // c166_il_jmpr_cc_ugt_rel, //
 	c166_il_unk, //
 	c166_il_unk, //
-	c166_il_mov_rwn_rwm, //240
+	c166_il_mov_rwn_rwm, // 240
 	c166_il_movb_rbn_rbm, //
 	c166_il_unk, //
-	c166_il_unk, //c166_il_movb_reg_mem, //
+	c166_il_unk, // c166_il_movb_reg_mem, //
 	c166_il_movb_rbn_orwm_data16, //
 	c166_il_unk, //
 	c166_il_mov_mem_reg, // 0xF6
-	c166_il_unk, //c166_il_movb_mem_reg, //
+	c166_il_unk, // c166_il_movb_mem_reg, //
 	c166_il_unk, //
 	c166_il_unk, //
 	c166_il_jmps_seg_caddr, ///< C166_JMPS_seg_caddr = 0xFA 250
 	c166_il_reti, // 0xFB
-	c166_il_unk, //c166_il_pop_reg, // 0xFC
+	c166_il_unk, // c166_il_pop_reg, // 0xFC
 	c166_il_jmpr_rel, // 0xFD
 	c166_il_unk, // 0xFE
 	c166_il_unk // 0xFF
@@ -1790,9 +1754,9 @@ RZ_IPI RzAnalysisILConfig *rz_c166_il_config(RZ_NONNULL RzAnalysis *analysis) {
 		return NULL;
 	}
 #define IL_UN(l, x) rz_il_value_new_bitv(rz_bv_new_from_ut64(l, x))
-#define IL_U8(x) IL_UN(8, x)
-#define IL_U16(x) IL_UN(16, x)
-#define IL_U32(x) IL_UN(32, x)
+#define IL_U8(x)    IL_UN(8, x)
+#define IL_U16(x)   IL_UN(16, x)
+#define IL_U32(x)   IL_UN(32, x)
 	rz_analysis_il_init_state_set_var(r->init_state, "r0", IL_U16(0xFC00)); ///< CP
 	rz_analysis_il_init_state_set_var(r->init_state, "r1", IL_U16(0xFC00)); /// < SP
 	rz_analysis_il_init_state_set_var(r->init_state, "SP", IL_U16(0xFC00)); /// < SP

@@ -22,8 +22,6 @@
 static bool check_unused_opcode(const ut8 opcode) {
 	switch (opcode) {
 	case 0x3b:
-	case 0x44:
-	case 0x45:
 	case 0x8B:
 	case 0x95:
 	case 0xC1:
@@ -311,6 +309,8 @@ static _RzAnalysisOpType c166_analysis_op_type_by_opcode(const ut8 opcode) {
 	case C166_SCXT_reg_mem:
 	case C166_EXTP_or_EXTS_pag10_or_seg8_irang2:
 	case C166_EXTP_or_EXTS_Rwm_irang2:
+	case C166_STALLAM_44:
+	case C166_STALLEW_45:
 		return RZ_ANALYSIS_OP_TYPE_UNK;
 	default:
 		printf("0x%02x\n", opcode);
@@ -399,7 +399,7 @@ static RZ_OWN RzPVector /*<RzAsmTokenPattern *>*/ *get_token_patterns() {
 	}
 	TOKEN(META, "^(.word.*)");
 	// TOKEN(NUMBER, "#(0x[0-9a-f]{1,8})");
-	TOKEN(REGISTER, "(0xf[a-f][0-9a-f]{2})"); ///< 0xfe00:0x0246
+	TOKEN(REGISTER, "(0xf[0,a-f][0-9a-f]{2})"); ///< 0xfe00:0x0246
 	// Hexadecimal numbers
 	TOKEN(SEPARATOR, "([\\s.,:#]+)");
 	TOKEN(NUMBER, "(0x[f][0-9a-f]{1,3})");
@@ -468,8 +468,9 @@ static bool c16x_fini(void *user) {
 static char **c166_cpu_descriptions() {
 	static char *cpu_desc[] = {
 		"c166-generic", "Siemens/Infineon C166 family",
-		// "c166v1", "Siemens/Infineon C16x v1 family",
-		// "c166v2", "Siemens/Infineon C16x v2 family",
+		"c166v1", "Siemens/Infineon C16x v1 family",
+		"c166v2", "Siemens/Infineon C16x v2 family",
+		"st10", "STMicroelectronics ST10 family of 16-bit single-chip",
 		NULL
 	};
 	return cpu_desc;
@@ -485,10 +486,7 @@ RzAsmPlugin rz_asm_plugin_c166 = {
 	.disassemble = &disassemble,
 	.init = &c16x_init,
 	.fini = &c16x_fini,
-	.cpus =
-		"c166-generic,",
-		// "c166v1,"
-		// "c166v2"
+	.cpus = "c166-generic,c166v1,c166v2,st10",
 	.get_cpu_desc = c166_cpu_descriptions,
 };
 

@@ -8,6 +8,7 @@
 #include <analysis_private.h>
 #include <string.h>
 #include "omf/omf.h"
+#include "omf/omf166.h"
 
 bool set_reg_val2(RzReg *areg, const char *name, const ut16 value) {
 	RzRegItem *r = rz_reg_get(areg, name, RZ_REG_TYPE_GPR);

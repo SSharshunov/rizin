@@ -30,24 +30,24 @@
 
 #define print_hex_word(b, v) snprintf(b, 7, WORD_FMT, v) < 0 ? NULL : buf;
 
-#define BYTE_FMT  "0x%02x"
-#define WORD_FMT  "0x%04x"
-#define FMT_BYTE  ".byte 0x%02x"
-#define FMT_WORD  ".word 0x%02x%02x"
-#define FMT_2WORD ".word 0x%02x%02x .word 0x%02x%02x"
-#define FMT_DWORD_ADDR "0x%04x:0x%04x"
+#define BYTE_FMT           "0x%02x"
+#define WORD_FMT           "0x%04x"
+#define FMT_BYTE           ".byte 0x%02x"
+#define FMT_WORD           ".word 0x%02x%02x"
+#define FMT_2WORD          ".word 0x%02x%02x .word 0x%02x%02x"
+#define FMT_DWORD_ADDR     "0x%04x:0x%04x"
 #define FMT_DWORD_ADDR_LEN 19
-#define FMT0      "%s, [%s]"
-#define FMT1      "%s, [%s+]"
-#define FMT2      "[%s], %s"
-#define FMT3      "[-%s], %s"
-#define FMT4      "[%s], [%s]"
-#define FMT5      "[%s+], [%s]"
-#define FMT6      "[%s], [%s+]"
-#define FMT7      "%s %s"
-#define FMT8      "%s, #0x%04x"
-#define FMT9      "%s, %s"
-#define FMT10     "%s, #%i"
+#define FMT0               "%s, [%s]"
+#define FMT1               "%s, [%s+]"
+#define FMT2               "[%s], %s"
+#define FMT3               "[-%s], %s"
+#define FMT4               "[%s], [%s]"
+#define FMT5               "[%s+], [%s]"
+#define FMT6               "[%s], [%s+]"
+#define FMT7               "%s %s"
+#define FMT8               "%s, #0x%04x"
+#define FMT9               "%s, %s"
+#define FMT10              "%s, #%i"
 
 #define SHORT_TO_LONG_ADDR(base, ind) ((base) + (2 * (ind))) ///< [0..15] -> 0xFXXX
 #define REG_R(n)                      SHORT_TO_LONG_ADDR(BASE_GPR_ADDR, n)
@@ -358,8 +358,18 @@ typedef enum {
 	C166_CMPB_Rbn_Rbm = 0x41, ///< <b>[0x41]</b> Compare direct byte GPR to direct GPR <b>(2 bytes)</b>
 	C166_CMP_reg_mem = 0x42, ///< <b>[0x42]</b> Compare direct word memory to direct register <b>(4 bytes)</b>
 	C166_CMPB_reg_mem = 0x43, ///< <b>[0x43]</b> Compare direct byte memory to direct register <b>(4 bytes)</b>
-	// 0x44,
-	// 0x45,
+	/**
+	 * Datasheet page 2-33
+	 * CPUCON2
+	 * STEN 1) [6] rw Stall Instruction Enable
+	 * 0 Stall Instruction disabled
+	 * 1 Stall Instruction enabled
+	 *
+	 * Stalls the corresponding pipeline stage after d cycles for h cycles.
+	 **/
+	C166_STALLAM_44 = 0x44, ///< STALLAM da ,ha ,dm ,hm     Opcode: 44 da ha dm hm
+	C166_STALLEW_45 = 0x45, ///< STALLEW de ,he ,dw ,hw     Opcode: 45 de he dw hw d and h are 6 bit each
+
 	C166_CMP_reg_data16 = 0x46, ///< <b>[0x46]</b> Compare immediate word data to direct register <b>(4 bytes)</b>
 	C166_CMPB_reg_data8 = 0x47, ///< <b>[0x47]</b> Compare immediate byte data to direct register <b>(4 bytes)</b>
 	C166_CMP_Rwn_x = 0x48, /**< <b>[0x48]</b><br>

@@ -3,6 +3,7 @@
 
 #include "c166/c166_common.h"
 
+// clang-format off
 const char *const c166_rw[] = {
 	"r0", "r1", "r2", "r3",
 	"r4", "r5", "r6", "r7",
@@ -26,7 +27,6 @@ const char *const c166_rb[] = {
  * Used to determine the condition code for conditional jump instructions
  */
 // C166 condition code names
-// static
 const char *const conds_names[] = {
 	[C166_CC_UC]    = "cc_UC",      ///< Unconditional
 	[C166_CC_V]     = "cc_V",       ///< Overflow
@@ -68,7 +68,7 @@ const char *const c166_extx_names[] = {
 	"extpr"
 };
 
-const char* c166_get_word_reg_name(const ut8 rb_index) {
+const char *c166_get_word_reg_name(const ut8 rb_index) {
 	if (rb_index < 0 || rb_index >= 16) {
 		return NULL;
 	}

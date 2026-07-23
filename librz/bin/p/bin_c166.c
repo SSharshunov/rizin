@@ -9,22 +9,24 @@
 /**
  * \brief Check if file starts with a vector table
  * */
-static bool is_c166_vector_table(RzBuffer *buf) {
-	if (rz_buf_size(buf) < 64)
-		return false;
+static bool is_c166_buffer(RzBuffer *buf) {
 	ut8 c = 0;
-	ut8 i = 0;
-	while (i <= 24) {
-		if (!rz_buf_read8_at(buf, i, &c) || c != 0xFA) {
-			return false; // Not a jmp
-		}
-		i += 4 + 2 * 2;
+	if (!rz_buf_read8_at(buf, 0, &c) || c != 0xFA) {
+		return false; // Not a jmp
+	}
+	return true;
+}
+
+static bool check_vector(const ut8 *buf, ut64 size) {
+	const ut8 c = rz_read_le8(buf);
+	if (!c || c != 0xFA) {
+		return false; // Not a jmp
 	}
 	return true;
 }
 
 static bool check_buffer(RzBuffer *buf) {
-	if (is_c166_vector_table(buf))
+	if (is_c166_buffer(buf))
 		return true;
 	return false;
 }
@@ -36,13 +38,41 @@ rz_bin_c166_obj *rz_bin_format_c166_load(const ut8 *buf, ut64 size) {
 	}
 	const ut8 c = rz_read_le8(buf + 1);
 	ret->base_addr = (ut32)c << 16;
+
+	ret->interrupts = rz_vector_new(sizeof(ut64), NULL, NULL);
+	if (!ret->interrupts) {
+		return NULL;
+	}
+	ut16 i = 0;
+	while (i <= (1 << 9)) {
+		const ut8 cc = rz_read_le8(buf + i);
+		if (cc && cc == 0xFA) {
+			ut64 addr = ret->base_addr | i;
+			rz_vector_push(ret->interrupts, &addr);
+			i += 4;
+			continue;
+		}
+		i += 4;
+		const ut8 cc2 = rz_read_le8(buf + i);
+		if (!cc2 || cc2 != 0xFA) {
+			if (cc2 == 0xFF || cc2 == 0x00) {
+				continue;
+			}
+			break; // Not a jmp
+		}
+	}
 	return ret;
 }
 
 static bool load_buffer(RzBinFile *bf, RzBinObject *obj, RzBuffer *b, Sdb *sdb) {
-	ut64 size;
+	(void)bf;
+	(void)sdb;
+	ut64 size = rz_buf_size(b);
 	const ut8 *buf = rz_buf_data(b, &size);
 	if (!buf) {
+		return false;
+	}
+	if (!check_vector(buf, size)) {
 		return false;
 	}
 	obj->bin_obj = rz_bin_format_c166_load(buf, size);
@@ -65,13 +95,15 @@ static RzBinInfo *info(RzBinFile *bf) {
 		free(ret);
 		return NULL;
 	}
+	const rz_bin_c166_obj *obj = bf->o->bin_obj;
+
 	ret->type = rz_str_dup("ROM");
 	ret->file = rz_str_dup(bf->file);
 	ret->bclass = rz_str_dup("Unknown");
 	ret->rclass = rz_str_dup("Unknown");
 	ret->compiler = rz_str_dup("keil");
 	ret->os = rz_str_dup("c166");
-	ret->cpu = rz_str_dup("c166-generic");
+	ret->cpu = cpu_name(obj->cpu);
 	ret->machine = rz_str_dup("Siemens/Infineon C166 family microcontroller");
 	ret->arch = rz_str_dup("c166");
 	ret->big_endian = false;
@@ -93,8 +125,8 @@ static RzPVector /*<RzBinMap *>*/ *maps(RzBinFile *bf) {
 		return NULL;
 	}
 
-	RzBinMap *map = NULL;
-	if (!((map = RZ_NEW0(RzBinMap)))) {
+	RzBinMap *map = RZ_NEW0(RzBinMap);
+	if (!map) {
 		rz_pvector_free(ret);
 		return NULL;
 	}
@@ -114,12 +146,12 @@ static RzPVector /*<RzBinAddr *>*/ *entries(RzBinFile *bf) {
 	}
 	const rz_bin_c166_obj *obj = bf->o->bin_obj;
 
-	RzPVector *ret;
-	RzBinAddr *addr;
-	if (!((ret = rz_pvector_new(free)))) {
+	RzPVector *ret = rz_pvector_new(free);
+	if (!ret) {
 		return NULL;
 	}
-	if (!((addr = RZ_NEW0(RzBinAddr)))) {
+	RzBinAddr *addr = RZ_NEW0(RzBinAddr);
+	if (!addr) {
 		rz_pvector_free(ret);
 		return NULL;
 	}
@@ -138,30 +170,72 @@ static RzPVector /*<RzBinString *>*/ *strings(RzBinFile *bf) {
 }
 
 static RzBinAddr *binsym(RzBinFile *bf, RzBinSpecialSymbol type) {
-	RzBinAddr *ptr = NULL;
 	if (!bf || !bf->o || !bf->o->bin_obj) {
 		return NULL;
 	}
-	rz_bin_c166_obj *obj = bf->o->bin_obj;
-	switch (type) {
-	case RZ_BIN_SPECIAL_SYMBOL_ENTRY:
+	const rz_bin_c166_obj *obj = bf->o->bin_obj;
+	if (type == RZ_BIN_SPECIAL_SYMBOL_ENTRY) {
 		// entrypoint is always RESET vector (0xC00000)
-		if (!((ptr = RZ_NEW0(RzBinAddr)))) {
+		RzBinAddr *ptr = RZ_NEW0(RzBinAddr);
+		if (!ptr) {
 			RZ_FREE(ptr);
 			return NULL;
 		}
 		ptr->type = RZ_BIN_SPECIAL_SYMBOL_ENTRY;
 		ptr->vaddr = obj->base_addr;
 		return ptr;
-	case RZ_BIN_SPECIAL_SYMBOL_MAIN:
-	default:
+	}
+	return NULL;
+}
+
+static RzPVector /*<RzBinSymbol *>*/ *symbols(RzBinFile *bf) {
+	if (!bf || !bf->o) {
 		return NULL;
 	}
+	const rz_bin_c166_obj *obj = (rz_bin_c166_obj *)bf->o->bin_obj;
+	if (!obj) {
+		return NULL;
+	}
+
+	RzPVector *ret = rz_pvector_new((RzPVectorFree)rz_bin_symbol_free);
+	if (!ret) {
+		return NULL;
+	}
+	populate_isr_table(obj->interrupts, ret, obj->base_addr);
+	return ret;
 }
 
 static ut64 baddr(RzBinFile *bf) {
 	const rz_bin_c166_obj *obj = (rz_bin_c166_obj *)bf->o->bin_obj;
 	return obj->base_addr;
+}
+
+static RzStructuredData *c166_structure(RzBinFile *bf) {
+	if (!bf || !bf->o) {
+		return NULL;
+	}
+	const rz_bin_c166_obj *obj = (rz_bin_c166_obj *)bf->o->bin_obj;
+	if (!obj) {
+		return NULL;
+	}
+
+	RzStructuredData *info = rz_structured_data_new_map();
+	if (!info) {
+		return NULL;
+	}
+	const char *cpu = cpu_name(obj->cpu);
+	rz_structured_data_map_add_string(info, "cpu", cpu);
+	free((char *)cpu);
+
+	RzStructuredData *bininfo = rz_structured_data_map_add_map(info, "c166-bininfo");
+	if (!bininfo) {
+		rz_structured_data_free(info);
+		return NULL;
+	}
+	rz_structured_data_map_add_unsigned(bininfo, "isr_count",
+		rz_vector_len(obj->interrupts), false);
+	rz_structured_data_map_add_unsigned(bininfo, "base_addr", obj->base_addr, true);
+	return info;
 }
 
 struct rz_bin_plugin_t rz_bin_plugin_c166 = {
@@ -174,8 +248,10 @@ struct rz_bin_plugin_t rz_bin_plugin_c166 = {
 	.check_buffer = &check_buffer,
 	.entries = &entries,
 	.maps = &maps,
+	.bin_structure = &c166_structure,
 	.info = &info,
 	.binsym = &binsym,
+	.symbols = &symbols,
 	.strings = &strings,
 	.baddr = baddr
 };

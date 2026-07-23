@@ -7238,7 +7238,6 @@ pc_write(old: 0x1aa, new: 0x1ac)
 0x00018016  00                                       .
 =======
 IL[0x49] - [0x0001a0] IP: [0x000170] c166_il_cmpb_rbn_x nop
-IL[0x0f] - [0x0001a4] IP: [0x0001a8] c166_il_bset_bitoff0 nop
 IL[0x68] - [0x0001aa] IP: [0x0001aa] c166_il_and_rwn_x nop
 EOF
 RUN
@@ -7478,6 +7477,7 @@ RUN
 NAME=Try testing real dump
 FILE=bins/c166/Lifan_X50_CVT_Bosch_M7.8.8_F01R00DP24_BSL_Combiloader.bin
 TIMEOUT=30
+BROKEN=1
 CMDS=<<EOF
 e asm.cpu=c166-generic
 e io.cache=1

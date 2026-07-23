@@ -10,8 +10,8 @@
 #include <analysis_private.h>
 
 #define C166_BYTESIZE_INVALID (-1)
-#define C166_BYTESIZE_2 2
-#define C166_BYTESIZE_4 4
+#define C166_BYTESIZE_2       2
+#define C166_BYTESIZE_4       4
 
 #define H_NIB(x) (((x) & 0xF0) >> 4) ///< High nibble
 #define L_NIB(x) ((x) & 0x0F) ///< Low nibble
@@ -65,8 +65,8 @@
 #define REG_ASC0_RIC 0xFF6EU ///< Serial Channel 0 Receive Interrupt Control Register
 
 #define baddr(base, reg) ((ut16)reg * 2 + base)
-#define SFR_ADDR(reg) baddr(BASE_SFR_ADDR, reg)
-#define ESFR_ADDR(reg) baddr(BASE_ESFR_ADDR, reg)
+#define SFR_ADDR(reg)    baddr(BASE_SFR_ADDR, reg)
+#define ESFR_ADDR(reg)   baddr(BASE_ESFR_ADDR, reg)
 
 /*!
  * \brief C166 Branch Condition Codes
@@ -135,7 +135,7 @@ extern const char *const c166_extx_names[];
 
 const char *conds(ut8 cc);
 const char *conds_extended(ut8 cc);
-const char* c166_get_word_reg_name(const ut8 rb_index);
+const char *c166_get_word_reg_name(const ut8 rb_index);
 ut8 c166_get_byte_offset(const ut8 rb_index);
 
 static inline bool IS_GPR(ut8 addr) {

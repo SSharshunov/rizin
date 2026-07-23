@@ -303,7 +303,7 @@ typedef struct {
 	ut8 n; ///< n max 255, so name array len is 255
 	char *name;
 	char name2[255]; ///< represents the symbol name
-	ut64 size;
+	ut32 size;
 	ut16 seg_idx;
 	ut32 offset; ///< is a 16 Bit offset of the symbol with respect to the referent value pecified by ’LocBase’.
 	ut8 rec_type;
@@ -719,29 +719,6 @@ typedef struct {
 	OMF_type_components components[MAX_NAME_LEN];
 } OMF_type_component_list;
 
-typedef struct {
-	ut8 bits;
-	ut64 base_addr;
-	ut8 modinfo;
-	int TI_INDEX;
-	int SEC_INDEX;
-	RzTypeDB *typedb;
-	HtUP /*<OMF_type *>*/ *ht_types;
-	RzPVector /*<OMF_debug_includes *>*/ *includes_vec;
-	RzPVector /*<OMF_ledatas *>*/ *ledatas_vec;
-	RzPVector /*<OMF_lnames *>*/ *lnames_vec;
-	RzPVector /*<OMF_deplsts *>*/ *deplsts_vec;
-	RzPVector /*<OMF_linnums *>*/ *linnums_vec;
-	RzPVector /*<OMF_regmsks *>*/ *regmsks_vec;
-	RzPVector /*<OMF_coments *>*/ *coments_vec;
-	RzPVector /*<OMF_sections *>*/ *sections_vec;
-	RzPVector /*<OMF_symbol *>*/ *symbols_vec;
-	RzPVector /*<OMF_blocks *>*/ *blocks_vec;
-	RzPVector /*<OMF_pes *>*/ *pe_vec;
-	RzVector /*<ut64>*/ *interrupts;
-	ut32 nb_symbol;
-} rz_bin_omf166_obj;
-
 // this value was chosen arbitrarily to made the loader work correctly
 // if someone want to implement rellocation for omf he has to remove this
 #define OMF_BASE_ADDR    0x1000
@@ -765,12 +742,4 @@ RZ_API char *get_memory_model(ut8 modinfo);
 ut32 get_perm_by_type(ut8 data_type);
 ut32 c166_get_perms_from_class(const ut8 class_id);
 const char *get_data_type(ut8 data_type);
-RZ_API const char *name_of_ti(const rz_bin_omf166_obj *obj, ut16 ti_index);
-rz_bin_omf166_obj *rz_bin_format_omf166_load(const ut8 *buf, ut64 size);
-void rz_bin_format_omf166_fini(rz_bin_omf166_obj *obj);
-void rz_bin_free_all_omf166_obj(rz_bin_omf166_obj *obj);
-bool rz_bin_omf166_get_entry(const rz_bin_omf166_obj *obj, RzBinAddr *addr);
-ut64 rz_bin_omf166_get_paddr_sym(rz_bin_omf166_obj *obj, OMF_symbol *sym);
-ut64 rz_bin_omf166_get_vaddr_sym(rz_bin_omf166_obj *obj, OMF_symbol *sym);
-const char *rz_bin_omf166_get_module_information(rz_bin_omf166_obj *obj);
 #endif

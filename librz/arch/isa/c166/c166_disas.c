@@ -17,10 +17,9 @@
 #include <rz_types.h>
 #include <rz_util.h>
 #include <string.h>
-
 #include <c166/c166_disas.h>
 
-static const char *c166_instr_name(ut8 instr) {
+const char *c166_instr_name(ut8 instr) {
 	switch (instr) {
 	case C166_ADD_Rwn_Rwm:
 	case C166_ADD_Rwn_x:
@@ -373,45 +372,8 @@ RZ_API void c166_maybe_deactivate_ext(RZ_NONNULL C166State *state, const ut32 ad
  */
 static const char *c166_fmt_mem(const C166ExtState *ext, char *buf, const ut16 mem) {
 	const st32 i = (mem >> 14) & 0b11;
-	switch (ext->mode) {
-	case C166_EXT_MODE_REG:
-	case C166_EXT_MODE_NONE: {
-		const ut16 addr = SFR_ADDR(i);
-		snprintf(buf, 16, "0x%x:0x%04x", addr, mem & 0x3FFF);
-		break;
-	}
-	case C166_EXT_MODE_SEG: {
-		const ut32 seg = ((ut32)(ext->value & 0xFF));
-		switch (seg) {
-		case 1:
-			snprintf(buf, 16, "0xfe00:0x%04x", (mem & 0x3FFF));
-			break;
-		case 2:
-			snprintf(buf, 16, "0xfe02:0x%04x", (mem & 0x3FFF));
-			break;
-		case 3:
-			snprintf(buf, 16, "0xfe04:0x%04x", (mem & 0x3FFF));
-			break;
-		case 4:
-			snprintf(buf, 16, "0xfe06:0x%04x", (mem & 0x3FFF));
-			break;
-		default:
-			printf("seg: %d 0x%04x [0x%08x]\n",
-				seg, mem, ext->value);
-			snprintf(buf, 19, "0x%04x:0x%04x",
-				0xfe00 | ((seg - 1) * 2),
-				mem & 0x3FFF);
-			rz_warn_if_reached();
-		}
-		break;
-	}
-	case C166_EXT_MODE_PAGE: {
-		const ut32 page = ((ut32)ext->value & 0x3FF) << 14;
-		snprintf(buf, 11, "0x%08x", page | (mem & 0x3FFF));
-		break;
-	}
-	default:;
-	}
+	const ut16 addr = SFR_ADDR(i);
+	snprintf(buf, FMT_DWORD_ADDR_LEN, FMT_DWORD_ADDR, addr, mem & 0x3FFF);
 	return buf;
 }
 
@@ -761,7 +723,7 @@ static ut8 c166_instr_cc_caddr(C166_Inst *instr) {
 	INSTR("%s%s",
 		(instr->id == C166_CALLA_cc_caddr) ? "calla" : "jmpa",
 		a ? "-" : "+");
-	OPERANDS("%s, 0x%04x", conds_extended(d), addr);
+	OPERANDS("%s, 0x%06x", conds_extended(d), addr);
 	return C166_BYTESIZE_4;
 }
 
@@ -959,7 +921,7 @@ static ut8 c166_instr_seg_or_pag_irang2(C166State *state, C166_Inst *instr) {
 
 		const ut16 data = rz_read_at_le16(&instr->d, 2);
 		const C166ExtState new_state = {
-			.esfr = true,
+			.esfr = seg ? false : true,
 			.mode = seg ? C166_EXT_MODE_SEG : C166_EXT_MODE_PAGE,
 			.i = irang2,
 			.value = data & (seg ? 0xFF : 0x3FF)
@@ -1781,39 +1743,43 @@ RZ_IPI st32 c166_decode_command(RZ_NONNULL C166State *state, RZ_NONNULL C166_Ins
 	case C166_TRAP_trap7:
 		instr->byte_size = c166_trap_instr(instr);
 		goto ok;
-	case C166_ADD_reg_mem:
-	case C166_ADDC_reg_mem:
-	case C166_SUB_reg_mem:
 	case C166_SUBC_reg_mem:
 	case C166_AND_reg_mem:
 	case C166_OR_reg_mem:
-	case C166_XOR_reg_mem:
-	case C166_CMP_reg_mem:
 	case C166_MOV_reg_mem:
 	case C166_SCXT_reg_mem:
 		instr->byte_size = c166_instr_reg_mem(instr, false);
 		break;
-	case C166_ADDB_reg_mem:
+	case C166_SUB_reg_mem:
+	case C166_ADD_reg_mem:
+	case C166_ADDC_reg_mem:
+	case C166_XOR_reg_mem:
+	case C166_CMP_reg_mem:
+		instr->byte_size = c166_instr_reg_mem(instr, false);
+		break;
 	case C166_ADDCB_reg_mem:
 	case C166_SUBB_reg_mem:
 	case C166_SUBCB_reg_mem:
-	case C166_ANDB_reg_mem:
 	case C166_ORB_reg_mem:
 	case C166_XORB_reg_mem:
 	case C166_CMPB_reg_mem:
 	case C166_MOVB_reg_mem:
 	case C166_MOVBS_reg_mem:
 	case C166_MOVBZ_reg_mem:
+	case C166_ADDB_reg_mem:
+	case C166_ANDB_reg_mem:
 		instr->byte_size = c166_instr_reg_mem(instr, true);
 		break;
 	case C166_ADD_mem_reg:
-	case C166_ADDC_mem_reg:
 	case C166_SUB_mem_reg:
 	case C166_SUBC_mem_reg:
-	case C166_AND_mem_reg:
 	case C166_OR_mem_reg:
-	case C166_XOR_mem_reg:
 	case C166_MOV_mem_reg:
+		instr->byte_size = c166_instr_mem_reg(instr, false);
+		break;
+	case C166_AND_mem_reg:
+	case C166_ADDC_mem_reg:
+	case C166_XOR_mem_reg:
 		instr->byte_size = c166_instr_mem_reg(instr, false);
 		break;
 	case C166_ADDB_mem_reg:
@@ -1929,8 +1895,20 @@ RZ_IPI st32 c166_decode_command(RZ_NONNULL C166State *state, RZ_NONNULL C166_Ins
 		instr->byte_size = c166_instr_extended(instr);
 		goto ok;
 	// case 0x3b:
-	// case 0x44:
-	// case 0x45:
+	case C166_STALLAM_44: {
+		INSTR("stallam");
+		const ut8 op1 = get_operand(instr, 1);
+		OPERANDS("0x%02x", op1);
+		instr->byte_size = C166_BYTESIZE_2;
+		goto ok;
+	}
+	case C166_STALLEW_45: {
+		INSTR("stallew");
+		const ut8 op1 = get_operand(instr, 1);
+		OPERANDS("0x%02x", op1);
+		instr->byte_size = C166_BYTESIZE_2;
+		goto ok;
+	}
 	// case 0x8B:
 	// case 0x95:
 	// case 0xC1:

@@ -3,7 +3,7 @@
 // SPDX-FileCopyrightText: 2025-2026 Sergey Sharshunov <s.sharshunov@gmail.com>
 // SPDX-License-Identifier: LGPL-3.0-only
 
-#include "omf.h"
+#include "omf166.h"
 
 /**
  * \file omf166.c
@@ -1354,6 +1354,7 @@ rz_bin_omf166_obj *rz_bin_format_omf166_load(const ut8 *buf, ut64 size) {
 	if (!ret) {
 		return NULL;
 	}
+	ret->interrupts = rz_vector_new(sizeof(ut64), NULL, NULL);
 
 	if (!rz_bin_format_omf166_load_all_records(ret, buf, size)) {
 		rz_bin_format_omf166_free_all_records(ret);
