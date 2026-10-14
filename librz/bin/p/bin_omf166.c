@@ -364,6 +364,7 @@ static RzStructuredData *omf166_structure(RzBinFile *bf) {
 
 	RzStructuredData *sections = rz_structured_data_map_add_array(omf, "sections");
 	if (!sections) {
+		rz_structured_data_free(info);
 		return NULL;
 	}
 
