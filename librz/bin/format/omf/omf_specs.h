@@ -8,6 +8,7 @@
 
 // additional information : http://pierrelib.pagesperso-orange.fr/exec_formats/OMF_v1.1.pdf
 
+#define RECORD_MAX_SIZE 1 << 10 // max size 1Kb
 // record type
 #define OMF_THEADR    0x80 // Translator Header Record
 #define OMF_LHEADR    0x82 // Library Module Header Record

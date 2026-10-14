@@ -401,15 +401,24 @@ static OMF_record_handler *load_record_omf(const ut8 *buf, ut64 global_ct, ut64 
 		if (!new) {
 			return NULL;
 		}
-		((OMF_record *)new)->type = *buf;
-		((OMF_record *)new)->size = rz_read_le16(buf + 1);
-
-		// at least a record have a type a size and a checksum
-		if (((OMF_record *)new)->size > buf_size - 3 || buf_size < 4) {
-			RZ_LOG_ERROR("Invalid record (too short)\n");
+		((OMF_record *)new)->type = rz_read_le8(buf);
+		const ut16 tainted_value = rz_read_le16(buf + 1);
+		if (tainted_value > UINT16_MAX) {
+			RZ_LOG_WARN("File may be corrupted (Overflow detected).\n");
 			RZ_FREE(new);
 			return NULL;
 		}
+
+		// at least a record have a type a size and a checksum
+		if (tainted_value > RECORD_MAX_SIZE ||
+			tainted_value > buf_size - 3 || buf_size < 4) {
+			RZ_LOG_ERROR("Invalid record (too long)\n");
+			RZ_FREE(new);
+			return NULL;
+		}
+
+		((OMF_record *)new)->size = tainted_value;
+
 		const int res = load_omf_content((OMF_record *)new, buf, global_ct, buf_size);
 		if (!res) {
 			RZ_FREE(new);
