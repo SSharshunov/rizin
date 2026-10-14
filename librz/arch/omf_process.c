@@ -105,7 +105,6 @@ static RzBaseType *create_new_primitive_type(const RzTypeDB *typedb, const char 
 	bt->size = size;
 	const bool result = rz_type_db_save_base_type(typedb, bt);
 	if (!result) {
-		rz_type_base_type_free(bt);
 		RZ_LOG_WARN("Not found: `%s`\n", name);
 		return NULL;
 	}
