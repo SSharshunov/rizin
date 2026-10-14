@@ -69,7 +69,7 @@ const char *const c166_extx_names[] = {
 };
 
 const char *c166_get_word_reg_name(const ut8 rb_index) {
-	if (rb_index < 0 || rb_index >= 16) {
+	if (rb_index >= 16) {
 		return NULL;
 	}
 	const ut16 rw_index = rb_index >> 1;
